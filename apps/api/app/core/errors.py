@@ -23,6 +23,20 @@ class AppError(Exception):
         self.details = details or {}
 
 
+class DomainError(AppError):
+    """Generic domain-level error with HTTP status code."""
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        http_status: int = 400,
+        *,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(code, message, http_status, details=details)
+
+
 class AuthenticationRequired(AppError):
     def __init__(self, message: str = "Authentication is required.") -> None:
         super().__init__("AUTHENTICATION_REQUIRED", message, HTTPStatus.UNAUTHORIZED)

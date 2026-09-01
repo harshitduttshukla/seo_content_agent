@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/crawl-jobs/{crawl_job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Crawl Job */
+        get: operations["get_crawl_job_api_v1_crawl_jobs__crawl_job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crawl-jobs/{crawl_job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Crawl */
+        post: operations["cancel_crawl_api_v1_crawl_jobs__crawl_job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations": {
         parameters: {
             query?: never;
@@ -166,6 +200,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/websites/{website_id}/crawl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Crawl */
+        post: operations["start_crawl_api_v1_websites__website_id__crawl_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/crawl-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Crawl Jobs */
+        get: operations["list_crawl_jobs_api_v1_websites__website_id__crawl_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/crawl-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Crawl Status */
+        get: operations["get_crawl_status_api_v1_websites__website_id__crawl_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Links */
+        get: operations["list_links_api_v1_websites__website_id__links_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pages */
+        get: operations["list_pages_api_v1_websites__website_id__pages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/pages/{page_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Page */
+        get: operations["get_page_api_v1_websites__website_id__pages__page_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Verification Info */
+        get: operations["get_verification_info_api_v1_websites__website_id__verification_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/websites/{website_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Website */
+        post: operations["verify_website_api_v1_websites__website_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -204,6 +374,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApiResponse[ContentPageDetail] */
+        ApiResponse_ContentPageDetail_: {
+            data: components["schemas"]["ContentPageDetail"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[ContentPageList] */
+        ApiResponse_ContentPageList_: {
+            data: components["schemas"]["ContentPageList"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[CrawlJobDetail] */
+        ApiResponse_CrawlJobDetail_: {
+            data: components["schemas"]["CrawlJobDetail"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[CrawlJobList] */
+        ApiResponse_CrawlJobList_: {
+            data: components["schemas"]["CrawlJobList"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[CrawlStatusSummary] */
+        ApiResponse_CrawlStatusSummary_: {
+            data: components["schemas"]["CrawlStatusSummary"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         /** ApiResponse[OrganizationDetail] */
         ApiResponse_OrganizationDetail_: {
             data: components["schemas"]["OrganizationDetail"] | null;
@@ -228,6 +433,13 @@ export interface components {
         /** ApiResponse[OrganizationMemberList] */
         ApiResponse_OrganizationMemberList_: {
             data: components["schemas"]["OrganizationMemberList"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[PageLinkList] */
+        ApiResponse_PageLinkList_: {
+            data: components["schemas"]["PageLinkList"] | null;
             /** Errors */
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
@@ -267,6 +479,13 @@ export interface components {
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** ApiResponse[WebsiteVerificationDetail] */
+        ApiResponse_WebsiteVerificationDetail_: {
+            data: components["schemas"]["WebsiteVerificationDetail"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         /** ApiResponse[dict[str, str]] */
         ApiResponse_dict_str__str__: {
             /** Data */
@@ -276,6 +495,256 @@ export interface components {
             /** Errors */
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ContentPageDetail */
+        ContentPageDetail: {
+            /** Canonical Url */
+            canonical_url: string | null;
+            /** Cleaned Content */
+            cleaned_content: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Content Status */
+            content_status: string;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Headings
+             * @default []
+             */
+            headings: Record<string, never>[];
+            /** Http Status */
+            http_status: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Images
+             * @default []
+             */
+            images: Record<string, never>[];
+            /** Language */
+            language: string;
+            /** Last Crawled At */
+            last_crawled_at: string | null;
+            /** Meta Description */
+            meta_description: string;
+            /**
+             * Metadata
+             * @default {}
+             */
+            metadata: Record<string, never>;
+            /** Normalized Url */
+            normalized_url: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Structured Content */
+            structured_content: Record<string, never>;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Url */
+            url: string;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
+            /** Word Count */
+            word_count: number;
+        };
+        /** ContentPageList */
+        ContentPageList: {
+            /** Items */
+            items: components["schemas"]["ContentPageSummary"][];
+        };
+        /** ContentPageSummary */
+        ContentPageSummary: {
+            /** Canonical Url */
+            canonical_url: string | null;
+            /** Content Status */
+            content_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Http Status */
+            http_status: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Crawled At */
+            last_crawled_at: string | null;
+            /** Normalized Url */
+            normalized_url: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
+            /** Word Count */
+            word_count: number;
+        };
+        /** CrawlConfiguration */
+        CrawlConfiguration: {
+            /**
+             * Allowed Paths
+             * @description Subpath prefixes to allow
+             */
+            allowed_paths?: string[];
+            /**
+             * Blocked Paths
+             * @description Subpath prefixes to block
+             */
+            blocked_paths?: string[];
+            /**
+             * Crawl Delay
+             * @description Politeness delay between fetches in seconds
+             * @default 0.2
+             */
+            crawl_delay: number;
+            /**
+             * Include Subdomains
+             * @description Include subdomains of verified host
+             * @default false
+             */
+            include_subdomains: boolean;
+            /**
+             * Max Depth
+             * @description Maximum crawl depth
+             * @default 4
+             */
+            max_depth: number;
+            /**
+             * Max Pages
+             * @description Maximum pages to crawl
+             * @default 200
+             */
+            max_pages: number;
+            /**
+             * Respect Robots
+             * @description Respect robots.txt directives
+             * @default true
+             */
+            respect_robots: boolean;
+            /**
+             * User Agent
+             * @description Custom crawler User-Agent
+             * @default Antigravity-ContentAgent/1.0
+             */
+            user_agent: string;
+        };
+        /** CrawlJobCreate */
+        CrawlJobCreate: {
+            configuration?: components["schemas"]["CrawlConfiguration"];
+        };
+        /** CrawlJobDetail */
+        CrawlJobDetail: {
+            /** Completed At */
+            completed_at: string | null;
+            /** Configuration */
+            configuration: Record<string, never>;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Count */
+            error_count: number;
+            /** Error Summary */
+            error_summary: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Pages Crawled */
+            pages_crawled: number;
+            /** Pages Discovered */
+            pages_discovered: number;
+            /** Pages Failed */
+            pages_failed: number;
+            /** Pages Skipped */
+            pages_skipped: number;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Requested By Id */
+            requested_by_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
+        };
+        /** CrawlJobList */
+        CrawlJobList: {
+            /** Items */
+            items: components["schemas"]["CrawlJobDetail"][];
+        };
+        /** CrawlStatusSummary */
+        CrawlStatusSummary: {
+            active_job?: components["schemas"]["CrawlJobDetail"] | null;
+            last_job?: components["schemas"]["CrawlJobDetail"] | null;
+            /**
+             * Total Indexed Pages
+             * @default 0
+             */
+            total_indexed_pages: number;
+            /** Verification Status */
+            verification_status: string;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
         };
         /**
          * ErrorItem
@@ -397,6 +866,52 @@ export interface components {
             /** Slug */
             slug: string;
             status: components["schemas"]["OrganizationStatus"];
+        };
+        /** PageLinkDetail */
+        PageLinkDetail: {
+            /** Anchor Text */
+            anchor_text: string;
+            /**
+             * Discovered At
+             * Format: date-time
+             */
+            discovered_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Internal */
+            is_internal: boolean;
+            /** Nofollow */
+            nofollow: boolean;
+            /** Normalized Target Url */
+            normalized_target_url: string;
+            /** Rel */
+            rel: string | null;
+            /**
+             * Source Page Id
+             * Format: uuid
+             */
+            source_page_id: string;
+            /** Sponsored */
+            sponsored: boolean;
+            /** Target Page Id */
+            target_page_id: string | null;
+            /** Target Url */
+            target_url: string;
+            /** Ugc */
+            ugc: boolean;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
+        };
+        /** PageLinkList */
+        PageLinkList: {
+            /** Items */
+            items: components["schemas"]["PageLinkDetail"][];
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -623,6 +1138,33 @@ export interface components {
              */
             url: string;
         };
+        /** WebsiteVerificationDetail */
+        WebsiteVerificationDetail: {
+            /** File Snippet */
+            file_snippet: string;
+            /** Meta Tag Snippet */
+            meta_tag_snippet: string;
+            /** Verification Status */
+            verification_status: string;
+            /** Verification Token */
+            verification_token: string;
+            /** Verified At */
+            verified_at: string | null;
+            /**
+             * Website Id
+             * Format: uuid
+             */
+            website_id: string;
+        };
+        /** WebsiteVerificationRequest */
+        WebsiteVerificationRequest: {
+            /**
+             * Method
+             * @description Verification method: 'http_meta', 'http_header', or 'verification_file'
+             * @default http_meta
+             */
+            method: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -632,6 +1174,68 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_crawl_job_api_v1_crawl_jobs__crawl_job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crawl_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_CrawlJobDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_crawl_api_v1_crawl_jobs__crawl_job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crawl_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_CrawlJobDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_organizations_api_v1_organizations_get: {
         parameters: {
             query?: {
@@ -1207,6 +1811,272 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponse_WebsiteDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_crawl_api_v1_websites__website_id__crawl_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrawlJobCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_CrawlJobDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_crawl_jobs_api_v1_websites__website_id__crawl_jobs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_CrawlJobList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_crawl_status_api_v1_websites__website_id__crawl_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_CrawlStatusSummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_links_api_v1_websites__website_id__links_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_PageLinkList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pages_api_v1_websites__website_id__pages_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                search?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_ContentPageList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_page_api_v1_websites__website_id__pages__page_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                website_id: string;
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_ContentPageDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_verification_info_api_v1_websites__website_id__verification_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WebsiteVerificationDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_website_api_v1_websites__website_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                website_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteVerificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WebsiteVerificationDetail_"];
                 };
             };
             /** @description Validation Error */

@@ -4,12 +4,12 @@ import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 export function Modal({
-  open,
+  open = true,
   title,
   children,
   onClose,
 }: {
-  open: boolean;
+  open?: boolean;
   title: string;
   children: React.ReactNode;
   onClose: () => void;
@@ -17,7 +17,7 @@ export function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (open && !ref.current?.open) ref.current?.showModal();
-    if (!open && ref.current?.open) ref.current.close();
+    if (!open && ref.current?.open) ref.current?.close();
   }, [open]);
   return (
     <dialog

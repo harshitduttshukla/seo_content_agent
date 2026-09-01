@@ -1,6 +1,7 @@
 """Async engine and request-session lifecycle."""
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from sqlalchemy import text
@@ -37,6 +38,39 @@ async def session_scope(
 
     async with factory() as session:
         yield session
+
+
+_global_engine: AsyncEngine | None = None
+_global_session_factory: async_sessionmaker[AsyncSession] | None = None
+
+
+def async_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Provide process-level session factory for background tasks and workers."""
+    global _global_engine, _global_session_factory
+    if _global_session_factory is None:
+        from app.config.settings import get_settings
+
+        _global_engine = build_engine(get_settings())
+        _global_session_factory = build_session_factory(_global_engine)
+    return _global_session_factory
+
+
+@asynccontextmanager
+async def background_session_scope() -> AsyncIterator[AsyncSession]:
+    """Provide an async context session for background execution."""
+    factory = async_session_factory()
+    async with factory() as session:
+        yield session
+
+
+@asynccontextmanager
+async def transactional_session(session: AsyncSession) -> AsyncIterator[AsyncSession]:
+    """Execute safely within an existing transaction or begin a new one."""
+    if session.in_transaction():
+        yield session
+    else:
+        async with session.begin():
+            yield session
 
 
 async def set_actor_context(session: AsyncSession, user_id: UUID) -> None:

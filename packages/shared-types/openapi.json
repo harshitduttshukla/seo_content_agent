@@ -1,6 +1,161 @@
 {
   "components": {
     "schemas": {
+      "ApiResponse_ContentPageDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentPageDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentPageDetail]",
+        "type": "object"
+      },
+      "ApiResponse_ContentPageList_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentPageList"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentPageList]",
+        "type": "object"
+      },
+      "ApiResponse_CrawlJobDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlJobDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[CrawlJobDetail]",
+        "type": "object"
+      },
+      "ApiResponse_CrawlJobList_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlJobList"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[CrawlJobList]",
+        "type": "object"
+      },
+      "ApiResponse_CrawlStatusSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlStatusSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[CrawlStatusSummary]",
+        "type": "object"
+      },
       "ApiResponse_OrganizationDetail_": {
         "additionalProperties": false,
         "properties": {
@@ -123,6 +278,37 @@
           "meta"
         ],
         "title": "ApiResponse[OrganizationMemberList]",
+        "type": "object"
+      },
+      "ApiResponse_PageLinkList_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageLinkList"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[PageLinkList]",
         "type": "object"
       },
       "ApiResponse_ProjectDetail_": {
@@ -280,6 +466,37 @@
         "title": "ApiResponse[WebsiteList]",
         "type": "object"
       },
+      "ApiResponse_WebsiteVerificationDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebsiteVerificationDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[WebsiteVerificationDetail]",
+        "type": "object"
+      },
       "ApiResponse_dict_str__str__": {
         "additionalProperties": false,
         "properties": {
@@ -313,6 +530,539 @@
           "meta"
         ],
         "title": "ApiResponse[dict[str, str]]",
+        "type": "object"
+      },
+      "ContentPageDetail": {
+        "properties": {
+          "canonical_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Url"
+          },
+          "cleaned_content": {
+            "title": "Cleaned Content",
+            "type": "string"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "content_status": {
+            "title": "Content Status",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "headings": {
+            "default": [],
+            "items": {
+              "type": "object"
+            },
+            "title": "Headings",
+            "type": "array"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "images": {
+            "default": [],
+            "items": {
+              "type": "object"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "last_crawled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Crawled At"
+          },
+          "meta_description": {
+            "title": "Meta Description",
+            "type": "string"
+          },
+          "metadata": {
+            "default": {},
+            "title": "Metadata",
+            "type": "object"
+          },
+          "normalized_url": {
+            "title": "Normalized Url",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "structured_content": {
+            "title": "Structured Content",
+            "type": "object"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          },
+          "word_count": {
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "website_id",
+          "url",
+          "normalized_url",
+          "canonical_url",
+          "title",
+          "meta_description",
+          "language",
+          "http_status",
+          "content_type",
+          "word_count",
+          "content_hash",
+          "content_status",
+          "cleaned_content",
+          "structured_content",
+          "first_seen_at",
+          "last_crawled_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ContentPageDetail",
+        "type": "object"
+      },
+      "ContentPageList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentPageSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ContentPageList",
+        "type": "object"
+      },
+      "ContentPageSummary": {
+        "properties": {
+          "canonical_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Url"
+          },
+          "content_status": {
+            "title": "Content Status",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_crawled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Crawled At"
+          },
+          "normalized_url": {
+            "title": "Normalized Url",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          },
+          "word_count": {
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "website_id",
+          "url",
+          "normalized_url",
+          "canonical_url",
+          "title",
+          "http_status",
+          "content_status",
+          "word_count",
+          "last_crawled_at",
+          "created_at"
+        ],
+        "title": "ContentPageSummary",
+        "type": "object"
+      },
+      "CrawlConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_paths": {
+            "description": "Subpath prefixes to allow",
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Paths",
+            "type": "array"
+          },
+          "blocked_paths": {
+            "description": "Subpath prefixes to block",
+            "items": {
+              "type": "string"
+            },
+            "title": "Blocked Paths",
+            "type": "array"
+          },
+          "crawl_delay": {
+            "default": 0.2,
+            "description": "Politeness delay between fetches in seconds",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Crawl Delay",
+            "type": "number"
+          },
+          "include_subdomains": {
+            "default": false,
+            "description": "Include subdomains of verified host",
+            "title": "Include Subdomains",
+            "type": "boolean"
+          },
+          "max_depth": {
+            "default": 4,
+            "description": "Maximum crawl depth",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Max Depth",
+            "type": "integer"
+          },
+          "max_pages": {
+            "default": 200,
+            "description": "Maximum pages to crawl",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Max Pages",
+            "type": "integer"
+          },
+          "respect_robots": {
+            "default": true,
+            "description": "Respect robots.txt directives",
+            "title": "Respect Robots",
+            "type": "boolean"
+          },
+          "user_agent": {
+            "default": "Antigravity-ContentAgent/1.0",
+            "description": "Custom crawler User-Agent",
+            "maxLength": 200,
+            "title": "User Agent",
+            "type": "string"
+          }
+        },
+        "title": "CrawlConfiguration",
+        "type": "object"
+      },
+      "CrawlJobCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/CrawlConfiguration"
+          }
+        },
+        "title": "CrawlJobCreate",
+        "type": "object"
+      },
+      "CrawlJobDetail": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "configuration": {
+            "title": "Configuration",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "error_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Summary"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "pages_crawled": {
+            "title": "Pages Crawled",
+            "type": "integer"
+          },
+          "pages_discovered": {
+            "title": "Pages Discovered",
+            "type": "integer"
+          },
+          "pages_failed": {
+            "title": "Pages Failed",
+            "type": "integer"
+          },
+          "pages_skipped": {
+            "title": "Pages Skipped",
+            "type": "integer"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "requested_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "website_id",
+          "status",
+          "configuration",
+          "pages_discovered",
+          "pages_crawled",
+          "pages_failed",
+          "pages_skipped",
+          "error_count",
+          "started_at",
+          "completed_at",
+          "requested_by_id",
+          "error_summary",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CrawlJobDetail",
+        "type": "object"
+      },
+      "CrawlJobList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CrawlJobDetail"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CrawlJobList",
+        "type": "object"
+      },
+      "CrawlStatusSummary": {
+        "properties": {
+          "active_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlJobDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlJobDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_indexed_pages": {
+            "default": 0,
+            "title": "Total Indexed Pages",
+            "type": "integer"
+          },
+          "verification_status": {
+            "title": "Verification Status",
+            "type": "string"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "website_id",
+          "verification_status"
+        ],
+        "title": "CrawlStatusSummary",
         "type": "object"
       },
       "ErrorItem": {
@@ -603,6 +1353,114 @@
           "revision"
         ],
         "title": "OrganizationUpdate",
+        "type": "object"
+      },
+      "PageLinkDetail": {
+        "properties": {
+          "anchor_text": {
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "discovered_at": {
+            "format": "date-time",
+            "title": "Discovered At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_internal": {
+            "title": "Is Internal",
+            "type": "boolean"
+          },
+          "nofollow": {
+            "title": "Nofollow",
+            "type": "boolean"
+          },
+          "normalized_target_url": {
+            "title": "Normalized Target Url",
+            "type": "string"
+          },
+          "rel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rel"
+          },
+          "source_page_id": {
+            "format": "uuid",
+            "title": "Source Page Id",
+            "type": "string"
+          },
+          "sponsored": {
+            "title": "Sponsored",
+            "type": "boolean"
+          },
+          "target_page_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Page Id"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          },
+          "ugc": {
+            "title": "Ugc",
+            "type": "boolean"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "website_id",
+          "source_page_id",
+          "target_url",
+          "normalized_target_url",
+          "target_page_id",
+          "anchor_text",
+          "rel",
+          "is_internal",
+          "nofollow",
+          "ugc",
+          "sponsored",
+          "discovered_at"
+        ],
+        "title": "PageLinkDetail",
+        "type": "object"
+      },
+      "PageLinkList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PageLinkDetail"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PageLinkList",
         "type": "object"
       },
       "ProjectCreate": {
@@ -1165,6 +2023,66 @@
         ],
         "title": "WebsiteUpdate",
         "type": "object"
+      },
+      "WebsiteVerificationDetail": {
+        "properties": {
+          "file_snippet": {
+            "title": "File Snippet",
+            "type": "string"
+          },
+          "meta_tag_snippet": {
+            "title": "Meta Tag Snippet",
+            "type": "string"
+          },
+          "verification_status": {
+            "title": "Verification Status",
+            "type": "string"
+          },
+          "verification_token": {
+            "title": "Verification Token",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "website_id": {
+            "format": "uuid",
+            "title": "Website Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "website_id",
+          "verification_status",
+          "verified_at",
+          "verification_token",
+          "meta_tag_snippet",
+          "file_snippet"
+        ],
+        "title": "WebsiteVerificationDetail",
+        "type": "object"
+      },
+      "WebsiteVerificationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "default": "http_meta",
+            "description": "Verification method: 'http_meta', 'http_header', or 'verification_file'",
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "title": "WebsiteVerificationRequest",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1180,6 +2098,102 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/crawl-jobs/{crawl_job_id}": {
+      "get": {
+        "operationId": "get_crawl_job_api_v1_crawl_jobs__crawl_job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "crawl_job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Crawl Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CrawlJobDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Crawl Job",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
+    "/api/v1/crawl-jobs/{crawl_job_id}/cancel": {
+      "post": {
+        "operationId": "cancel_crawl_api_v1_crawl_jobs__crawl_job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "crawl_job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Crawl Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CrawlJobDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Crawl",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
     "/api/v1/organizations": {
       "get": {
         "operationId": "list_organizations_api_v1_organizations_get",
@@ -2178,6 +3192,504 @@
         "summary": "Update Website",
         "tags": [
           "websites"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/crawl": {
+      "post": {
+        "operationId": "start_crawl_api_v1_websites__website_id__crawl_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrawlJobCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CrawlJobDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Crawl",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/crawl-jobs": {
+      "get": {
+        "operationId": "list_crawl_jobs_api_v1_websites__website_id__crawl_jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CrawlJobList_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Crawl Jobs",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/crawl-status": {
+      "get": {
+        "operationId": "get_crawl_status_api_v1_websites__website_id__crawl_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CrawlStatusSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Crawl Status",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/links": {
+      "get": {
+        "operationId": "list_links_api_v1_websites__website_id__links_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_PageLinkList_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Links",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/pages": {
+      "get": {
+        "operationId": "list_pages_api_v1_websites__website_id__pages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentPageList_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pages",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/pages/{page_id}": {
+      "get": {
+        "operationId": "get_page_api_v1_websites__website_id__pages__page_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentPageDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/verification": {
+      "get": {
+        "operationId": "get_verification_info_api_v1_websites__website_id__verification_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WebsiteVerificationDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Verification Info",
+        "tags": [
+          "crawling"
+        ]
+      }
+    },
+    "/api/v1/websites/{website_id}/verify": {
+      "post": {
+        "operationId": "verify_website_api_v1_websites__website_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "website_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Website Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WebsiteVerificationDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Verify Website",
+        "tags": [
+          "crawling"
         ]
       }
     },
