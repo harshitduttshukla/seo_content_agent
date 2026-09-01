@@ -1,0 +1,13 @@
+{
+  "name": "@seo-content/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "types": "./schema.d.ts",
+  "files": ["schema.d.ts", "openapi.json"],
+  "scripts": {
+    "generate": "openapi-typescript openapi.json -o schema.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.9.0"
+  }
+}
