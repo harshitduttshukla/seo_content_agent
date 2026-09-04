@@ -27,6 +27,8 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   return envelope.data;
 }
 
+export const clientApi = apiRequest;
+
 export function idempotencyKey(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }

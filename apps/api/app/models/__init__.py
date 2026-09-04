@@ -8,21 +8,47 @@ from app.domains.auth.models import (
     Role,
     RolePermission,
 )
-from app.domains.content.models import ContentPage, ContentPageVersion, PageLink
+from app.domains.content.models import (
+    ContentOpportunity,
+    ContentPage,
+    ContentPageVersion,
+    ContentPillar,
+    KeywordPageMapping,
+    PageLink,
+    Topic,
+)
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
+from app.domains.keywords.models import (
+    ClusteringRun,
+    Keyword,
+    KeywordCluster,
+    KeywordClusterMember,
+    KeywordImport,
+    KeywordImportRow,
+)
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
+from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.domains.users.models import User
 from app.domains.websites.models import Website
 
 __all__ = [
     "AuditLog",
+    "ClusteringRun",
+    "ContentOpportunity",
     "ContentPage",
     "ContentPageVersion",
+    "ContentPillar",
     "CrawlEvent",
     "CrawlJob",
     "CrawlUrl",
     "IdempotencyRecord",
+    "Keyword",
+    "KeywordCluster",
+    "KeywordClusterMember",
+    "KeywordImport",
+    "KeywordImportRow",
+    "KeywordPageMapping",
     "Organization",
     "OrganizationMember",
     "OutboxEvent",
@@ -32,6 +58,9 @@ __all__ = [
     "ProjectMember",
     "Role",
     "RolePermission",
+    "SEOStrategy",
+    "SEOStrategyVersion",
+    "Topic",
     "User",
     "Website",
 ]

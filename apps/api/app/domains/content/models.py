@@ -1,4 +1,4 @@
-"""Content domain database models for pages, versions, and internal link graph."""
+"""Content domain database models for pages, architecture, and opportunities."""
 
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -27,6 +28,47 @@ class ContentStatus(StrEnum):
     FAILED = "failed"
     REDIRECT = "redirect"
     BLOCKED = "blocked"
+
+
+class ArchitectureStatus(StrEnum):
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    ARCHIVED = "archived"
+
+
+class MappingType(StrEnum):
+    PRIMARY_TARGET = "PRIMARY_TARGET"
+    SECONDARY_TARGET = "SECONDARY_TARGET"
+    SUPPORTING_PAGE = "SUPPORTING_PAGE"
+    NO_TARGET = "NO_TARGET"
+    NEW_PAGE_REQUIRED = "NEW_PAGE_REQUIRED"
+
+
+class MappingSource(StrEnum):
+    DETERMINISTIC = "DETERMINISTIC"
+    AI = "AI"
+    MANUAL = "MANUAL"
+
+
+class MappingStatus(StrEnum):
+    PROPOSED = "proposed"
+    REVIEWED = "reviewed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class OpportunityAction(StrEnum):
+    NEW_PAGE = "NEW_PAGE"
+    UPDATE_EXISTING_PAGE = "UPDATE_EXISTING_PAGE"
+    MERGE_EXISTING_PAGES = "MERGE_EXISTING_PAGES"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+
+
+class OpportunityStatus(StrEnum):
+    PROPOSED = "proposed"
+    REVIEWED = "reviewed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class ContentPage(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
@@ -171,4 +213,195 @@ class PageLink(UUIDPrimaryKeyMixin, Base):
     sponsored: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     discovered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+
+class ContentPillar(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    __tablename__ = "content_pillars"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_content_pillars_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "status IN ('proposed', 'approved', 'archived')",
+            name="ck_content_pillars_status_allowed",
+        ),
+        Index("uq_content_pillars_project_slug", "project_id", "slug", unique=True),
+        Index("ix_content_pillars_proj_status", "project_id", "status"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    business_goal: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ArchitectureStatus.PROPOSED
+    )
+
+
+class Topic(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    __tablename__ = "topics"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_topics_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["pillar_id"],
+            ["content_pillars.id"],
+            name="fk_topics_pillar_id_content_pillars",
+            ondelete="SET NULL",
+        ),
+        CheckConstraint(
+            "status IN ('proposed', 'approved', 'archived')",
+            name="ck_topics_status_allowed",
+        ),
+        Index("uq_topics_project_slug", "project_id", "slug", unique=True),
+        Index("ix_topics_proj_pillar", "project_id", "pillar_id"),
+        Index("ix_topics_proj_status", "project_id", "status"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    pillar_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ArchitectureStatus.PROPOSED
+    )
+
+
+class KeywordPageMapping(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    __tablename__ = "keyword_page_mappings"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_keyword_page_mappings_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["website_id"],
+            ["websites.id"],
+            name="fk_keyword_page_mappings_website_id_websites",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["keyword_id"],
+            ["keywords.id"],
+            name="fk_keyword_page_mappings_keyword_id_keywords",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["page_id"],
+            ["content_pages.id"],
+            name="fk_keyword_page_mappings_page_id_content_pages",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "mapping_type IN ('PRIMARY_TARGET', 'SECONDARY_TARGET', "
+            "'SUPPORTING_PAGE', 'NO_TARGET', 'NEW_PAGE_REQUIRED')",
+            name="ck_keyword_page_mappings_type_allowed",
+        ),
+        CheckConstraint(
+            "source IN ('DETERMINISTIC', 'AI', 'MANUAL')",
+            name="ck_keyword_page_mappings_source_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('proposed', 'reviewed', 'approved', 'rejected')",
+            name="ck_keyword_page_mappings_status_allowed",
+        ),
+        Index("ix_keyword_page_mappings_kw_id", "keyword_id"),
+        Index("ix_keyword_page_mappings_page_id", "page_id"),
+        Index("ix_keyword_page_mappings_site_type", "website_id", "mapping_type"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    website_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    keyword_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    page_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    mapping_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=MappingType.PRIMARY_TARGET
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=MappingSource.DETERMINISTIC
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=MappingStatus.PROPOSED)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class ContentOpportunity(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    __tablename__ = "content_opportunities"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_content_opportunities_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["website_id"],
+            ["websites.id"],
+            name="fk_content_opportunities_website_id_websites",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["cluster_id"],
+            ["keyword_clusters.id"],
+            name="fk_content_opportunities_cluster_id_keyword_clusters",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["keyword_id"],
+            ["keywords.id"],
+            name="fk_content_opportunities_keyword_id_keywords",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["existing_page_id"],
+            ["content_pages.id"],
+            name="fk_content_opportunities_page_id_content_pages",
+            ondelete="SET NULL",
+        ),
+        CheckConstraint(
+            "action IN ('NEW_PAGE', 'UPDATE_EXISTING_PAGE', 'MERGE_EXISTING_PAGES', "
+            "'REVIEW_REQUIRED')",
+            name="ck_content_opportunities_action_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('proposed', 'reviewed', 'approved', 'rejected')",
+            name="ck_content_opportunities_status_allowed",
+        ),
+        Index("ix_content_opportunities_site_action", "website_id", "action"),
+        Index("ix_content_opportunities_proj_status", "project_id", "status"),
+        Index("ix_content_opportunities_priority", "project_id", "priority"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    website_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    cluster_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    keyword_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    action: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=OpportunityAction.NEW_PAGE
+    )
+    priority: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    business_value_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    existing_page_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=OpportunityStatus.PROPOSED
     )

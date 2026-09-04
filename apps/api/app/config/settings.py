@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     AUTH_ALLOWED_ALGORITHMS: tuple[str, ...] = ("RS256",)
     AUTH_CLOCK_SKEW_SECONDS: int = Field(default=30, ge=0, le=300)
 
-    CORS_ORIGINS: tuple[str, ...] = ("http://localhost:3000",)
+    CORS_ORIGINS: tuple[str, ...] | str = ("http://localhost:3000",)
     REQUEST_ID_HEADER: str = "X-Request-ID"
 
     @field_validator("API_PREFIX")
@@ -46,10 +46,22 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_origins(cls, value: object) -> object:
-        if isinstance(value, str) and not value.lstrip().startswith("["):
-            return tuple(item.strip() for item in value.split(",") if item.strip())
-        return value
+    def parse_origins(cls, value: object) -> tuple[str, ...]:
+        if isinstance(value, str):
+            val = value.strip()
+            if val.startswith("[") and val.endswith("]"):
+                import json
+
+                try:
+                    parsed = json.loads(val)
+                    if isinstance(parsed, list):
+                        return tuple(str(x) for x in parsed)
+                except Exception:
+                    pass
+            return tuple(item.strip() for item in val.split(",") if item.strip())
+        if isinstance(value, (list, tuple, set)):
+            return tuple(str(item) for item in value)
+        return ("http://localhost:3000",)
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Self:

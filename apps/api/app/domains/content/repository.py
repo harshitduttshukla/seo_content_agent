@@ -1,14 +1,24 @@
-"""Repository for content pages, versions, and links."""
+"""Repository for content pages, versions, links, pillars, topics, mappings, and opportunities."""
 
 from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.cursor import Cursor
 from app.domains.content.models import (
+    ArchitectureStatus,
+    ContentOpportunity,
     ContentPage,
     ContentPageVersion,
+    ContentPillar,
     ContentStatus,
+    KeywordPageMapping,
+    MappingSource,
+    MappingStatus,
+    MappingType,
+    OpportunityAction,
+    OpportunityStatus,
     PageLink,
+    Topic,
 )
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,6 +78,20 @@ class ContentRepository:
             )
 
         stmt = stmt.order_by(desc(ContentPage.created_at), desc(ContentPage.id)).limit(limit + 1)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_all_pages_for_website(
+        self, session: AsyncSession, *, website_id: UUID
+    ) -> list[ContentPage]:
+        stmt = (
+            select(ContentPage)
+            .where(
+                ContentPage.website_id == website_id,
+                ContentPage.content_status == ContentStatus.INDEXED,
+            )
+            .order_by(desc(ContentPage.created_at))
+        )
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
@@ -243,3 +267,246 @@ class ContentRepository:
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())
+
+    # --- Content Pillars ---
+
+    async def create_pillar(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        project_id: UUID,
+        name: str,
+        slug: str,
+        description: str = "",
+        business_goal: str = "",
+        priority: int = 1,
+        status: str = ArchitectureStatus.PROPOSED,
+    ) -> ContentPillar:
+        pillar = ContentPillar(
+            organization_id=organization_id,
+            project_id=project_id,
+            name=name,
+            slug=slug,
+            description=description,
+            business_goal=business_goal,
+            priority=priority,
+            status=status,
+        )
+        session.add(pillar)
+        await session.flush()
+        return pillar
+
+    async def get_pillar_by_id(
+        self, session: AsyncSession, *, pillar_id: UUID, project_id: UUID
+    ) -> ContentPillar | None:
+        stmt = select(ContentPillar).where(
+            ContentPillar.id == pillar_id, ContentPillar.project_id == project_id
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_pillar_by_slug(
+        self, session: AsyncSession, *, project_id: UUID, slug: str
+    ) -> ContentPillar | None:
+        stmt = select(ContentPillar).where(
+            ContentPillar.project_id == project_id, ContentPillar.slug == slug
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_pillars(self, session: AsyncSession, *, project_id: UUID) -> list[ContentPillar]:
+        stmt = (
+            select(ContentPillar)
+            .where(ContentPillar.project_id == project_id)
+            .order_by(ContentPillar.priority, ContentPillar.name)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    # --- Topics ---
+
+    async def create_topic(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        project_id: UUID,
+        pillar_id: UUID | None,
+        name: str,
+        slug: str,
+        description: str = "",
+        priority: int = 1,
+        status: str = ArchitectureStatus.PROPOSED,
+    ) -> Topic:
+        topic = Topic(
+            organization_id=organization_id,
+            project_id=project_id,
+            pillar_id=pillar_id,
+            name=name,
+            slug=slug,
+            description=description,
+            priority=priority,
+            status=status,
+        )
+        session.add(topic)
+        await session.flush()
+        return topic
+
+    async def get_topic_by_id(
+        self, session: AsyncSession, *, topic_id: UUID, project_id: UUID
+    ) -> Topic | None:
+        stmt = select(Topic).where(Topic.id == topic_id, Topic.project_id == project_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_topic_by_slug(
+        self, session: AsyncSession, *, project_id: UUID, slug: str
+    ) -> Topic | None:
+        stmt = select(Topic).where(Topic.project_id == project_id, Topic.slug == slug)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_topics(
+        self, session: AsyncSession, *, project_id: UUID, pillar_id: UUID | None = None
+    ) -> list[Topic]:
+        stmt = select(Topic).where(Topic.project_id == project_id)
+        if pillar_id is not None:
+            stmt = stmt.where(Topic.pillar_id == pillar_id)
+        stmt = stmt.order_by(Topic.priority, Topic.name)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    # --- Keyword to Page Mappings ---
+
+    async def create_or_update_mapping(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        project_id: UUID,
+        website_id: UUID,
+        keyword_id: UUID,
+        page_id: UUID | None,
+        mapping_type: str = MappingType.PRIMARY_TARGET,
+        confidence: float = 1.0,
+        source: str = MappingSource.DETERMINISTIC,
+        status: str = MappingStatus.PROPOSED,
+        rationale: str = "",
+    ) -> KeywordPageMapping:
+        stmt = select(KeywordPageMapping).where(
+            KeywordPageMapping.project_id == project_id,
+            KeywordPageMapping.keyword_id == keyword_id,
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            existing.page_id = page_id
+            existing.mapping_type = mapping_type
+            existing.confidence = confidence
+            existing.source = source
+            existing.status = status
+            existing.rationale = rationale
+            existing.revision += 1
+            await session.flush()
+            return existing
+
+        mapping = KeywordPageMapping(
+            organization_id=organization_id,
+            project_id=project_id,
+            website_id=website_id,
+            keyword_id=keyword_id,
+            page_id=page_id,
+            mapping_type=mapping_type,
+            confidence=confidence,
+            source=source,
+            status=status,
+            rationale=rationale,
+        )
+        session.add(mapping)
+        await session.flush()
+        return mapping
+
+    async def list_mappings_for_project(
+        self, session: AsyncSession, *, project_id: UUID
+    ) -> list[KeywordPageMapping]:
+        stmt = select(KeywordPageMapping).where(KeywordPageMapping.project_id == project_id)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    # --- Content Opportunities ---
+
+    async def create_or_update_opportunity(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        project_id: UUID,
+        website_id: UUID,
+        cluster_id: UUID | None,
+        keyword_id: UUID | None,
+        action: str = OpportunityAction.NEW_PAGE,
+        priority: float = 0.0,
+        business_value_score: float = 0.0,
+        existing_page_id: UUID | None = None,
+        reason: str = "",
+        confidence: float = 1.0,
+        status: str = OpportunityStatus.PROPOSED,
+    ) -> ContentOpportunity:
+        stmt = select(ContentOpportunity).where(
+            ContentOpportunity.project_id == project_id,
+        )
+        if cluster_id:
+            stmt = stmt.where(ContentOpportunity.cluster_id == cluster_id)
+        elif keyword_id:
+            stmt = stmt.where(ContentOpportunity.keyword_id == keyword_id)
+
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            existing.action = action
+            existing.priority = priority
+            existing.business_value_score = business_value_score
+            existing.existing_page_id = existing_page_id
+            existing.reason = reason
+            existing.confidence = confidence
+            existing.status = status
+            existing.revision += 1
+            await session.flush()
+            return existing
+
+        opp = ContentOpportunity(
+            organization_id=organization_id,
+            project_id=project_id,
+            website_id=website_id,
+            cluster_id=cluster_id,
+            keyword_id=keyword_id,
+            action=action,
+            priority=priority,
+            business_value_score=business_value_score,
+            existing_page_id=existing_page_id,
+            reason=reason,
+            confidence=confidence,
+            status=status,
+        )
+        session.add(opp)
+        await session.flush()
+        return opp
+
+    async def list_opportunities(
+        self, session: AsyncSession, *, project_id: UUID, status: str | None = None
+    ) -> list[ContentOpportunity]:
+        stmt = select(ContentOpportunity).where(ContentOpportunity.project_id == project_id)
+        if status:
+            stmt = stmt.where(ContentOpportunity.status == status)
+        stmt = stmt.order_by(desc(ContentOpportunity.priority))
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_opportunity_by_id(
+        self, session: AsyncSession, *, opportunity_id: UUID, project_id: UUID
+    ) -> ContentOpportunity | None:
+        stmt = select(ContentOpportunity).where(
+            ContentOpportunity.id == opportunity_id,
+            ContentOpportunity.project_id == project_id,
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
