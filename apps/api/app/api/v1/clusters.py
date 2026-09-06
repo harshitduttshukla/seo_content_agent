@@ -12,6 +12,7 @@ from app.domains.keywords.schemas import (
     ClusteringRunResponse,
     ClusterMergeRequest,
     ClusterUpdateRequest,
+    KeywordClusterDeleteResponse,
     KeywordClusterDetail,
     KeywordClusterList,
     MoveKeywordsRequest,
@@ -120,6 +121,32 @@ async def update_cluster(
         request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
     )
     return success(request, cluster)
+
+
+@router.delete(
+    "/projects/{project_id}/clusters/{cluster_id}",
+    response_model=ApiResponse[KeywordClusterDeleteResponse],
+)
+@router.delete(
+    "/projects/{project_id}/keyword-clusters/{cluster_id}",
+    response_model=ApiResponse[KeywordClusterDeleteResponse],
+    include_in_schema=False,
+)
+async def delete_cluster(
+    project_id: UUID,
+    cluster_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[KeywordClusterDeleteResponse]:
+    deleted = await KeywordService().delete_cluster(
+        session,
+        actor=actor,
+        project_id=project_id,
+        cluster_id=cluster_id,
+        request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
+    )
+    return success(request, deleted)
 
 
 @router.post(

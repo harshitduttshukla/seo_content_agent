@@ -405,3 +405,169 @@ class ContentOpportunity(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Bas
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=OpportunityStatus.PROPOSED
     )
+
+
+class PageType(StrEnum):
+    EXISTING = "EXISTING"
+    PLANNED = "PLANNED"
+    IMPORTED = "IMPORTED"
+    REDIRECTED = "REDIRECTED"
+
+
+class PageContentType(StrEnum):
+    PILLAR_PAGE = "PILLAR_PAGE"
+    CLUSTER_PAGE = "CLUSTER_PAGE"
+    SUPPORTING_PAGE = "SUPPORTING_PAGE"
+    LANDING_PAGE = "LANDING_PAGE"
+    SERVICE_PAGE = "SERVICE_PAGE"
+    PRODUCT_PAGE = "PRODUCT_PAGE"
+    BLOG_POST = "BLOG_POST"
+    GUIDE = "GUIDE"
+    COMPARISON = "COMPARISON"
+    FAQ = "FAQ"
+
+
+class PlannedPageStatus(StrEnum):
+    PROPOSED = "PROPOSED"
+    PLANNED = "PLANNED"
+    APPROVED = "APPROVED"
+    IN_PROGRESS = "IN_PROGRESS"
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
+
+
+class KeywordRole(StrEnum):
+    PRIMARY = "PRIMARY"
+    SECONDARY = "SECONDARY"
+    RELATED = "RELATED"
+
+
+class PlannedContentPage(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    __tablename__ = "planned_content_pages"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_planned_content_pages_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["website_id"],
+            ["websites.id"],
+            name="fk_planned_content_pages_website_id_websites",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
+            ["existing_page_id"],
+            ["content_pages.id"],
+            name="fk_planned_content_pages_existing_page_id_content_pages",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
+            ["cluster_id"],
+            ["keyword_clusters.id"],
+            name="fk_planned_content_pages_cluster_id_keyword_clusters",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
+            ["topic_id"],
+            ["topics.id"],
+            name="fk_planned_content_pages_topic_id_topics",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
+            ["pillar_id"],
+            ["content_pillars.id"],
+            name="fk_planned_content_pages_pillar_id_content_pillars",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
+            ["primary_keyword_id"],
+            ["keywords.id"],
+            name="fk_planned_content_pages_primary_kw_keywords",
+            ondelete="SET NULL",
+        ),
+        CheckConstraint(
+            "page_type IN ('EXISTING', 'PLANNED', 'IMPORTED', 'REDIRECTED')",
+            name="ck_planned_content_pages_page_type_allowed",
+        ),
+        CheckConstraint(
+            "content_type IN ('PILLAR_PAGE', 'CLUSTER_PAGE', 'SUPPORTING_PAGE', "
+            "'LANDING_PAGE', 'SERVICE_PAGE', 'PRODUCT_PAGE', 'BLOG_POST', "
+            "'GUIDE', 'COMPARISON', 'FAQ')",
+            name="ck_planned_content_pages_content_type_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('PROPOSED', 'PLANNED', 'APPROVED', 'IN_PROGRESS', "
+            "'DRAFT', 'PUBLISHED', 'ARCHIVED')",
+            name="ck_planned_content_pages_status_allowed",
+        ),
+        CheckConstraint(
+            "intent IN ('INFORMATIONAL', 'COMMERCIAL', 'TRANSACTIONAL', "
+            "'NAVIGATIONAL', 'LOCAL', 'UNKNOWN')",
+            name="ck_planned_content_pages_intent_allowed",
+        ),
+        Index("uq_planned_content_pages_proj_slug", "project_id", "slug", unique=True),
+        Index("ix_planned_content_pages_proj_status", "project_id", "status"),
+        Index("ix_planned_content_pages_cluster", "cluster_id"),
+        Index("ix_planned_content_pages_topic", "topic_id"),
+        Index("ix_planned_content_pages_pillar", "pillar_id"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    website_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
+    page_type: Mapped[str] = mapped_column(String(32), nullable=False, default=PageType.PLANNED)
+    content_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=PageContentType.GUIDE
+    )
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=PlannedPageStatus.PLANNED
+    )
+    intent: Mapped[str] = mapped_column(String(32), nullable=False, default="INFORMATIONAL")
+    primary_keyword: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    primary_keyword_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    cluster_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    topic_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    pillar_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    business_value: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    existing_page_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
+
+class PageKeyword(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "page_keywords"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["page_id"],
+            ["planned_content_pages.id"],
+            name="fk_page_keywords_page_id_planned_content_pages",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["keyword_id"],
+            ["keywords.id"],
+            name="fk_page_keywords_keyword_id_keywords",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "keyword_role IN ('PRIMARY', 'SECONDARY', 'RELATED')",
+            name="ck_page_keywords_role_allowed",
+        ),
+        Index("uq_page_keywords_page_keyword", "page_id", "keyword_id", unique=True),
+        Index("ix_page_keywords_kw_id", "keyword_id"),
+        Index("ix_page_keywords_page_role", "page_id", "keyword_role"),
+    )
+
+    page_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    keyword_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    keyword_role: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=KeywordRole.SECONDARY
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )

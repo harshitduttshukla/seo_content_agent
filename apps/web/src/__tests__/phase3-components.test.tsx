@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StrategyManager } from "@/features/strategy/strategy-manager";
 import { KeywordsDashboard } from "@/features/keywords/keywords-dashboard";
 import { ArchitectureDashboard } from "@/features/content/architecture-dashboard";
@@ -14,12 +14,17 @@ import type {
   SEOStrategy,
   Topic,
 } from "@/lib/api-types";
+import { clientApi } from "@/lib/client-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
     refresh: vi.fn(),
   }),
+}));
+
+vi.mock("@/lib/client-api", () => ({
+  clientApi: vi.fn(),
 }));
 
 const mockStrategy: SEOStrategy = {
@@ -203,6 +208,10 @@ const mockGraph: ContentArchitectureGraph = {
 };
 
 describe("Phase 3 Strategy, Keywords & Content Architecture Components", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders StrategyManager with versioning and products", () => {
     render(
       <StrategyManager
@@ -227,6 +236,119 @@ describe("Phase 3 Strategy, Keywords & Content Architecture Components", () => {
     );
     expect(screen.getByText(/Keyword Cannibalization Detected/i)).toBeInTheDocument();
     expect(screen.getByText("b2b content intelligence")).toBeInTheDocument();
+  });
+
+  it("edits a keyword from its table row", async () => {
+    vi.mocked(clientApi).mockResolvedValue(mockKeywords[0]);
+    render(
+      <KeywordsDashboard
+        projectId="proj-1"
+        initialKeywords={mockKeywords}
+        initialClusters={mockClusters}
+        initialWarnings={[]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit keyword b2b content intelligence" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Edit keyword" });
+    fireEvent.change(within(dialog).getByLabelText("Keyword"), {
+      target: { value: "enterprise content intelligence" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Search Volume"), {
+      target: { value: "3600" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(clientApi).toHaveBeenCalledWith("/projects/proj-1/keywords/kw-1", {
+        method: "PUT",
+        body: JSON.stringify({
+          keyword: "enterprise content intelligence",
+          search_volume: 3600,
+          keyword_difficulty: 35,
+          cpc: 8.5,
+          intent: "COMMERCIAL",
+          funnel_stage: "MOFU",
+          status: "active",
+        }),
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(
+      screen.getByText('Keyword "enterprise content intelligence" updated successfully.'),
+    ).toBeInTheDocument();
+  });
+
+  it("confirms before deleting a keyword", async () => {
+    vi.mocked(clientApi).mockResolvedValue({
+      keyword_id: "kw-1",
+      keyword: "b2b content intelligence",
+      message: "Keyword deleted with its dependent assignments and mappings.",
+    });
+    render(
+      <KeywordsDashboard
+        projectId="proj-1"
+        initialKeywords={mockKeywords}
+        initialClusters={mockClusters}
+        initialWarnings={[]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete keyword b2b content intelligence" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Delete keyword?" });
+    expect(within(dialog).getByText(/cluster memberships/i)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete keyword" }));
+
+    await waitFor(() =>
+      expect(clientApi).toHaveBeenCalledWith("/projects/proj-1/keywords/kw-1", {
+        method: "DELETE",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(
+      screen.getByText('Keyword "b2b content intelligence" deleted successfully.'),
+    ).toBeInTheDocument();
+  });
+
+  it("confirms and deletes an individual keyword cluster", async () => {
+    vi.mocked(clientApi).mockResolvedValue({
+      cluster_id: "cluster-1",
+      cluster_name: "Content Intelligence",
+      message: "Cluster deleted. Its underlying keywords were retained.",
+    });
+    render(
+      <KeywordsDashboard
+        projectId="proj-1"
+        initialKeywords={mockKeywords}
+        initialClusters={mockClusters}
+        initialWarnings={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clusters (1)" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete cluster Content Intelligence" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Delete cluster?" });
+    expect(within(dialog).getByText("cluster-1")).toBeInTheDocument();
+    expect(within(dialog).getByText(/underlying keywords are kept/i)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete cluster" }));
+
+    await waitFor(() =>
+      expect(clientApi).toHaveBeenCalledWith("/projects/proj-1/clusters/cluster-1", {
+        method: "DELETE",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(
+      screen.getByText('Cluster "Content Intelligence" deleted. Its keywords were kept.'),
+    ).toBeInTheDocument();
   });
 
   it("renders ArchitectureDashboard with content pillars and opportunities", () => {

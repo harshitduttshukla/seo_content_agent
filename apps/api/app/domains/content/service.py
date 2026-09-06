@@ -18,6 +18,11 @@ from app.domains.content.models import (
     MappingType,
     OpportunityAction,
     OpportunityStatus,
+    PageContentType,
+    PageKeyword,
+    PageType,
+    PlannedContentPage,
+    PlannedPageStatus,
 )
 from app.domains.content.repository import ContentRepository
 from app.domains.content.schemas import (
@@ -35,11 +40,19 @@ from app.domains.content.schemas import (
     ContentPillarDetail,
     ContentPillarList,
     ContentPillarUpdate,
+    ConvertOpportunityToPageRequest,
     GraphNodeData,
     KeywordPageMappingDetail,
     KeywordPageMappingList,
     MappingAnalysisResponse,
+    PageKeywordAssign,
+    PageKeywordDetail,
+    PageKeywordList,
     PageLinkDetail,
+    PlannedContentPageCreate,
+    PlannedContentPageDetail,
+    PlannedContentPageList,
+    PlannedContentPageUpdate,
     TopicCreate,
     TopicDetail,
     TopicList,
@@ -1036,3 +1049,550 @@ class ContentService:
                     )
 
             return ContentArchitectureGraphResponse(nodes=nodes, edges=edges)
+
+    # --- Phase 4 Planned Content Pages ---
+
+    async def _to_planned_page_detail(
+        self, session: AsyncSession, page: PlannedContentPage
+    ) -> PlannedContentPageDetail:
+        cluster_name = None
+        if page.cluster_id:
+            cluster = await self._keywords.get_cluster_by_id(
+                session,
+                cluster_id=page.cluster_id,
+                project_id=page.project_id,
+            )
+            if cluster:
+                cluster_name = cluster.cluster_name
+
+        topic_name = None
+        if page.topic_id:
+            topic = await self._content.get_topic_by_id(
+                session,
+                topic_id=page.topic_id,
+                project_id=page.project_id,
+            )
+            if topic:
+                topic_name = topic.name
+
+        pillar_name = None
+        if page.pillar_id:
+            pillar = await self._content.get_pillar_by_id(
+                session,
+                pillar_id=page.pillar_id,
+                project_id=page.project_id,
+            )
+            if pillar:
+                pillar_name = pillar.name
+
+        existing_url = None
+        if page.existing_page_id:
+            existing = await self._content.get_page_by_id(session, page_id=page.existing_page_id)
+            if existing:
+                existing_url = existing.url
+
+        keywords = await self._content.list_page_keywords(session, page_id=page.id)
+        kw_names: list[str] = []
+        for pk in keywords:
+            kw_obj = await self._keywords.get_by_id(
+                session,
+                keyword_id=pk.keyword_id,
+                project_id=page.project_id,
+            )
+            if kw_obj:
+                kw_names.append(kw_obj.keyword)
+
+        return PlannedContentPageDetail(
+            id=page.id,
+            organization_id=page.organization_id,
+            project_id=page.project_id,
+            website_id=page.website_id,
+            title=page.title,
+            slug=page.slug,
+            url=page.url or (f"/{page.slug}" if page.slug else ""),
+            page_type=page.page_type,
+            content_type=page.content_type,
+            status=page.status,
+            intent=page.intent,
+            primary_keyword=page.primary_keyword,
+            primary_keyword_id=page.primary_keyword_id,
+            cluster_id=page.cluster_id,
+            cluster_name=cluster_name,
+            topic_id=page.topic_id,
+            topic_name=topic_name,
+            pillar_id=page.pillar_id,
+            pillar_name=pillar_name,
+            priority=page.priority,
+            business_value=page.business_value,
+            existing_page_id=page.existing_page_id,
+            existing_page_url=existing_url,
+            secondary_keywords=kw_names,
+            inbound_links_count=0,
+            outbound_links_count=0,
+            created_at=page.created_at,
+            updated_at=page.updated_at,
+        )
+
+    async def create_planned_page(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        project_id: UUID,
+        payload: PlannedContentPageCreate,
+        request_id: str = "",
+    ) -> PlannedContentPageDetail:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            project = await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            norm_slug = normalize_slug(payload.slug)
+            existing = await self._content.get_planned_page_by_slug(
+                session, project_id=project.id, slug=norm_slug
+            )
+            if existing:
+                raise ConflictError(
+                    "PLANNED_PAGE_SLUG_CONFLICT",
+                    f"A planned page with slug '{norm_slug}' already exists in this project.",
+                )
+
+            page_type = payload.page_type
+            website_id = payload.website_id
+            page_url = payload.url or f"/{norm_slug}"
+            if payload.existing_page_id:
+                existing_page = await self._content.get_page_by_id(
+                    session,
+                    page_id=payload.existing_page_id,
+                    organization_id=project.organization_id,
+                )
+                if not existing_page or existing_page.project_id != project.id:
+                    raise ResourceNotFound("Existing content page")
+                page_type = PageType.EXISTING
+                website_id = existing_page.website_id
+                page_url = existing_page.url
+
+            page = PlannedContentPage(
+                organization_id=project.organization_id,
+                project_id=project.id,
+                website_id=website_id,
+                title=payload.title,
+                slug=norm_slug,
+                url=page_url,
+                page_type=page_type,
+                content_type=payload.content_type,
+                status=payload.status,
+                intent=payload.intent,
+                primary_keyword=payload.primary_keyword,
+                primary_keyword_id=payload.primary_keyword_id,
+                cluster_id=payload.cluster_id,
+                topic_id=payload.topic_id,
+                pillar_id=payload.pillar_id,
+                priority=payload.priority,
+                business_value=payload.business_value,
+                existing_page_id=payload.existing_page_id,
+            )
+            created = await self._content.create_planned_page(session, page)
+
+            self._audit.add(
+                session,
+                organization_id=project.organization_id,
+                project_id=project.id,
+                actor_user_id=actor.user_id,
+                action="content.planned_page.create",
+                resource_type="planned_content_page",
+                resource_id=created.id,
+                outcome="success",
+                request_id=request_id,
+                metadata={"title": created.title, "slug": created.slug},
+            )
+
+            return await self._to_planned_page_detail(session, created)
+
+    async def list_planned_pages(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        project_id: UUID,
+        status: str | None = None,
+        cluster_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        pillar_id: UUID | None = None,
+        page_type: str | None = None,
+        search: str | None = None,
+    ) -> PlannedContentPageList:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            project = await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=project_id,
+                permission=PermissionCode.CONTENT_READ,
+            )
+
+            pages = await self._content.list_planned_pages(
+                session,
+                project_id=project.id,
+                status=status,
+                cluster_id=cluster_id,
+                topic_id=topic_id,
+                pillar_id=pillar_id,
+                page_type=page_type,
+                search=search,
+            )
+
+            items = [await self._to_planned_page_detail(session, p) for p in pages]
+            return PlannedContentPageList(items=items, total=len(items))
+
+    async def get_planned_page(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+    ) -> PlannedContentPageDetail:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_READ,
+            )
+            return await self._to_planned_page_detail(session, page)
+
+    async def update_planned_page(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+        payload: PlannedContentPageUpdate,
+        request_id: str = "",
+    ) -> PlannedContentPageDetail:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            if payload.title is not None:
+                page.title = payload.title
+            if payload.slug is not None:
+                new_slug = normalize_slug(payload.slug)
+                if new_slug != page.slug:
+                    existing = await self._content.get_planned_page_by_slug(
+                        session, project_id=page.project_id, slug=new_slug
+                    )
+                    if existing and existing.id != page.id:
+                        raise ConflictError(
+                            "PLANNED_PAGE_SLUG_CONFLICT", f"Slug '{new_slug}' is already in use."
+                        )
+                    page.slug = new_slug
+            if payload.url is not None:
+                page.url = payload.url
+            if payload.page_type is not None:
+                page.page_type = payload.page_type
+            if payload.content_type is not None:
+                page.content_type = payload.content_type
+            if payload.status is not None:
+                page.status = payload.status
+            if payload.intent is not None:
+                page.intent = payload.intent
+            if payload.primary_keyword is not None:
+                page.primary_keyword = payload.primary_keyword
+            if payload.primary_keyword_id is not None:
+                page.primary_keyword_id = payload.primary_keyword_id
+            if payload.cluster_id is not None:
+                page.cluster_id = payload.cluster_id
+            if payload.topic_id is not None:
+                page.topic_id = payload.topic_id
+            if payload.pillar_id is not None:
+                page.pillar_id = payload.pillar_id
+            if payload.priority is not None:
+                page.priority = payload.priority
+            if payload.business_value is not None:
+                page.business_value = payload.business_value
+            if payload.existing_page_id is not None:
+                page.existing_page_id = payload.existing_page_id
+
+            page.revision += 1
+            updated = await self._content.update_planned_page(session, page)
+
+            self._audit.add(
+                session,
+                organization_id=page.organization_id,
+                project_id=page.project_id,
+                actor_user_id=actor.user_id,
+                action="content.planned_page.update",
+                resource_type="planned_content_page",
+                resource_id=page.id,
+                outcome="success",
+                request_id=request_id,
+                metadata={"title": page.title, "status": page.status},
+            )
+            return await self._to_planned_page_detail(session, updated)
+
+    async def delete_planned_page(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+        request_id: str = "",
+    ) -> None:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            await self._content.delete_planned_page(session, page)
+            self._audit.add(
+                session,
+                organization_id=page.organization_id,
+                project_id=page.project_id,
+                actor_user_id=actor.user_id,
+                action="content.planned_page.delete",
+                resource_type="planned_content_page",
+                resource_id=page.id,
+                outcome="success",
+                request_id=request_id,
+                metadata={"title": page.title},
+            )
+
+    async def assign_page_keyword(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+        payload: PageKeywordAssign,
+        request_id: str = "",
+    ) -> PageKeywordDetail:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            kw = await self._keywords.get_keyword_by_id(session, keyword_id=payload.keyword_id)
+            if not kw:
+                raise ResourceNotFound(f"Keyword {payload.keyword_id} was not found.")
+
+            pk = PageKeyword(
+                page_id=page.id,
+                keyword_id=kw.id,
+                keyword_role=payload.keyword_role,
+            )
+            created = await self._content.assign_page_keyword(session, pk)
+
+            return PageKeywordDetail(
+                id=created.id,
+                page_id=created.page_id,
+                keyword_id=created.keyword_id,
+                keyword=kw.keyword,
+                keyword_role=created.keyword_role,
+                created_at=created.created_at,
+            )
+
+    async def list_page_keywords(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+    ) -> PageKeywordList:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_READ,
+            )
+
+            keywords = await self._content.list_page_keywords(session, page_id=page.id)
+            items: list[PageKeywordDetail] = []
+            for pk in keywords:
+                kw = await self._keywords.get_keyword_by_id(session, keyword_id=pk.keyword_id)
+                items.append(
+                    PageKeywordDetail(
+                        id=pk.id,
+                        page_id=pk.page_id,
+                        keyword_id=pk.keyword_id,
+                        keyword=kw.keyword if kw else "",
+                        keyword_role=pk.keyword_role,
+                        created_at=pk.created_at,
+                    )
+                )
+            return PageKeywordList(items=items)
+
+    async def remove_page_keyword(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        page_id: UUID,
+        keyword_id: UUID,
+        request_id: str = "",
+    ) -> None:
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
+            if not page:
+                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
+
+            await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=page.project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            await self._content.remove_page_keyword(session, page_id=page.id, keyword_id=keyword_id)
+
+    async def convert_opportunity_to_page(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        project_id: UUID,
+        opportunity_id: UUID,
+        payload: ConvertOpportunityToPageRequest,
+        request_id: str = "",
+    ) -> PlannedContentPageDetail:
+        """Converts an approved or reviewed Opportunity directly into a PlannedContentPage."""
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            project = await self._projects.get_model(
+                session,
+                actor=actor,
+                project_id=project_id,
+                permission=PermissionCode.CONTENT_WRITE,
+            )
+
+            opp = await self._content.get_opportunity_by_id(
+                session, opportunity_id=opportunity_id, project_id=project.id
+            )
+            if not opp:
+                raise ResourceNotFound(f"Opportunity {opportunity_id} was not found.")
+
+            cluster_title = ""
+            primary_kw = ""
+            topic_id = None
+            pillar_id = None
+            intent = "INFORMATIONAL"
+
+            if opp.cluster_id:
+                cluster = await self._keywords.get_cluster_by_id(session, cluster_id=opp.cluster_id)
+                if cluster:
+                    cluster_title = cluster.cluster_name
+                    intent = cluster.intent
+                    topic_id = cluster.topic_id
+                    if cluster.primary_keyword_id:
+                        kw = await self._keywords.get_keyword_by_id(
+                            session, keyword_id=cluster.primary_keyword_id
+                        )
+                        if kw:
+                            primary_kw = kw.keyword
+
+            if opp.keyword_id and not primary_kw:
+                kw = await self._keywords.get_keyword_by_id(session, keyword_id=opp.keyword_id)
+                if kw:
+                    primary_kw = kw.keyword
+                    if not cluster_title:
+                        cluster_title = kw.keyword
+
+            if topic_id:
+                topic = await self._content.get_topic_by_id(session, topic_id=topic_id)
+                if topic:
+                    pillar_id = topic.pillar_id
+
+            title = payload.title or cluster_title or primary_kw or "New Planned Page"
+            raw_slug = payload.slug or normalize_slug(title)
+            slug = raw_slug
+
+            # Check slug uniqueness, disambiguate if needed
+            existing = await self._content.get_planned_page_by_slug(
+                session, project_id=project.id, slug=slug
+            )
+            if existing:
+                slug = f"{raw_slug}-{str(opp.id)[:6]}"
+
+            page = PlannedContentPage(
+                organization_id=project.organization_id,
+                project_id=project.id,
+                website_id=opp.website_id,
+                title=title,
+                slug=slug,
+                url=f"/{slug}",
+                page_type=PageType.EXISTING if opp.existing_page_id else PageType.PLANNED,
+                content_type=payload.content_type or PageContentType.GUIDE,
+                status=PlannedPageStatus.PLANNED,
+                intent=intent,
+                primary_keyword=primary_kw,
+                primary_keyword_id=opp.keyword_id,
+                cluster_id=opp.cluster_id,
+                topic_id=topic_id,
+                pillar_id=pillar_id,
+                priority=payload.priority
+                if payload.priority is not None
+                else int(max(1, min(100, opp.priority * 10))),
+                business_value=opp.business_value_score,
+                existing_page_id=opp.existing_page_id,
+            )
+            created = await self._content.create_planned_page(session, page)
+
+            # Update opportunity status to APPROVED
+            opp.status = OpportunityStatus.APPROVED
+            await self._content.update_opportunity(session, opp)
+
+            self._audit.add(
+                session,
+                organization_id=project.organization_id,
+                project_id=project.id,
+                actor_user_id=actor.user_id,
+                action="content.opportunity.converted_to_page",
+                resource_type="planned_content_page",
+                resource_id=created.id,
+                outcome="success",
+                request_id=request_id,
+                metadata={"opportunity_id": str(opp.id), "title": created.title},
+            )
+
+            return await self._to_planned_page_detail(session, created)

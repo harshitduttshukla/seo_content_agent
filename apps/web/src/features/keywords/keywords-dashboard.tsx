@@ -10,8 +10,8 @@ import {
   AlertTriangle,
   Flame,
   CheckCircle2,
-  FolderPlus,
-  ExternalLink,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Card } from "@/components/card";
 import type {
@@ -43,13 +43,25 @@ export function KeywordsDashboard({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showClusterModal, setShowClusterModal] = useState(false);
+  const [keywordToEdit, setKeywordToEdit] = useState<Keyword | null>(null);
+  const [keywordToDelete, setKeywordToDelete] = useState<Keyword | null>(null);
+  const [keywordMutationError, setKeywordMutationError] = useState<string | null>(null);
+  const [clusterToDelete, setClusterToDelete] = useState<KeywordCluster | null>(null);
+  const [deleteClusterError, setDeleteClusterError] = useState<string | null>(null);
 
   // Form states
   const [newKeyword, setNewKeyword] = useState("");
   const [newVolume, setNewVolume] = useState<number>(1000);
   const [newDifficulty, setNewDifficulty] = useState<number>(30);
   const [newCpc, setNewCpc] = useState<number>(2.5);
-  const [newIntent, setNewIntent] = useState("UNKNOWN");
+
+  const [editKeyword, setEditKeyword] = useState("");
+  const [editVolume, setEditVolume] = useState(0);
+  const [editDifficulty, setEditDifficulty] = useState(0);
+  const [editCpc, setEditCpc] = useState(0);
+  const [editIntent, setEditIntent] = useState("UNKNOWN");
+  const [editFunnelStage, setEditFunnelStage] = useState("TOFU");
+  const [editStatus, setEditStatus] = useState("active");
 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [clusterThreshold, setClusterThreshold] = useState(0.45);
@@ -68,7 +80,7 @@ export function KeywordsDashboard({
             search_volume: Number(newVolume) || 0,
             keyword_difficulty: Number(newDifficulty) || 0,
             cpc: Number(newCpc) || 0,
-            intent: newIntent,
+            intent: "UNKNOWN",
           }),
         });
         setShowAddModal(false);
@@ -127,6 +139,91 @@ export function KeywordsDashboard({
     });
   };
 
+  const openKeywordEditor = (keyword: Keyword) => {
+    setKeywordMutationError(null);
+    setKeywordToEdit(keyword);
+    setEditKeyword(keyword.keyword);
+    setEditVolume(keyword.search_volume);
+    setEditDifficulty(keyword.keyword_difficulty);
+    setEditCpc(keyword.cpc);
+    setEditIntent(keyword.intent);
+    setEditFunnelStage(keyword.funnel_stage);
+    setEditStatus(keyword.status);
+  };
+
+  const handleUpdateKeyword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keywordToEdit || !editKeyword.trim()) return;
+
+    const keywordId = keywordToEdit.id;
+    setKeywordMutationError(null);
+    startTransition(async () => {
+      try {
+        await clientApi(`/projects/${projectId}/keywords/${keywordId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            keyword: editKeyword.trim(),
+            search_volume: Number(editVolume) || 0,
+            keyword_difficulty: Number(editDifficulty) || 0,
+            cpc: Number(editCpc) || 0,
+            intent: editIntent,
+            funnel_stage: editFunnelStage,
+            status: editStatus,
+          }),
+        });
+        setKeywordToEdit(null);
+        setNotification(`Keyword "${editKeyword.trim()}" updated successfully.`);
+        router.refresh();
+      } catch (err) {
+        setKeywordMutationError(
+          err instanceof Error ? err.message : "Failed to update the keyword",
+        );
+      }
+    });
+  };
+
+  const handleDeleteKeyword = () => {
+    if (!keywordToDelete) return;
+
+    const keyword = keywordToDelete;
+    setKeywordMutationError(null);
+    startTransition(async () => {
+      try {
+        await clientApi(`/projects/${projectId}/keywords/${keyword.id}`, {
+          method: "DELETE",
+        });
+        setKeywordToDelete(null);
+        setNotification(`Keyword "${keyword.keyword}" deleted successfully.`);
+        router.refresh();
+      } catch (err) {
+        setKeywordMutationError(
+          err instanceof Error ? err.message : "Failed to delete the keyword",
+        );
+      }
+    });
+  };
+
+  const handleDeleteCluster = () => {
+    if (!clusterToDelete) return;
+
+    const cluster = clusterToDelete;
+    setDeleteClusterError(null);
+    startTransition(async () => {
+      try {
+        await clientApi(`/projects/${projectId}/clusters/${cluster.id}`, {
+          method: "DELETE",
+        });
+        setClusterToDelete(null);
+        setNotification(`Cluster "${cluster.cluster_name}" deleted. Its keywords were kept.`);
+        router.refresh();
+      } catch (err) {
+        setDeleteClusterError(
+          err instanceof Error ? err.message : "Failed to delete the cluster",
+        );
+      }
+    });
+  };
+
   const filteredKeywords = initialKeywords.filter((k) => {
     const matchSearch =
       !search ||
@@ -153,7 +250,7 @@ export function KeywordsDashboard({
               <div className="mt-3 grid gap-2">
                 {initialWarnings.slice(0, 3).map((w, idx) => (
                   <div key={idx} className="rounded-lg bg-white/80 p-2.5 text-xs border border-amber-200">
-                    <span className="font-bold text-amber-950">"{w.keyword}"</span>: {w.reason}
+                    <span className="font-bold text-amber-950">&ldquo;{w.keyword}&rdquo;</span>: {w.reason}
                   </div>
                 ))}
               </div>
@@ -259,12 +356,13 @@ export function KeywordsDashboard({
                   <th className="px-4 py-3">CPC</th>
                   <th className="px-4 py-3">Business Value</th>
                   <th className="px-4 py-3">Priority</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {filteredKeywords.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
+                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
                       No keywords found. Add keywords or import a CSV file to build your keyword universe.
                     </td>
                   </tr>
@@ -312,6 +410,29 @@ export function KeywordsDashboard({
                           <Flame size={13} className="text-amber-500" /> {kw.priority_score}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openKeywordEditor(kw)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                            aria-label={`Edit keyword ${kw.keyword}`}
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKeywordMutationError(null);
+                              setKeywordToDelete(kw);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                            aria-label={`Delete keyword ${kw.keyword}`}
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -324,7 +445,7 @@ export function KeywordsDashboard({
         <div className="grid gap-4 md:grid-cols-2">
           {initialClusters.length === 0 ? (
             <Card className="p-8 text-center text-sm text-[var(--muted)] col-span-2">
-              No keyword clusters generated yet. Click <strong>"Run Clustering"</strong> above to group your keywords into topic clusters deterministically.
+              No keyword clusters generated yet. Click <strong>&ldquo;Run Clustering&rdquo;</strong> above to group your keywords into topic clusters deterministically.
             </Card>
           ) : (
             initialClusters.map((cluster) => (
@@ -372,6 +493,17 @@ export function KeywordsDashboard({
                   <span className="text-xs font-semibold capitalize text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                     Status: {cluster.status}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteClusterError(null);
+                      setClusterToDelete(cluster);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                    aria-label={`Delete cluster ${cluster.cluster_name}`}
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
                 </div>
               </Card>
             ))
@@ -528,6 +660,322 @@ export function KeywordsDashboard({
                 </button>
               </div>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Keyword editor */}
+      {keywordToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card
+            className="w-full max-w-2xl p-6 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-keyword-title"
+          >
+            <h2 id="edit-keyword-title" className="text-lg font-bold">
+              Edit keyword
+            </h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Changing the keyword, CPC, or intent recalculates its business value and priority.
+            </p>
+
+            <form onSubmit={handleUpdateKeyword} className="mt-5 grid gap-4">
+              <div>
+                <label
+                  htmlFor="edit-keyword-value"
+                  className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                >
+                  Keyword
+                </label>
+                <input
+                  id="edit-keyword-value"
+                  type="text"
+                  required
+                  maxLength={500}
+                  value={editKeyword}
+                  onChange={(e) => setEditKeyword(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] p-2.5 text-sm"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label
+                    htmlFor="edit-keyword-volume"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    Search Volume
+                  </label>
+                  <input
+                    id="edit-keyword-volume"
+                    type="number"
+                    min="0"
+                    value={editVolume}
+                    onChange={(e) => setEditVolume(Number(e.target.value))}
+                    className="w-full rounded-lg border border-[var(--border)] p-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-keyword-difficulty"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    Difficulty
+                  </label>
+                  <input
+                    id="edit-keyword-difficulty"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={editDifficulty}
+                    onChange={(e) => setEditDifficulty(Number(e.target.value))}
+                    className="w-full rounded-lg border border-[var(--border)] p-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-keyword-cpc"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    CPC ($)
+                  </label>
+                  <input
+                    id="edit-keyword-cpc"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editCpc}
+                    onChange={(e) => setEditCpc(Number(e.target.value))}
+                    className="w-full rounded-lg border border-[var(--border)] p-2.5 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label
+                    htmlFor="edit-keyword-intent"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    Intent
+                  </label>
+                  <select
+                    id="edit-keyword-intent"
+                    value={editIntent}
+                    onChange={(e) => setEditIntent(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-white p-2.5 text-sm"
+                  >
+                    <option value="INFORMATIONAL">Informational</option>
+                    <option value="COMMERCIAL">Commercial</option>
+                    <option value="TRANSACTIONAL">Transactional</option>
+                    <option value="NAVIGATIONAL">Navigational</option>
+                    <option value="LOCAL">Local</option>
+                    <option value="UNKNOWN">Unknown</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-keyword-funnel"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    Funnel Stage
+                  </label>
+                  <select
+                    id="edit-keyword-funnel"
+                    value={editFunnelStage}
+                    onChange={(e) => setEditFunnelStage(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-white p-2.5 text-sm"
+                  >
+                    <option value="TOFU">TOFU</option>
+                    <option value="MOFU">MOFU</option>
+                    <option value="BOFU">BOFU</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-keyword-status"
+                    className="mb-1 block text-xs font-bold uppercase text-[var(--muted)]"
+                  >
+                    Status
+                  </label>
+                  <select
+                    id="edit-keyword-status"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-white p-2.5 text-sm"
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                    <option value="ignored">Ignored</option>
+                  </select>
+                </div>
+              </div>
+
+              {keywordMutationError && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800"
+                >
+                  {keywordMutationError}
+                </p>
+              )}
+
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKeywordMutationError(null);
+                    setKeywordToEdit(null);
+                  }}
+                  disabled={isPending}
+                  className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || !editKeyword.trim()}
+                  className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isPending ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Keyword deletion confirmation */}
+      {keywordToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card
+            className="w-full max-w-lg p-6 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-keyword-title"
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-red-50 p-2 text-red-700">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h2 id="delete-keyword-title" className="text-lg font-bold">
+                  Delete keyword?
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  You are deleting <strong>{keywordToDelete.keyword}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm leading-relaxed text-slate-700">
+              This removes the keyword from cluster memberships, page mappings, page keyword
+              assignments, and keyword-specific opportunities. Pages and clusters are kept, but
+              any primary-keyword reference to this keyword is cleared.
+            </p>
+
+            {keywordMutationError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800"
+              >
+                {keywordMutationError}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setKeywordMutationError(null);
+                  setKeywordToDelete(null);
+                }}
+                disabled={isPending}
+                className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteKeyword}
+                disabled={isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPending ? "Deleting..." : "Delete keyword"}
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Cluster deletion confirmation */}
+      {clusterToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card
+            className="w-full max-w-lg p-6 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-cluster-title"
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-red-50 p-2 text-red-700">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h2 id="delete-cluster-title" className="text-lg font-bold">
+                  Delete cluster?
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  You are deleting <strong>{clusterToDelete.cluster_name}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-bold uppercase text-[var(--muted)]">Cluster ID</p>
+              <p className="mt-1 break-all font-mono text-xs text-slate-700">
+                {clusterToDelete.id}
+              </p>
+            </div>
+
+            <p className="mt-4 text-sm leading-relaxed text-slate-700">
+              This removes the cluster grouping and its derived content opportunities. The
+              underlying keywords are kept. Planned pages are also kept, but their cluster
+              assignment is cleared.
+            </p>
+
+            {deleteClusterError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800"
+              >
+                {deleteClusterError}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteClusterError(null);
+                  setClusterToDelete(null);
+                }}
+                disabled={isPending}
+                className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCluster}
+                disabled={isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPending ? "Deleting..." : "Delete cluster"}
+              </button>
+            </div>
           </Card>
         </div>
       )}

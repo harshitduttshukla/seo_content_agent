@@ -36,6 +36,19 @@ class KeywordRepository:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def delete_keyword(
+        self,
+        session: AsyncSession,
+        *,
+        keyword_id: UUID,
+        project_id: UUID,
+    ) -> None:
+        stmt = delete(Keyword).where(
+            Keyword.id == keyword_id,
+            Keyword.project_id == project_id,
+        )
+        await session.execute(stmt)
+
     async def create_keyword(
         self,
         session: AsyncSession,
@@ -337,6 +350,15 @@ class KeywordRepository:
         stmt = delete(KeywordClusterMember).where(KeywordClusterMember.keyword_id.in_(keyword_ids))
         await session.execute(stmt)
 
-    async def delete_cluster(self, session: AsyncSession, *, cluster_id: UUID) -> None:
-        stmt = delete(KeywordCluster).where(KeywordCluster.id == cluster_id)
+    async def delete_cluster(
+        self,
+        session: AsyncSession,
+        *,
+        cluster_id: UUID,
+        project_id: UUID,
+    ) -> None:
+        stmt = delete(KeywordCluster).where(
+            KeywordCluster.id == cluster_id,
+            KeywordCluster.project_id == project_id,
+        )
         await session.execute(stmt)

@@ -121,10 +121,12 @@ Request/response schemas use `Create`, `Update`, `Command`, `Summary`, and `Deta
 |---|---|---|
 | `POST /projects/{project_id}/keyword-imports` | object/source mapping -> job | `keywords.import`; idempotency required |
 | `GET /projects/{project_id}/keywords` | query/intent/status/cluster/sort/cursor -> keywords | `keywords.read` |
-| `PATCH /keywords/{keyword_id}` | allowed human override + revision -> keyword | `keywords.write`; provenance retained |
+| `PUT /projects/{project_id}/keywords/{keyword_id}` | editable keyword fields -> keyword | `keyword.write`; normalized duplicates rejected; audited |
+| `DELETE /projects/{project_id}/keywords/{keyword_id}` | -> deleted keyword identity | `keyword.write`; explicit UI confirmation; dependent assignments removed |
 | `POST /projects/{project_id}/keyword-cluster-jobs` | keyword snapshot/config -> job | `clusters.generate` |
 | `GET /projects/{project_id}/keyword-clusters` | filters/cursor -> clusters | `clusters.read` |
 | `PUT /keyword-clusters/{cluster_id}/members` | complete member assignments + revision -> cluster | `clusters.write`; conflict analysis |
+| `DELETE /projects/{project_id}/clusters/{cluster_id}` | -> deleted cluster identity | `keywords.write`; requires explicit UI confirmation; retains keywords |
 | `POST /projects/{project_id}/pillars` | pillar -> detail | `content_map.write` |
 | `POST /pillars/{pillar_id}/topics` | topic -> detail | `content_map.write` |
 | `PUT /topics/{topic_id}/clusters` | assignments + revision -> topic | `content_map.write` |
@@ -187,4 +189,3 @@ Future callbacks use adapter-specific paths, signature and timestamp verificatio
 ## 9. Contract acceptance
 
 An endpoint is complete only when its Pydantic request/response, permission, tenant path, error cases, concurrency/idempotency behavior, audit events, OpenAPI examples, service transaction, and success/cross-tenant/validation/conflict tests exist. Frontend generation drift is a release failure.
-

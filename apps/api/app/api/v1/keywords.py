@@ -9,6 +9,7 @@ from app.api.dependencies import CurrentUserDep, SessionDep
 from app.api.responses import success
 from app.domains.keywords.schemas import (
     KeywordCreate,
+    KeywordDeleteResponse,
     KeywordDetail,
     KeywordImportResponse,
     KeywordList,
@@ -119,6 +120,27 @@ async def update_keyword(
         request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
     )
     return success(request, kw)
+
+
+@router.delete(
+    "/projects/{project_id}/keywords/{keyword_id}",
+    response_model=ApiResponse[KeywordDeleteResponse],
+)
+async def delete_keyword(
+    project_id: UUID,
+    keyword_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[KeywordDeleteResponse]:
+    deleted = await KeywordService().delete_keyword(
+        session,
+        actor=actor,
+        project_id=project_id,
+        keyword_id=keyword_id,
+        request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
+    )
+    return success(request, deleted)
 
 
 @router.post(

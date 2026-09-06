@@ -19,8 +19,12 @@ def test_phase3_openapi_contract_contains_expected_resources() -> None:
     # Strategy, Keywords, Clusters, and Content Architecture (Phase 3)
     assert "/api/v1/projects/{project_id}/strategy" in paths
     assert "/api/v1/projects/{project_id}/keywords" in paths
+    keyword_item_path = schema["paths"]["/api/v1/projects/{project_id}/keywords/{keyword_id}"]
+    assert "put" in keyword_item_path
+    assert "delete" in keyword_item_path
     assert "/api/v1/projects/{project_id}/clustering-runs" in paths
     assert "/api/v1/projects/{project_id}/clusters" in paths
+    assert "delete" in schema["paths"]["/api/v1/projects/{project_id}/clusters/{cluster_id}"]
     assert "/api/v1/projects/{project_id}/content-pillars" in paths
     assert "/api/v1/projects/{project_id}/topics" in paths
     assert "/api/v1/projects/{project_id}/content-opportunities" in paths

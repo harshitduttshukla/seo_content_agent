@@ -21,12 +21,13 @@ Phase 3 delivers the foundational SEO intelligence layer of the platform. It tra
 
 ### 2. Keyword Intelligence & Universe (`app/domains/keywords`)
 - `Keyword`: Canonical keyword inventory with NFKC lowercase normalization, search volume, difficulty (KD), CPC, deterministic search intent (`INFORMATIONAL`, `COMMERCIAL`, `TRANSACTIONAL`, `NAVIGATIONAL`, `LOCAL`), funnel stage (`TOFU`, `MOFU`, `BOFU`), explainable business value score (0-100), and composite priority score (0-100).
+- Keyword management supports audited edits (including duplicate-safe renaming and score recalculation) and confirmed deletion of individual keywords and their dependent assignments.
 - `KeywordImport` & `KeywordImportRow`: High-throughput CSV parser supporting UTF-8/Latin-1 encodings, custom column header aliases, deduplication, and row-level error reporting.
 
 ### 3. Deterministic Keyword Clustering (`app/domains/keywords/clustering.py`)
 - Lexical & semantic similarity using token Jaccard similarity with expanded SEO stop-word filtering, root token overlap bonuses, and phrase containment.
 - `ClusteringRun` & `KeywordCluster`: Groups keywords into clusters, automatically selects the primary target keyword based on search volume and priority, calculates overall cluster opportunity scores, and generates human-readable rationale.
-- Cluster management: Merge clusters and move keywords between clusters.
+- Cluster management: Merge clusters, move keywords between clusters, and delete obsolete or duplicate clusters while retaining the underlying keywords.
 
 ### 4. Content Architecture & Gaps (`app/domains/content`)
 - `ContentPillar` & `Topic`: Hierarchical strategic pillars and topics.
@@ -49,9 +50,12 @@ Phase 3 delivers the foundational SEO intelligence layer of the platform. It tra
 | **Strategy** | `GET` | `/api/v1/projects/{project_id}/strategy/versions` | List all strategy version snapshots |
 | **Keywords** | `POST` | `/api/v1/projects/{project_id}/keywords` | Create single keyword with intent/scoring |
 | **Keywords** | `GET` | `/api/v1/projects/{project_id}/keywords` | List/filter keywords by volume, difficulty, intent |
+| **Keywords** | `PUT` | `/api/v1/projects/{project_id}/keywords/{keyword_id}` | Edit keyword text and metrics with deterministic score recalculation |
+| **Keywords** | `DELETE` | `/api/v1/projects/{project_id}/keywords/{keyword_id}` | Delete one keyword and its dependent assignments |
 | **Keywords** | `POST` | `/api/v1/projects/{project_id}/keywords/import` | Ingest CSV file |
 | **Clusters** | `POST` | `/api/v1/projects/{project_id}/clustering-runs` | Run deterministic clustering algorithm |
 | **Clusters** | `GET` | `/api/v1/projects/{project_id}/clusters` | List semantic clusters with members |
+| **Clusters** | `DELETE` | `/api/v1/projects/{project_id}/clusters/{cluster_id}` | Delete one cluster while retaining its keywords |
 | **Clusters** | `POST` | `/api/v1/projects/{project_id}/clusters/merge` | Merge multiple clusters |
 | **Clusters** | `POST` | `/api/v1/projects/{project_id}/clusters/move-keywords` | Move keywords between clusters |
 | **Architecture** | `POST` | `/api/v1/projects/{project_id}/content-pillars` | Create content pillar |

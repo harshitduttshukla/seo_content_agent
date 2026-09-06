@@ -17,7 +17,9 @@ from app.domains.content.models import (
     MappingType,
     OpportunityAction,
     OpportunityStatus,
+    PageKeyword,
     PageLink,
+    PlannedContentPage,
     Topic,
 )
 from sqlalchemy import desc, func, or_, select
@@ -510,3 +512,108 @@ class ContentRepository:
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    # --- Phase 4 Planned Content Pages ---
+
+    async def create_planned_page(
+        self, session: AsyncSession, page: PlannedContentPage
+    ) -> PlannedContentPage:
+        session.add(page)
+        await session.flush()
+        return page
+
+    async def get_planned_page_by_id(
+        self, session: AsyncSession, *, page_id: UUID, project_id: UUID | None = None
+    ) -> PlannedContentPage | None:
+        stmt = select(PlannedContentPage).where(PlannedContentPage.id == page_id)
+        if project_id is not None:
+            stmt = stmt.where(PlannedContentPage.project_id == project_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_planned_page_by_slug(
+        self, session: AsyncSession, *, project_id: UUID, slug: str
+    ) -> PlannedContentPage | None:
+        stmt = select(PlannedContentPage).where(
+            PlannedContentPage.project_id == project_id,
+            PlannedContentPage.slug == slug,
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_planned_pages(
+        self,
+        session: AsyncSession,
+        *,
+        project_id: UUID,
+        status: str | None = None,
+        cluster_id: UUID | None = None,
+        topic_id: UUID | None = None,
+        pillar_id: UUID | None = None,
+        page_type: str | None = None,
+        search: str | None = None,
+    ) -> list[PlannedContentPage]:
+        stmt = select(PlannedContentPage).where(PlannedContentPage.project_id == project_id)
+        if status:
+            stmt = stmt.where(PlannedContentPage.status == status)
+        if cluster_id:
+            stmt = stmt.where(PlannedContentPage.cluster_id == cluster_id)
+        if topic_id:
+            stmt = stmt.where(PlannedContentPage.topic_id == topic_id)
+        if pillar_id:
+            stmt = stmt.where(PlannedContentPage.pillar_id == pillar_id)
+        if page_type:
+            stmt = stmt.where(PlannedContentPage.page_type == page_type)
+        if search:
+            search_pat = f"%{search.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    PlannedContentPage.title.ilike(search_pat),
+                    PlannedContentPage.primary_keyword.ilike(search_pat),
+                    PlannedContentPage.slug.ilike(search_pat),
+                )
+            )
+        stmt = stmt.order_by(desc(PlannedContentPage.priority), desc(PlannedContentPage.created_at))
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update_planned_page(
+        self, session: AsyncSession, page: PlannedContentPage
+    ) -> PlannedContentPage:
+        await session.flush()
+        return page
+
+    async def delete_planned_page(self, session: AsyncSession, page: PlannedContentPage) -> None:
+        await session.delete(page)
+        await session.flush()
+
+    # --- Phase 4 Page Keywords ---
+
+    async def assign_page_keyword(self, session: AsyncSession, page_kw: PageKeyword) -> PageKeyword:
+        session.add(page_kw)
+        await session.flush()
+        return page_kw
+
+    async def list_page_keywords(
+        self, session: AsyncSession, *, page_id: UUID
+    ) -> list[PageKeyword]:
+        stmt = (
+            select(PageKeyword)
+            .where(PageKeyword.page_id == page_id)
+            .order_by(PageKeyword.created_at)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def remove_page_keyword(
+        self, session: AsyncSession, *, page_id: UUID, keyword_id: UUID
+    ) -> None:
+        stmt = select(PageKeyword).where(
+            PageKeyword.page_id == page_id,
+            PageKeyword.keyword_id == keyword_id,
+        )
+        res = await session.execute(stmt)
+        row = res.scalar_one_or_none()
+        if row:
+            await session.delete(row)
+            await session.flush()

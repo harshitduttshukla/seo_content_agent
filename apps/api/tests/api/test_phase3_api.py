@@ -24,9 +24,11 @@ from app.domains.content.schemas import (
 )
 from app.domains.keywords.schemas import (
     ClusteringRunResponse,
+    KeywordClusterDeleteResponse,
     KeywordClusterDetail,
     KeywordClusterList,
     KeywordClusterMemberDetail,
+    KeywordDeleteResponse,
     KeywordDetail,
     KeywordImportResponse,
     KeywordList,
@@ -217,6 +219,16 @@ async def test_keywords_and_clusters_endpoints(test_app: FastAPI) -> None:
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
+    mock_deleted_cluster = KeywordClusterDeleteResponse(
+        cluster_id=cluster_id,
+        cluster_name="B2B SEO Tools",
+        message="Cluster deleted. Its underlying keywords were retained.",
+    )
+    mock_deleted_keyword = KeywordDeleteResponse(
+        keyword_id=kw_id,
+        keyword="best b2b seo tools",
+        message="Keyword deleted with its dependent assignments and mappings.",
+    )
 
     with (
         patch(
@@ -240,6 +252,16 @@ async def test_keywords_and_clusters_endpoints(test_app: FastAPI) -> None:
             new_callable=AsyncMock,
             return_value=KeywordList(items=[mock_kw], total_count=1),
         ),
+        patch(
+            "app.domains.keywords.service.KeywordService.update_keyword",
+            new_callable=AsyncMock,
+            return_value=mock_kw,
+        ) as update_keyword,
+        patch(
+            "app.domains.keywords.service.KeywordService.delete_keyword",
+            new_callable=AsyncMock,
+            return_value=mock_deleted_keyword,
+        ) as delete_keyword,
         patch(
             "app.domains.keywords.service.KeywordService.import_csv",
             new_callable=AsyncMock,
@@ -286,6 +308,11 @@ async def test_keywords_and_clusters_endpoints(test_app: FastAPI) -> None:
             new_callable=AsyncMock,
             return_value=KeywordClusterList(items=[mock_cluster]),
         ),
+        patch(
+            "app.domains.keywords.service.KeywordService.delete_cluster",
+            new_callable=AsyncMock,
+            return_value=mock_deleted_cluster,
+        ) as delete_cluster,
     ):
         async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as ac:
             headers = {"Authorization": "Bearer fake_token"}
@@ -303,6 +330,24 @@ async def test_keywords_and_clusters_endpoints(test_app: FastAPI) -> None:
             res = await ac.get(f"/api/v1/projects/{project_id}/keywords", headers=headers)
             assert res.status_code == 200
             assert len(res.json()["data"]["items"]) == 1
+
+            # Update keyword
+            res = await ac.put(
+                f"/api/v1/projects/{project_id}/keywords/{kw_id}",
+                json={"keyword": "updated b2b seo tools", "search_volume": 2000},
+                headers=headers,
+            )
+            assert res.status_code == 200
+            update_keyword.assert_awaited_once()
+
+            # Delete keyword
+            res = await ac.delete(
+                f"/api/v1/projects/{project_id}/keywords/{kw_id}",
+                headers=headers,
+            )
+            assert res.status_code == 200
+            assert res.json()["data"]["keyword_id"] == str(kw_id)
+            delete_keyword.assert_awaited_once()
 
             # Import CSV
             files = {"file": ("test.csv", b"keyword,volume\nseo tools,1000", "text/csv")}
@@ -326,6 +371,15 @@ async def test_keywords_and_clusters_endpoints(test_app: FastAPI) -> None:
             res = await ac.get(f"/api/v1/projects/{project_id}/clusters", headers=headers)
             assert res.status_code == 200
             assert len(res.json()["data"]["items"]) == 1
+
+            # Delete cluster
+            res = await ac.delete(
+                f"/api/v1/projects/{project_id}/clusters/{cluster_id}",
+                headers=headers,
+            )
+            assert res.status_code == 200
+            assert res.json()["data"]["cluster_id"] == str(cluster_id)
+            delete_cluster.assert_awaited_once()
 
 
 @pytest.mark.asyncio

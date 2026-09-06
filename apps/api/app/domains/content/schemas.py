@@ -7,7 +7,11 @@ from app.domains.content.models import (
     ArchitectureStatus,
     MappingType,
     OpportunityStatus,
+    PageContentType,
+    PageType,
+    PlannedPageStatus,
 )
+from app.domains.keywords.models import SearchIntent
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
@@ -341,3 +345,120 @@ class ContentArchitectureGraphResponse(BaseModel):
 
     nodes: list[ContentArchitectureGraphNode]
     edges: list[ContentArchitectureGraphEdge]
+
+
+# --- Phase 4 Planned Content Pages & Keywords ---
+
+
+class PlannedContentPageCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=500)
+    slug: str = Field(min_length=1, max_length=200)
+    url: str = ""
+    page_type: PageType = PageType.PLANNED
+    content_type: PageContentType = PageContentType.GUIDE
+    status: PlannedPageStatus = PlannedPageStatus.PLANNED
+    intent: SearchIntent = SearchIntent.INFORMATIONAL
+    primary_keyword: str = ""
+    primary_keyword_id: UUID | None = None
+    cluster_id: UUID | None = None
+    topic_id: UUID | None = None
+    pillar_id: UUID | None = None
+    priority: int = Field(default=1, ge=1, le=100)
+    business_value: float = Field(default=0.0, ge=0.0, le=100.0)
+    existing_page_id: UUID | None = None
+    website_id: UUID | None = None
+
+
+class PlannedContentPageUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    slug: str | None = Field(default=None, min_length=1, max_length=200)
+    url: str | None = None
+    page_type: PageType | None = None
+    content_type: PageContentType | None = None
+    status: PlannedPageStatus | None = None
+    intent: SearchIntent | None = None
+    primary_keyword: str | None = None
+    primary_keyword_id: UUID | None = None
+    cluster_id: UUID | None = None
+    topic_id: UUID | None = None
+    pillar_id: UUID | None = None
+    priority: int | None = Field(default=None, ge=1, le=100)
+    business_value: float | None = Field(default=None, ge=0.0, le=100.0)
+    existing_page_id: UUID | None = None
+
+
+class PlannedContentPageDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    website_id: UUID | None = None
+    title: str
+    slug: str
+    url: str
+    page_type: str
+    content_type: str
+    status: str
+    intent: str
+    primary_keyword: str
+    primary_keyword_id: UUID | None = None
+    cluster_id: UUID | None = None
+    cluster_name: str | None = None
+    topic_id: UUID | None = None
+    topic_name: str | None = None
+    pillar_id: UUID | None = None
+    pillar_name: str | None = None
+    priority: int
+    business_value: float
+    existing_page_id: UUID | None = None
+    existing_page_url: str | None = None
+    secondary_keywords: list[str] = Field(default_factory=list)
+    inbound_links_count: int = 0
+    outbound_links_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class PlannedContentPageList(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[PlannedContentPageDetail]
+    total: int = 0
+
+
+class PageKeywordAssign(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    keyword_id: UUID
+    keyword_role: str = "SECONDARY"
+
+
+class PageKeywordDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    page_id: UUID
+    keyword_id: UUID
+    keyword: str = ""
+    keyword_role: str
+    created_at: datetime
+
+
+class PageKeywordList(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[PageKeywordDetail]
+
+
+class ConvertOpportunityToPageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = None
+    slug: str | None = None
+    content_type: PageContentType = PageContentType.GUIDE
+    priority: int | None = None

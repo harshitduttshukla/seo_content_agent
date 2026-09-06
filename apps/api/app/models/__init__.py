@@ -14,10 +14,18 @@ from app.domains.content.models import (
     ContentPageVersion,
     ContentPillar,
     KeywordPageMapping,
+    PageKeyword,
     PageLink,
+    PlannedContentPage,
     Topic,
 )
+from app.domains.content_map.models import (
+    ContentArchitectureVersion,
+    ContentMapEdge,
+    ContentMapNode,
+)
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
+from app.domains.internal_linking.models import LinkOpportunity, PageRelationship
 from app.domains.keywords.models import (
     ClusteringRun,
     Keyword,
@@ -28,6 +36,7 @@ from app.domains.keywords.models import (
 )
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
+from app.domains.seo.models import SEOGuide, SEOGuideVersion
 from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.domains.users.models import User
 from app.domains.websites.models import Website
@@ -35,6 +44,9 @@ from app.domains.websites.models import Website
 __all__ = [
     "AuditLog",
     "ClusteringRun",
+    "ContentArchitectureVersion",
+    "ContentMapEdge",
+    "ContentMapNode",
     "ContentOpportunity",
     "ContentPage",
     "ContentPageVersion",
@@ -49,15 +61,21 @@ __all__ = [
     "KeywordImport",
     "KeywordImportRow",
     "KeywordPageMapping",
+    "LinkOpportunity",
     "Organization",
     "OrganizationMember",
     "OutboxEvent",
+    "PageKeyword",
     "PageLink",
+    "PageRelationship",
     "Permission",
+    "PlannedContentPage",
     "Project",
     "ProjectMember",
     "Role",
     "RolePermission",
+    "SEOGuide",
+    "SEOGuideVersion",
     "SEOStrategy",
     "SEOStrategyVersion",
     "Topic",

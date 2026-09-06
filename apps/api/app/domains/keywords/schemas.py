@@ -29,6 +29,7 @@ class KeywordCreate(BaseModel):
 class KeywordUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    keyword: str | None = Field(default=None, min_length=1, max_length=500)
     search_volume: int | None = Field(default=None, ge=0)
     keyword_difficulty: float | None = Field(default=None, ge=0.0, le=100.0)
     cpc: float | None = Field(default=None, ge=0.0)
@@ -72,6 +73,14 @@ class KeywordList(BaseModel):
 
     items: list[KeywordDetail]
     total_count: int = 0
+
+
+class KeywordDeleteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    keyword_id: UUID
+    keyword: str
+    message: str
 
 
 class KeywordImportRowSummary(BaseModel):
@@ -169,6 +178,14 @@ class KeywordClusterList(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     items: list[KeywordClusterDetail]
+
+
+class KeywordClusterDeleteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cluster_id: UUID
+    cluster_name: str
+    message: str
 
 
 class ClusterUpdateRequest(BaseModel):
