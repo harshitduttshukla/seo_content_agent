@@ -280,12 +280,8 @@ def upgrade() -> None:
         ["organization_id", "project_id", "status"],
     )
     op.create_index("ix_keywords_proj_intent", "keywords", ["project_id", "intent"])
-    op.create_index(
-        "ix_keywords_proj_priority", "keywords", ["project_id", "priority_score"]
-    )
-    op.create_index(
-        "ix_keywords_proj_volume", "keywords", ["project_id", "search_volume"]
-    )
+    op.create_index("ix_keywords_proj_priority", "keywords", ["project_id", "priority_score"])
+    op.create_index("ix_keywords_proj_volume", "keywords", ["project_id", "search_volume"])
 
     # 6. keyword_imports
     op.create_table(
@@ -523,9 +519,7 @@ def upgrade() -> None:
         uuid_column("website_id"),
         uuid_column("keyword_id"),
         uuid_column("page_id", nullable=True),
-        sa.Column(
-            "mapping_type", sa.String(32), server_default="PRIMARY_TARGET", nullable=False
-        ),
+        sa.Column("mapping_type", sa.String(32), server_default="PRIMARY_TARGET", nullable=False),
         sa.Column("confidence", sa.Float(), server_default="1.0", nullable=False),
         sa.Column("source", sa.String(32), server_default="DETERMINISTIC", nullable=False),
         sa.Column("status", sa.String(32), server_default="proposed", nullable=False),
