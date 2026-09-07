@@ -41,6 +41,11 @@ from app.domains.keywords.models import (
     KeywordImport,
     KeywordImportRow,
 )
+from app.domains.orchestrator.models import (
+    AIWorkflow,
+    AIWorkflowStep,
+    ToolExecutionRecord,
+)
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
 from app.domains.seo.models import SEOGuide, SEOGuideVersion
@@ -50,6 +55,8 @@ from app.domains.websites.models import Website
 
 __all__ = [
     "AIEditProposal",
+    "AIWorkflow",
+    "AIWorkflowStep",
     "AuditLog",
     "ClusteringRun",
     "ContentArchitectureVersion",
@@ -92,6 +99,7 @@ __all__ = [
     "SEOGuideVersion",
     "SEOStrategy",
     "SEOStrategyVersion",
+    "ToolExecutionRecord",
     "Topic",
     "User",
     "Website",
