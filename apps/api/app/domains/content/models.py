@@ -6,6 +6,19 @@ from uuid import UUID
 
 from app.core.models import RevisionMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.db.base import Base
+from app.domains.content.editor_models import (
+    AIEditProposal,
+    BriefStatus,
+    ContentBrief,
+    ContentBriefVersion,
+    ContentChatMessage,
+    ContentChatSession,
+    ContentDocument,
+    ContentDocumentVersion,
+    DocumentChangeType,
+    DocumentStatus,
+    ProposalStatus,
+)
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -571,3 +584,38 @@ class PageKeyword(UUIDPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
+
+
+__all__ = [
+    "AIEditProposal",
+    "ArchitectureStatus",
+    "BriefStatus",
+    "ContentBrief",
+    "ContentBriefVersion",
+    "ContentChatMessage",
+    "ContentChatSession",
+    "ContentDocument",
+    "ContentDocumentVersion",
+    "ContentOpportunity",
+    "ContentPage",
+    "ContentPageVersion",
+    "ContentPillar",
+    "ContentStatus",
+    "DocumentChangeType",
+    "DocumentStatus",
+    "KeywordPageMapping",
+    "KeywordRole",
+    "MappingSource",
+    "MappingStatus",
+    "MappingType",
+    "OpportunityAction",
+    "OpportunityStatus",
+    "PageContentType",
+    "PageKeyword",
+    "PageLink",
+    "PageType",
+    "PlannedContentPage",
+    "PlannedPageStatus",
+    "ProposalStatus",
+    "Topic",
+]

@@ -9,6 +9,13 @@ from app.domains.auth.models import (
     RolePermission,
 )
 from app.domains.content.models import (
+    AIEditProposal,
+    ContentBrief,
+    ContentBriefVersion,
+    ContentChatMessage,
+    ContentChatSession,
+    ContentDocument,
+    ContentDocumentVersion,
     ContentOpportunity,
     ContentPage,
     ContentPageVersion,
@@ -42,9 +49,16 @@ from app.domains.users.models import User
 from app.domains.websites.models import Website
 
 __all__ = [
+    "AIEditProposal",
     "AuditLog",
     "ClusteringRun",
     "ContentArchitectureVersion",
+    "ContentBrief",
+    "ContentBriefVersion",
+    "ContentChatMessage",
+    "ContentChatSession",
+    "ContentDocument",
+    "ContentDocumentVersion",
     "ContentMapEdge",
     "ContentMapNode",
     "ContentOpportunity",
