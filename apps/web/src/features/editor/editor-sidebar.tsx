@@ -6,6 +6,7 @@ import type {
   ContentDocumentVersion,
   ChatMessage,
   SEOQualityReport,
+  WorkflowDetail,
 } from "@/lib/api-types";
 import { clientApi } from "@/lib/client-api";
 import {
@@ -15,6 +16,7 @@ import {
   ChevronRight,
   History,
   ListOrdered,
+  Loader2,
   RotateCcw,
   Send,
   Sparkles,
@@ -22,6 +24,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { WorkflowActivity } from "./workflow-activity";
 
 interface EditorSidebarProps {
   document: ContentDocument;
@@ -32,7 +35,7 @@ interface EditorSidebarProps {
   onRestoreVersion: (versionNum: number) => void;
 }
 
-type SidebarTab = "chat" | "outline" | "seo" | "links" | "history";
+type SidebarTab = "chat" | "workflows" | "outline" | "seo" | "links" | "history";
 
 export function EditorSidebar({
   document: doc,
@@ -58,6 +61,99 @@ export function EditorSidebar({
   const [versions, setVersions] = useState<ContentDocumentVersion[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const nextTemporaryMessageId = useRef(0);
+
+  // Orchestrator State (Phase 6)
+  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowDetail | null>(null);
+  const [workflowInput, setWorkflowInput] = useState("");
+  const [isOrchestrating, setIsOrchestrating] = useState(false);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+
+  const handleExecuteWorkflow = async (customMessage?: string) => {
+    const textToSend = customMessage || workflowInput;
+    if (!textToSend.trim() || isOrchestrating) return;
+
+    setIsOrchestrating(true);
+    setWorkflowError(null);
+
+    try {
+      const result = await clientApi<WorkflowDetail>("/orchestrator/execute", {
+        method: "POST",
+        body: JSON.stringify({
+          message: textToSend,
+          document_id: doc.id,
+          project_id: doc.project_id,
+        }),
+      });
+      setActiveWorkflow(result);
+      setWorkflowInput("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to execute agent workflow";
+      setWorkflowError(msg);
+    } finally {
+      setIsOrchestrating(false);
+    }
+  };
+
+  const handleApproveStep = async (stepId: string) => {
+    if (!activeWorkflow) return;
+    try {
+      const updated = await clientApi<WorkflowDetail>(
+        `/orchestrator/workflows/${activeWorkflow.id}/steps/${stepId}/approve`,
+        { method: "POST" }
+      );
+      setActiveWorkflow(updated);
+      const approvedStep = activeWorkflow.steps.find((s) => s.id === stepId);
+      const proposalId = (approvedStep?.output as Record<string, unknown> | undefined)?.proposal_id;
+      if (proposalId && typeof proposalId === "string") {
+        onApplyProposal(proposalId);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to approve step";
+      setWorkflowError(msg);
+    }
+  };
+
+  const handleRejectStep = async (stepId: string) => {
+    if (!activeWorkflow) return;
+    try {
+      const updated = await clientApi<WorkflowDetail>(
+        `/orchestrator/workflows/${activeWorkflow.id}/steps/${stepId}/reject`,
+        { method: "POST" }
+      );
+      setActiveWorkflow(updated);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to reject step";
+      setWorkflowError(msg);
+    }
+  };
+
+  const handleRetryStep = async () => {
+    if (!activeWorkflow) return;
+    try {
+      const updated = await clientApi<WorkflowDetail>(
+        `/orchestrator/workflows/${activeWorkflow.id}/retry`,
+        { method: "POST" }
+      );
+      setActiveWorkflow(updated);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to retry workflow";
+      setWorkflowError(msg);
+    }
+  };
+
+  const handleCancelWorkflow = async () => {
+    if (!activeWorkflow) return;
+    try {
+      const updated = await clientApi<WorkflowDetail>(
+        `/orchestrator/workflows/${activeWorkflow.id}/cancel`,
+        { method: "POST" }
+      );
+      setActiveWorkflow(updated);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to cancel workflow";
+      setWorkflowError(msg);
+    }
+  };
 
   // Load SEO Quality Report when SEO tab active or document changes
   useEffect(() => {
@@ -167,6 +263,21 @@ export function EditorSidebar({
           data-testid="tab-chat"
         >
           <Bot className="w-3.5 h-3.5" /> AI Chat
+        </button>
+
+        <button
+          onClick={() => setActiveTab("workflows")}
+          className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
+            activeTab === "workflows"
+              ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+          }`}
+          data-testid="tab-workflows"
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Agent
+          {activeWorkflow?.status === "WAITING_FOR_APPROVAL" && (
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          )}
         </button>
 
         <button
@@ -374,6 +485,86 @@ export function EditorSidebar({
               data-testid="send-chat-btn"
             >
               <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: AI Agent Workflows */}
+      {activeTab === "workflows" && (
+        <div className="flex-1 flex flex-col p-3 overflow-hidden space-y-2.5" data-testid="workflows-tab-content">
+          {/* Quick recipe chips */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              Agent Actions
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { label: "Optimize Document", query: "Perform a comprehensive content and SEO optimization" },
+                { label: "Audit & Fix SEO", query: "Audit content quality and propose SEO enhancements" },
+                { label: "Inject Links", query: "Analyze document and insert relevant internal links" },
+                { label: "Expand Depth", query: "Deepen technical depth and add architectural details" },
+              ].map((recipe, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleExecuteWorkflow(recipe.query)}
+                  disabled={isOrchestrating}
+                  className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-800 text-left transition-colors disabled:opacity-50"
+                  data-testid={`recipe-btn-${idx}`}
+                >
+                  <div className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-500" />
+                    {recipe.label}
+                  </div>
+                  <div className="text-[9px] text-slate-400 truncate">
+                    {recipe.query}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity / Timeline Area */}
+          <div className="flex-1 overflow-y-auto border border-slate-100 dark:border-slate-800/80 rounded-xl bg-slate-50/50 dark:bg-slate-900/40">
+            <WorkflowActivity
+              workflow={activeWorkflow}
+              isLoading={isOrchestrating}
+              onApproveStep={handleApproveStep}
+              onRejectStep={handleRejectStep}
+              onRetryStep={handleRetryStep}
+              onCancelWorkflow={handleCancelWorkflow}
+            />
+          </div>
+
+          {workflowError && (
+            <div className="p-2 rounded bg-red-50 dark:bg-red-950/40 text-red-600 text-[11px] flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{workflowError}</span>
+            </div>
+          )}
+
+          {/* Workflow Input Box */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+            <textarea
+              rows={2}
+              value={workflowInput}
+              onChange={(e) => setWorkflowInput(e.target.value)}
+              placeholder="Give the orchestrator instructions..."
+              disabled={isOrchestrating}
+              className="flex-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none disabled:opacity-50"
+              data-testid="workflow-input"
+            />
+            <button
+              onClick={() => handleExecuteWorkflow()}
+              disabled={!workflowInput.trim() || isOrchestrating}
+              className="px-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors shadow-xs"
+              data-testid="workflow-submit-btn"
+            >
+              {isOrchestrating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>

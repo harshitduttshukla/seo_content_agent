@@ -19,4 +19,5 @@ coverage/
 *.log
 .idea/
 .vscode/
+*.tsbuildinfo
 

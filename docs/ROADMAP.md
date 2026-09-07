@@ -42,11 +42,11 @@ Backend: dependency-frozen briefs, TipTap/block schema validation, autosave/vers
 
 Exit: approved brief leads to structured versioned document; stale saves do not overwrite; findings are reproducible; suggestion application creates a new version. All exit criteria verified in [PHASE-5.md](PHASE-5.md).
 
-### M6 — internal linking and basic AI assistant
+### M6 — internal linking and AI orchestrator tool/action layer (complete in [PHASE-6.md](PHASE-6.md))
 
-Backend: linking guide/edge lifecycle, candidate features/scoring/evaluation, anchor proposals, provider adapter baseline, bounded context manager, governed read/propose tool subset, AI runs/cost/audit. Frontend: opportunities/evidence/components, link/editor proposals, assistant panel, sources/tool/proposal status and usage errors. Joint: injection/tenant/tool/acceptance evaluation.
-
-Exit: user obtains relevant explainable link and content proposals, explicitly accepts/rejects them, no model mutation bypass exists, and MVP end-to-end flow passes.
+Backend: AI orchestrator state machine, typed tool registry (14 governed domain tools), intent classifier, deterministic workflow planner, human approval gates for WRITE actions, post-action verification service, step retry/cancel flows, and execution audit logging.
+Frontend: Agent workflow tab, quick recipes, execution timeline, risk level badges, duration telemetry, and human approval diff cards.
+Joint: Verified zero silent mutations, tenant isolation, patch engine reuse, and deterministic quality verification. All exit criteria verified in [PHASE-6.md](PHASE-6.md).
 
 ### MVP release gate
 

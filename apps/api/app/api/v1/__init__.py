@@ -11,6 +11,7 @@ from app.api.v1.content_pages import router as content_pages_router
 from app.api.v1.crawling import router as crawling_router
 from app.api.v1.internal_linking import router as internal_linking_router
 from app.api.v1.keywords import router as keywords_router
+from app.api.v1.orchestrator import router as orchestrator_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.pages import router as pages_router
 from app.api.v1.projects import router as projects_router
@@ -36,3 +37,4 @@ router.include_router(content_documents_router)
 router.include_router(content_map_router)
 router.include_router(seo_guides_router)
 router.include_router(internal_linking_router)
+router.include_router(orchestrator_router)

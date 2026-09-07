@@ -222,3 +222,88 @@ export interface SEOQualityReport {
   score_percentage: number;
   checks: QualityCheckItem[];
 }
+
+// Phase 6: AI Orchestrator & Tool/Action Layer
+export type WorkflowStatus =
+  | "PENDING"
+  | "PLANNING"
+  | "RUNNING"
+  | "WAITING_FOR_APPROVAL"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+
+export type StepStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "WAITING_FOR_APPROVAL"
+  | "COMPLETED"
+  | "FAILED"
+  | "SKIPPED";
+
+export type RiskLevel = "READ" | "SUGGEST" | "WRITE" | "DESTRUCTIVE";
+
+export interface ToolDescriptorDTO {
+  name: string;
+  description: string;
+  risk_level: RiskLevel;
+  requires_approval: boolean;
+  timeout_seconds: number;
+  parameters: Record<string, unknown>;
+}
+
+export interface ToolExecutionRecordDTO {
+  id: string;
+  tool_name: string;
+  status: string;
+  risk_level: RiskLevel;
+  requires_approval: boolean;
+  started_at: string;
+  completed_at?: string | null;
+  duration_ms?: number | null;
+  error_message?: string | null;
+  output?: Record<string, unknown> | null;
+}
+
+export interface WorkflowStepDetail {
+  id: string;
+  workflow_id: string;
+  step_index: number;
+  tool_name: string;
+  status: StepStatus;
+  input: Record<string, unknown>;
+  output?: Record<string, unknown> | null;
+  error_message?: string | null;
+  retry_count: number;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface WorkflowDetail {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  document_id?: string | null;
+  brief_id?: string | null;
+  created_by_id?: string | null;
+  intent: string;
+  status: WorkflowStatus;
+  current_step: number;
+  plan: Array<{
+    step_index: number;
+    tool_name: string;
+    risk_level: RiskLevel;
+    requires_approval: boolean;
+    rationale: string;
+    input_arguments: Record<string, unknown>;
+  }>;
+  result?: Record<string, unknown> | null;
+  error_message?: string | null;
+  token_usage?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+  steps: WorkflowStepDetail[];
+  executions: ToolExecutionRecordDTO[];
+}
+
