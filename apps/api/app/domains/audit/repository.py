@@ -42,6 +42,35 @@ class AuditWriter:
             )
         )
 
+    async def log_event(
+        self,
+        session: AsyncSession,
+        *,
+        actor_user_id: UUID | None = None,
+        user_id: UUID | None = None,
+        action: str,
+        resource_type: str,
+        resource_id: UUID | None,
+        organization_id: UUID | None = None,
+        project_id: UUID | None = None,
+        outcome: str = "success",
+        metadata: dict[str, object] | None = None,
+        request_id: str = "system",
+    ) -> None:
+        effective_actor_id = actor_user_id or user_id or UUID(int=0)
+        self.add(
+            session,
+            actor_user_id=effective_actor_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            outcome=outcome,
+            metadata=metadata,
+        )
+
 
 class OutboxWriter:
     def add(

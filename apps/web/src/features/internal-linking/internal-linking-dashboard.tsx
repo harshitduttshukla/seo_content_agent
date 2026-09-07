@@ -375,7 +375,7 @@ export function InternalLinkingDashboard({
               <div className="col-span-full py-12 text-center text-[var(--muted)] bg-white rounded-xl border border-[var(--border)]">
                 <Link2 size={32} className="mx-auto mb-2 opacity-40 text-gray-400" />
                 <p className="font-semibold text-sm">No link opportunities match your filters</p>
-                <p className="text-xs mt-1">Click "Analyze Link Opportunities" to run the algorithmic linking engine.</p>
+                <p className="text-xs mt-1">Click &ldquo;Analyze Link Opportunities&rdquo; to run the algorithmic linking engine.</p>
               </div>
             ) : (
               filteredOpportunities.map((opp) => (
@@ -452,7 +452,7 @@ export function InternalLinkingDashboard({
                     {/* Context / Reason */}
                     {opp.reason && (
                       <p className="text-xs text-gray-600 italic bg-gray-50 p-2.5 rounded-md border border-gray-100 mb-2 leading-relaxed">
-                        "{opp.reason}"
+                        &ldquo;{opp.reason}&rdquo;
                       </p>
                     )}
 

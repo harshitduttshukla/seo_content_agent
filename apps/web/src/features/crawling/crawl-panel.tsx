@@ -72,16 +72,21 @@ export function CrawlPanel({
   }
 
   useEffect(() => {
-    fetchCrawlStatus();
-    fetchJobs();
-    fetchVerificationInfo();
+    const initialLoad = window.setTimeout(() => {
+      void fetchCrawlStatus();
+      void fetchJobs();
+      void fetchVerificationInfo();
+    }, 0);
 
     const interval = setInterval(() => {
       fetchCrawlStatus();
       fetchJobs();
     }, 4000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
   }, [website.id]);
 
   async function handleVerify() {

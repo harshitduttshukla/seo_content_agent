@@ -63,7 +63,11 @@ export function PageInventory({ website }: { website: Website }) {
   }
 
   useEffect(() => {
-    loadPages();
+    const initialLoad = window.setTimeout(() => {
+      void loadPages();
+    }, 0);
+
+    return () => clearTimeout(initialLoad);
   }, [website.id, selectedStatus]);
 
   function handleSearchSubmit(e: React.FormEvent) {

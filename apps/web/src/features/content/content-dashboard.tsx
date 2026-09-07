@@ -17,12 +17,8 @@ import {
   ArrowUpRight,
   Layers,
   CheckCircle2,
-  Clock,
-  Archive,
-  Eye,
   X,
   AlertCircle,
-  Tag,
 } from "lucide-react";
 import { Card } from "@/components/card";
 import type {
@@ -611,6 +607,15 @@ export function ContentDashboard({
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <Link
+                              href={`/projects/${projectId}/content/${page.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold transition"
+                              title="Open Content Brief & AI Editor"
+                            >
+                              <Sparkles size={13} />
+                              Brief & Editor
+                            </Link>
+
+                            <Link
                               href={`/projects/${projectId}/content/seo-guide/${page.id}`}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition"
                               title="Open SEO Guide & Outline"
@@ -1164,7 +1169,11 @@ export function ContentDashboard({
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">Target Role</label>
                   <select
                     value={keywordRole}
-                    onChange={(e) => setKeywordRole(e.target.value as any)}
+                    onChange={(e) =>
+                      setKeywordRole(
+                        e.target.value as "primary" | "secondary" | "lsi" | "question"
+                      )
+                    }
                     className="w-full text-xs rounded-lg border border-[var(--border)] px-2 py-1.5 bg-white"
                   >
                     <option value="primary">Primary (Main Target)</option>

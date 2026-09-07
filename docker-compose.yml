@@ -19,6 +19,8 @@ services:
   migrate:
     build:
       context: ./apps/api
+      network: host
+    image: sec-content-agent-api:latest
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_MIGRATION_URL: postgresql+psycopg://postgres:postgres@postgres:5432/seo_content
@@ -29,6 +31,8 @@ services:
   api:
     build:
       context: ./apps/api
+      network: host
+    image: sec-content-agent-api:latest
     environment:
       APP_ENV: local
       DATABASE_URL: postgresql+asyncpg://seo_content_app:seo_content_app@postgres:5432/seo_content
@@ -52,6 +56,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
+      network: host
     environment:
       API_INTERNAL_URL: http://api:8000
       NEXT_PUBLIC_APP_URL: http://localhost:3000

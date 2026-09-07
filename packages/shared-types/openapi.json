@@ -1,6 +1,191 @@
 {
   "components": {
     "schemas": {
+      "AIProposalDetail": {
+        "properties": {
+          "ai_provider": {
+            "title": "Ai Provider",
+            "type": "string"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "applied_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Version"
+          },
+          "chat_message_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Message Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "diff_summary": {
+            "title": "Diff Summary",
+            "type": "object"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "old_content": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "title": "Old Content"
+          },
+          "operation_type": {
+            "title": "Operation Type",
+            "type": "string"
+          },
+          "proposed_content": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "title": "Proposed Content"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewed_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Block Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "chat_message_id",
+          "status",
+          "operation_type",
+          "target_block_ids",
+          "old_content",
+          "proposed_content",
+          "diff_summary",
+          "reason",
+          "ai_provider",
+          "model",
+          "reviewed_at",
+          "reviewed_by_id",
+          "applied_at",
+          "applied_version",
+          "created_at"
+        ],
+        "title": "AIProposalDetail",
+        "type": "object"
+      },
+      "ApiResponse_AIProposalDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AIProposalDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[AIProposalDetail]",
+        "type": "object"
+      },
       "ApiResponse_CannibalizationWarningList_": {
         "additionalProperties": false,
         "properties": {
@@ -30,6 +215,68 @@
           "meta"
         ],
         "title": "ApiResponse[CannibalizationWarningList]",
+        "type": "object"
+      },
+      "ApiResponse_ChatMessageDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ChatMessageDetail]",
+        "type": "object"
+      },
+      "ApiResponse_ChatSessionDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatSessionDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ChatSessionDetail]",
         "type": "object"
       },
       "ApiResponse_ClusteringRunResponse_": {
@@ -154,6 +401,161 @@
           "meta"
         ],
         "title": "ApiResponse[ContentArchitectureVersionList]",
+        "type": "object"
+      },
+      "ApiResponse_ContentBriefDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentBriefDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentBriefDetail]",
+        "type": "object"
+      },
+      "ApiResponse_ContentBriefVersionList_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentBriefVersionList"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentBriefVersionList]",
+        "type": "object"
+      },
+      "ApiResponse_ContentDocumentDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDocumentDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentDocumentDetail]",
+        "type": "object"
+      },
+      "ApiResponse_ContentDocumentVersionDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDocumentVersionDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentDocumentVersionDetail]",
+        "type": "object"
+      },
+      "ApiResponse_ContentDocumentVersionList_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDocumentVersionList"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[ContentDocumentVersionList]",
         "type": "object"
       },
       "ApiResponse_ContentMapGraphResponse_": {
@@ -1365,6 +1767,37 @@
         "title": "ApiResponse[SEOGuideVersionList]",
         "type": "object"
       },
+      "ApiResponse_SEOQualityReport_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SEOQualityReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[SEOQualityReport]",
+        "type": "object"
+      },
       "ApiResponse_StrategyResponse_": {
         "additionalProperties": false,
         "properties": {
@@ -1726,6 +2159,22 @@
         "title": "AudienceSchema",
         "type": "object"
       },
+      "BlockType": {
+        "enum": [
+          "DOCUMENT_TITLE",
+          "HEADING",
+          "PARAGRAPH",
+          "BULLET_LIST",
+          "NUMBERED_LIST",
+          "QUOTE",
+          "IMAGE",
+          "LINK",
+          "TABLE",
+          "FAQ"
+        ],
+        "title": "BlockType",
+        "type": "string"
+      },
       "Body_import_keywords_api_v1_projects__project_id__keywords_import_post": {
         "properties": {
           "file": {
@@ -1739,6 +2188,52 @@
         ],
         "title": "Body_import_keywords_api_v1_projects__project_id__keywords_import_post",
         "type": "object"
+      },
+      "BrandRequirements": {
+        "properties": {
+          "formatting_rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Formatting Rules",
+            "type": "array"
+          },
+          "style": {
+            "default": "Concise paragraphs, informative headers, actionable advice",
+            "title": "Style",
+            "type": "string"
+          },
+          "tone": {
+            "default": "Professional, Authoritative, Clear",
+            "title": "Tone",
+            "type": "string"
+          },
+          "voice": {
+            "default": "Knowledgeable, helpful, direct",
+            "title": "Voice",
+            "type": "string"
+          },
+          "words_to_avoid": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Words To Avoid",
+            "type": "array"
+          }
+        },
+        "title": "BrandRequirements",
+        "type": "object"
+      },
+      "BriefStatus": {
+        "enum": [
+          "DRAFT",
+          "PROPOSED",
+          "REVIEW",
+          "APPROVED",
+          "ARCHIVED"
+        ],
+        "title": "BriefStatus",
+        "type": "string"
       },
       "BusinessContextSchema": {
         "properties": {
@@ -1828,6 +2323,187 @@
           "items"
         ],
         "title": "CannibalizationWarningList",
+        "type": "object"
+      },
+      "ChatMessageDetail": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "context_snapshot": {
+            "title": "Context Snapshot",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AIProposalDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "token_usage": {
+            "title": "Token Usage",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "document_id",
+          "role",
+          "content",
+          "context_snapshot",
+          "token_usage",
+          "created_at"
+        ],
+        "title": "ChatMessageDetail",
+        "type": "object"
+      },
+      "ChatMessageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional shortcut command: rewrite, shorten, expand, add_faq, insert_link",
+            "title": "Command"
+          },
+          "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "selected_block_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Block Id"
+          },
+          "selected_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Text"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatMessageRequest",
+        "type": "object"
+      },
+      "ChatSessionDetail": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageDetail"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "document_id",
+          "title",
+          "created_by_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ChatSessionDetail",
         "type": "object"
       },
       "ClusterMergeRequest": {
@@ -2245,6 +2921,907 @@
           "items"
         ],
         "title": "ContentArchitectureVersionList",
+        "type": "object"
+      },
+      "ContentBlock": {
+        "properties": {
+          "data": {
+            "description": "Metadata, url, alt, question/answer",
+            "title": "Data",
+            "type": "object"
+          },
+          "id": {
+            "description": "Stable unique block identifier, e.g. block_001",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List items if applicable",
+            "title": "Items"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Heading level 1-6 if applicable",
+            "title": "Level"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/BlockType",
+            "default": "PARAGRAPH"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ContentBlock",
+        "type": "object"
+      },
+      "ContentBriefApproveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "change_summary": {
+            "default": "Content brief approved for production",
+            "maxLength": 1000,
+            "title": "Change Summary",
+            "type": "string"
+          }
+        },
+        "title": "ContentBriefApproveRequest",
+        "type": "object"
+      },
+      "ContentBriefDetail": {
+        "properties": {
+          "brand_requirements": {
+            "title": "Brand Requirements",
+            "type": "object"
+          },
+          "business_goal": {
+            "default": "",
+            "title": "Business Goal",
+            "type": "string"
+          },
+          "content_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Content Requirements",
+            "type": "array"
+          },
+          "content_type": {
+            "default": "GUIDE",
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "external_source_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "External Source Requirements",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "internal_link_targets": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Internal Link Targets",
+            "type": "array"
+          },
+          "key_entities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Entities",
+            "type": "array"
+          },
+          "meta_description": {
+            "default": "",
+            "title": "Meta Description",
+            "type": "string"
+          },
+          "meta_title": {
+            "default": "",
+            "title": "Meta Title",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "primary_keyword": {
+            "default": "",
+            "title": "Primary Keyword",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "questions_to_answer": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions To Answer",
+            "type": "array"
+          },
+          "recommended_title": {
+            "default": "",
+            "title": "Recommended Title",
+            "type": "string"
+          },
+          "recommended_url": {
+            "default": "",
+            "title": "Recommended Url",
+            "type": "string"
+          },
+          "required_topics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Topics",
+            "type": "array"
+          },
+          "search_intent": {
+            "default": "INFORMATIONAL",
+            "title": "Search Intent",
+            "type": "string"
+          },
+          "secondary_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Keywords",
+            "type": "array"
+          },
+          "seo_guide_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seo Guide Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_audience": {
+            "default": "",
+            "title": "Target Audience",
+            "type": "string"
+          },
+          "target_word_count": {
+            "default": 1500,
+            "title": "Target Word Count",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "website_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Id"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "website_id",
+          "page_id",
+          "seo_guide_id",
+          "version",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ContentBriefDetail",
+        "type": "object"
+      },
+      "ContentBriefUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "brand_requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandRequirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "business_goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Goal"
+          },
+          "content_requirements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Requirements"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "external_source_requirements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Source Requirements"
+          },
+          "internal_link_targets": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InternalLinkTarget"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal Link Targets"
+          },
+          "key_entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Entities"
+          },
+          "meta_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Description"
+          },
+          "meta_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Title"
+          },
+          "primary_keyword": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Keyword"
+          },
+          "questions_to_answer": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Questions To Answer"
+          },
+          "recommended_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Title"
+          },
+          "recommended_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Url"
+          },
+          "required_topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Topics"
+          },
+          "search_intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Intent"
+          },
+          "secondary_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Keywords"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          },
+          "target_word_count": {
+            "anyOf": [
+              {
+                "maximum": 50000.0,
+                "minimum": 100.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Word Count"
+          }
+        },
+        "title": "ContentBriefUpdate",
+        "type": "object"
+      },
+      "ContentBriefVersionDetail": {
+        "properties": {
+          "brief_id": {
+            "format": "uuid",
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "change_summary": {
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "snapshot_data": {
+            "title": "Snapshot Data",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "brief_id",
+          "organization_id",
+          "project_id",
+          "version",
+          "snapshot_data",
+          "change_summary",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "ContentBriefVersionDetail",
+        "type": "object"
+      },
+      "ContentBriefVersionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentBriefVersionDetail"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ContentBriefVersionList",
+        "type": "object"
+      },
+      "ContentDocumentDetail": {
+        "properties": {
+          "brief_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Id"
+          },
+          "content_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/ContentBlock"
+            },
+            "title": "Content Blocks",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "current_version": {
+            "default": 1,
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lock_version": {
+            "default": 1,
+            "title": "Lock Version",
+            "type": "integer"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "page_id": {
+            "format": "uuid",
+            "title": "Page Id",
+            "type": "string"
+          },
+          "plain_text": {
+            "default": "",
+            "title": "Plain Text",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "slug": {
+            "default": "",
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "default": "DRAFT",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Id"
+          },
+          "website_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Id"
+          },
+          "word_count": {
+            "default": 0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "page_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ContentDocumentDetail",
+        "type": "object"
+      },
+      "ContentDocumentUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "change_summary": {
+            "default": "Document edit",
+            "maxLength": 1000,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "content_blocks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ContentBlock"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Blocks"
+          },
+          "create_version_snapshot": {
+            "default": false,
+            "description": "Whether to create an immutable version checkpoint alongside autosave",
+            "title": "Create Version Snapshot",
+            "type": "boolean"
+          },
+          "lock_version": {
+            "description": "Current lock_version for optimistic concurrency",
+            "title": "Lock Version",
+            "type": "integer"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "lock_version"
+        ],
+        "title": "ContentDocumentUpdate",
+        "type": "object"
+      },
+      "ContentDocumentVersionDetail": {
+        "properties": {
+          "change_summary": {
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "change_type": {
+            "title": "Change Type",
+            "type": "string"
+          },
+          "content_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/ContentBlock"
+            },
+            "title": "Content Blocks",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "plain_text": {
+            "title": "Plain Text",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "word_count": {
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "organization_id",
+          "project_id",
+          "version",
+          "content_blocks",
+          "plain_text",
+          "word_count",
+          "change_type",
+          "change_summary",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "ContentDocumentVersionDetail",
+        "type": "object"
+      },
+      "ContentDocumentVersionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentDocumentVersionDetail"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ContentDocumentVersionList",
         "type": "object"
       },
       "ContentMapEdgeDTO": {
@@ -3231,9 +4808,8 @@
         "additionalProperties": false,
         "properties": {
           "content_type": {
-            "default": "GUIDE",
-            "title": "Content Type",
-            "type": "string"
+            "$ref": "#/components/schemas/PageContentType",
+            "default": "GUIDE"
           },
           "priority": {
             "anyOf": [
@@ -3538,6 +5114,17 @@
         "title": "CrawlStatusSummary",
         "type": "object"
       },
+      "DocumentStatus": {
+        "enum": [
+          "DRAFT",
+          "IN_REVIEW",
+          "APPROVED",
+          "PUBLISHED",
+          "ARCHIVED"
+        ],
+        "title": "DocumentStatus",
+        "type": "string"
+      },
       "ErrorItem": {
         "additionalProperties": false,
         "description": "Stable machine-readable error entry.",
@@ -3624,6 +5211,44 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InternalLinkTarget": {
+        "properties": {
+          "anchor_text": {
+            "default": "",
+            "title": "Anchor Text",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_page_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Page Id"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "default": "",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "title": "InternalLinkTarget",
         "type": "object"
       },
       "InternalLinksSummary": {
@@ -5122,6 +6747,22 @@
         "title": "OrphanPageList",
         "type": "object"
       },
+      "PageContentType": {
+        "enum": [
+          "PILLAR_PAGE",
+          "CLUSTER_PAGE",
+          "SUPPORTING_PAGE",
+          "LANDING_PAGE",
+          "SERVICE_PAGE",
+          "PRODUCT_PAGE",
+          "BLOG_POST",
+          "GUIDE",
+          "COMPARISON",
+          "FAQ"
+        ],
+        "title": "PageContentType",
+        "type": "string"
+      },
       "PageKeywordAssign": {
         "additionalProperties": false,
         "properties": {
@@ -5461,6 +7102,16 @@
         "title": "PageRelationshipList",
         "type": "object"
       },
+      "PageType": {
+        "enum": [
+          "EXISTING",
+          "PLANNED",
+          "IMPORTED",
+          "REDIRECTED"
+        ],
+        "title": "PageType",
+        "type": "string"
+      },
       "PersonaSchema": {
         "properties": {
           "description": {
@@ -5524,9 +7175,8 @@
             "title": "Cluster Id"
           },
           "content_type": {
-            "default": "GUIDE",
-            "title": "Content Type",
-            "type": "string"
+            "$ref": "#/components/schemas/PageContentType",
+            "default": "GUIDE"
           },
           "existing_page_id": {
             "anyOf": [
@@ -5541,14 +7191,12 @@
             "title": "Existing Page Id"
           },
           "intent": {
-            "default": "INFORMATIONAL",
-            "title": "Intent",
-            "type": "string"
+            "$ref": "#/components/schemas/SearchIntent",
+            "default": "INFORMATIONAL"
           },
           "page_type": {
-            "default": "PLANNED",
-            "title": "Page Type",
-            "type": "string"
+            "$ref": "#/components/schemas/PageType",
+            "default": "PLANNED"
           },
           "pillar_id": {
             "anyOf": [
@@ -5593,9 +7241,8 @@
             "type": "string"
           },
           "status": {
-            "default": "PLANNED",
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/PlannedPageStatus",
+            "default": "PLANNED"
           },
           "title": {
             "maxLength": 500,
@@ -5913,13 +7560,12 @@
           "content_type": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PageContentType"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Content Type"
+            ]
           },
           "existing_page_id": {
             "anyOf": [
@@ -5936,24 +7582,22 @@
           "intent": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/SearchIntent"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Intent"
+            ]
           },
           "page_type": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PageType"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Page Type"
+            ]
           },
           "pillar_id": {
             "anyOf": [
@@ -6019,13 +7663,12 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PlannedPageStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Status"
+            ]
           },
           "title": {
             "anyOf": [
@@ -6066,6 +7709,19 @@
         },
         "title": "PlannedContentPageUpdate",
         "type": "object"
+      },
+      "PlannedPageStatus": {
+        "enum": [
+          "PROPOSED",
+          "PLANNED",
+          "APPROVED",
+          "IN_PROGRESS",
+          "DRAFT",
+          "PUBLISHED",
+          "ARCHIVED"
+        ],
+        "title": "PlannedPageStatus",
+        "type": "string"
       },
       "ProductServiceSchema": {
         "properties": {
@@ -6329,6 +7985,35 @@
         "title": "ProjectUpdate",
         "type": "object"
       },
+      "QualityCheckItem": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recommendation": {
+            "default": "",
+            "title": "Recommendation",
+            "type": "string"
+          },
+          "status": {
+            "description": "PASS, WARNING, or FAIL",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "message"
+        ],
+        "title": "QualityCheckItem",
+        "type": "object"
+      },
       "ResponseMeta": {
         "additionalProperties": false,
         "description": "Request metadata shared by success and failure responses.",
@@ -6364,6 +8049,19 @@
           "request_id"
         ],
         "title": "ResponseMeta",
+        "type": "object"
+      },
+      "RestoreVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "change_summary": {
+            "default": "Restored from previous version",
+            "maxLength": 1000,
+            "title": "Change Summary",
+            "type": "string"
+          }
+        },
+        "title": "RestoreVersionRequest",
         "type": "object"
       },
       "RoleCode": {
@@ -6856,6 +8554,48 @@
           "items"
         ],
         "title": "SEOGuideVersionList",
+        "type": "object"
+      },
+      "SEOQualityReport": {
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/QualityCheckItem"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "score_percentage": {
+            "title": "Score Percentage",
+            "type": "integer"
+          },
+          "target_word_count": {
+            "title": "Target Word Count",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "word_count": {
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "word_count",
+          "target_word_count",
+          "score_percentage",
+          "checks"
+        ],
+        "title": "SEOQualityReport",
         "type": "object"
       },
       "SearchIntent": {
@@ -7817,6 +9557,716 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/content-briefs/{brief_id}": {
+      "put": {
+        "operationId": "update_content_brief_api_v1_content_briefs__brief_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentBriefUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentBriefDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Content Brief",
+        "tags": [
+          "content-briefs"
+        ]
+      }
+    },
+    "/api/v1/content-briefs/{brief_id}/approve": {
+      "post": {
+        "operationId": "approve_content_brief_api_v1_content_briefs__brief_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentBriefApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentBriefDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Content Brief",
+        "tags": [
+          "content-briefs"
+        ]
+      }
+    },
+    "/api/v1/content-briefs/{brief_id}/versions": {
+      "get": {
+        "operationId": "list_content_brief_versions_api_v1_content_briefs__brief_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentBriefVersionList_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Content Brief Versions",
+        "tags": [
+          "content-briefs"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}": {
+      "put": {
+        "operationId": "update_document_api_v1_content_documents__document_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentDocumentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Document",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/chat": {
+      "get": {
+        "operationId": "get_chat_history_api_v1_content_documents__document_id__chat_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ChatSessionDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Chat History",
+        "tags": [
+          "content-documents"
+        ]
+      },
+      "post": {
+        "operationId": "chat_with_document_api_v1_content_documents__document_id__chat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ChatMessageDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat With Document",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/patches/{patch_id}/apply": {
+      "post": {
+        "operationId": "apply_patch_api_v1_content_documents__document_id__patches__patch_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "patch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Patch",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/patches/{patch_id}/reject": {
+      "post": {
+        "operationId": "reject_patch_api_v1_content_documents__document_id__patches__patch_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "patch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AIProposalDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Patch",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/quality-check": {
+      "get": {
+        "operationId": "evaluate_document_quality_api_v1_content_documents__document_id__quality_check_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_SEOQualityReport_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Evaluate Document Quality",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/restore/{version}": {
+      "post": {
+        "operationId": "restore_document_version_api_v1_content_documents__document_id__restore__version__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Restore Document Version",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/seo-quality": {
+      "get": {
+        "operationId": "evaluate_document_quality_api_v1_content_documents__document_id__seo_quality_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_SEOQualityReport_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Evaluate Document Quality",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/versions": {
+      "get": {
+        "operationId": "list_document_versions_api_v1_content_documents__document_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentVersionList_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Document Versions",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
+    "/api/v1/content-documents/{document_id}/versions/{version}": {
+      "get": {
+        "operationId": "get_document_version_api_v1_content_documents__document_id__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentVersionDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Document Version",
+        "tags": [
+          "content-documents"
+        ]
+      }
+    },
     "/api/v1/content-pages/{page_id}": {
       "delete": {
         "operationId": "delete_planned_content_page_api_v1_content_pages__page_id__delete",
@@ -7964,6 +10414,194 @@
         "summary": "Update Planned Content Page",
         "tags": [
           "content-pages"
+        ]
+      }
+    },
+    "/api/v1/content-pages/{page_id}/brief": {
+      "get": {
+        "operationId": "get_or_create_content_brief_api_v1_content_pages__page_id__brief_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentBriefDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Or Create Content Brief",
+        "tags": [
+          "content-briefs"
+        ]
+      },
+      "post": {
+        "operationId": "generate_content_brief_api_v1_content_pages__page_id__brief_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentBriefDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Content Brief",
+        "tags": [
+          "content-briefs"
+        ]
+      }
+    },
+    "/api/v1/content-pages/{page_id}/document": {
+      "get": {
+        "operationId": "get_or_create_document_api_v1_content_pages__page_id__document_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Or Create Document",
+        "tags": [
+          "content-documents"
+        ]
+      },
+      "post": {
+        "operationId": "initialize_document_api_v1_content_pages__page_id__document_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ContentDocumentDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Initialize Document",
+        "tags": [
+          "content-documents"
         ]
       }
     },

@@ -5,6 +5,7 @@ export class ApiError extends Error {
     message: string,
     public readonly code: string,
     public readonly requestId: string,
+    public readonly status: number,
   ) {
     super(message);
   }
@@ -22,6 +23,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
       error?.message ?? "The request could not be completed.",
       error?.code ?? "UNKNOWN_ERROR",
       envelope.meta.request_id,
+      response.status,
     );
   }
   return envelope.data;

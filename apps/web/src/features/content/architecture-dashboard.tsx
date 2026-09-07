@@ -229,7 +229,7 @@ export function ArchitectureDashboard({
         <div className="grid gap-6">
           {initialPillars.length === 0 ? (
             <Card className="p-8 text-center text-sm text-[var(--muted)]">
-              No content pillars created yet. Click <strong>"Add Pillar"</strong> above to organize your content architecture into core strategic pillars.
+              No content pillars created yet. Click <strong>&ldquo;Add Pillar&rdquo;</strong> above to organize your content architecture into core strategic pillars.
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
@@ -308,7 +308,7 @@ export function ArchitectureDashboard({
                 {initialOpportunities.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
-                      No content opportunities generated yet. Run <strong>"Analyze Website Mappings"</strong> under the Page Mappings tab.
+                      No content opportunities generated yet. Run <strong>&ldquo;Analyze Website Mappings&rdquo;</strong> under the Page Mappings tab.
                     </td>
                   </tr>
                 ) : (
@@ -389,7 +389,7 @@ export function ArchitectureDashboard({
                 {initialMappings.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
-                      No mappings analyzed yet. Click <strong>"Analyze Website Mappings"</strong> above.
+                      No mappings analyzed yet. Click <strong>&ldquo;Analyze Website Mappings&rdquo;</strong> above.
                     </td>
                   </tr>
                 ) : (

@@ -1,0 +1,20 @@
+# Dependencies and build outputs
+**/node_modules
+**/.next
+**/dist
+**/build
+**/.turbo
+
+# Python artifacts
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.coverage
+**/.venv
+**/env
+
+# Git & OS metadata
+**/.git
+**/.gitignore
+.DS_Store
+*.log

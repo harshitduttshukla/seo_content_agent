@@ -227,6 +227,12 @@ describe("Phase 4 Frontend Components", () => {
     expect(screen.getAllByText("Pillars").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Cloud Infrastructure Security").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Kubernetes Threat Modeling Guide").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText("Kubernetes Threat Modeling Guide"));
+    expect(screen.getByRole("link", { name: "Open Brief & Editor" })).toHaveAttribute(
+      "href",
+      "/projects/proj-1/content/pg1"
+    );
   });
 
   it("creates a planned page from the Content Map modal", async () => {
@@ -305,6 +311,10 @@ describe("Phase 4 Frontend Components", () => {
     expect(screen.getAllByText("k8s threat modeling").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/planned/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText("SEO Guide").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Brief & Editor" })).toHaveAttribute(
+      "href",
+      "/projects/proj-1/content/pg1"
+    );
   });
 
   it("renders SEOGuideView with SERP preview and outline sections", () => {

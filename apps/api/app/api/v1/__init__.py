@@ -4,6 +4,8 @@ from fastapi import APIRouter
 
 from app.api.v1.architecture import router as architecture_router
 from app.api.v1.clusters import router as clusters_router
+from app.api.v1.content_briefs import router as content_briefs_router
+from app.api.v1.content_documents import router as content_documents_router
 from app.api.v1.content_map import router as content_map_router
 from app.api.v1.content_pages import router as content_pages_router
 from app.api.v1.crawling import router as crawling_router
@@ -29,6 +31,8 @@ router.include_router(keywords_router)
 router.include_router(clusters_router)
 router.include_router(architecture_router)
 router.include_router(content_pages_router)
+router.include_router(content_briefs_router)
+router.include_router(content_documents_router)
 router.include_router(content_map_router)
 router.include_router(seo_guides_router)
 router.include_router(internal_linking_router)

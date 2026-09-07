@@ -5,9 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GitBranch,
-  Layers,
   Search,
-  Filter,
   ZoomIn,
   ZoomOut,
   Maximize2,
@@ -15,24 +13,18 @@ import {
   Plus,
   AlertTriangle,
   CheckCircle2,
-  ExternalLink,
   BookOpen,
   Link2,
   X,
   FileText,
-  ChevronRight,
-  ShieldCheck,
   History,
   LayoutGrid,
   ListTree,
-  Eye,
 } from "lucide-react";
 import { Card } from "@/components/card";
 import type {
   ContentMapGraph,
   ContentMapNode,
-  ContentMapEdge,
-  ValidationIssue,
   ContentMapValidation,
   ContentArchitectureVersion,
 } from "@/lib/api-types";
@@ -822,8 +814,14 @@ export function ContentMapView({
             {selectedNode.type === "page" && (
               <>
                 <Link
-                  href={`/projects/${projectId}/content/seo-guide/${selectedNode.data.entity_id}`}
+                  href={`/projects/${projectId}/content/${selectedNode.data.entity_id}`}
                   className="btn btn-primary text-xs flex items-center justify-center gap-1.5 w-full py-2"
+                >
+                  <FileText size={14} /> Open Brief & Editor
+                </Link>
+                <Link
+                  href={`/projects/${projectId}/content/seo-guide/${selectedNode.data.entity_id}`}
+                  className="btn btn-secondary text-xs flex items-center justify-center gap-1.5 w-full py-2"
                 >
                   <BookOpen size={14} /> Open SEO Guide
                 </Link>

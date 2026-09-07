@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiRequest, idempotencyKey } from "@/lib/client-api";
+import { apiRequest, idempotencyKey } from "@/lib/client-api";
 
 describe("Client API helper", () => {
   it("generates random idempotency key with prefix", () => {
@@ -37,6 +37,7 @@ describe("Client API helper", () => {
   it("throws ApiError when response contains errors", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
+      status: 409,
       json: async () => ({
         data: null,
         meta: { request_id: "req_err" },
@@ -49,9 +50,13 @@ describe("Client API helper", () => {
       }),
     });
 
-    await expect(apiRequest("/organizations")).rejects.toThrow(ApiError);
-    await expect(apiRequest("/organizations")).rejects.toThrow(
-      "An active organization already uses this slug."
-    );
+    const request = apiRequest("/organizations");
+    await expect(request).rejects.toMatchObject({
+      name: "Error",
+      message: "An active organization already uses this slug.",
+      code: "ORGANIZATION_SLUG_CONFLICT",
+      requestId: "req_err",
+      status: 409,
+    });
   });
 });
