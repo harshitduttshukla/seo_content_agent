@@ -3,6 +3,7 @@
 Intent Classifier, Planner, and Verification Service.
 """
 
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -28,7 +29,7 @@ from app.domains.orchestrator.models import (
     WorkflowStatus,
 )
 from app.domains.orchestrator.planner import WorkflowPlanner
-from app.domains.orchestrator.policies import ToolRiskLevel
+from app.domains.orchestrator.policies import ToolAvailability, ToolRiskLevel
 from app.domains.orchestrator.schemas import WorkflowPlanStep
 from app.domains.orchestrator.tool_executor import ToolExecutor
 from app.domains.orchestrator.tool_registry import (
@@ -165,10 +166,42 @@ def test_tool_registry_risk_and_permission() -> None:
     assert seo_tool.required_permission == PermissionCode.SEO_READ
 
 
+def test_every_tool_has_complete_contract_metadata() -> None:
+    tools = ToolRegistry().list_tools()
+
+    assert len(tools) == 14
+    for tool in tools:
+        assert tool.name
+        assert tool.description
+        assert tool.input_schema.model_json_schema()["type"] == "object"
+        assert tool.output_schema.model_json_schema()["type"] == "object"
+        assert tool.authentication_requirements
+        assert tool.permissions == (tool.required_permission,)
+        assert tool.cost.estimated_usd_per_call >= 0
+        assert tool.cost.billing_unit
+        assert tool.rate_limits.max_calls_per_workflow > 0
+        assert tool.rate_limits.max_concurrent_calls > 0
+        assert tool.availability.value == "AVAILABLE"
+        assert tool.version == "1.0.0"
+
+
 def test_tool_registry_unknown_tool_raises() -> None:
     registry = ToolRegistry()
     with pytest.raises(ToolNotFoundError):
         registry.get("non_existent_tool_123")
+
+
+def test_tool_registry_rejects_unavailable_tool() -> None:
+    registry = ToolRegistry()
+    unavailable = replace(
+        registry.get("read_document"),
+        name="unavailable_read_document",
+        availability=ToolAvailability.UNAVAILABLE,
+    )
+    registry.register(unavailable)
+
+    with pytest.raises(ToolNotFoundError):
+        registry.get(unavailable.name)
 
 
 # ---------------------------------------------------------------------------

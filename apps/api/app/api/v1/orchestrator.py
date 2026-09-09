@@ -134,7 +134,7 @@ async def list_tools(
     actor: CurrentUserDep,
     workflow_id: UUID | None = None,
 ) -> ApiResponse[list[ToolDescriptorDTO]]:
-    """Lists registered tools, risk levels, and permission requirements."""
+    """Lists complete registered tool contracts and execution metadata."""
     tools = OrchestratorService().list_tools()
     return success(request, tools)
 

@@ -399,6 +399,14 @@ async def test_patch_service_apply_proposal(test_actor: AuthenticatedUser) -> No
         assert updated_doc.current_version == 2
         assert updated_doc.content_blocks[1].text == "Updated and polished intro paragraph."
 
+        # Idempotency: repeated call returns document without conflict
+        reapplied_doc = await service.apply_proposal(
+            session=session,
+            actor=test_actor,
+            proposal_id=proposal_id,
+        )
+        assert reapplied_doc.current_version == 2
+
 
 # ---------------------------------------------------------------------------
 # 4. ContextBuilder & Anti-Injection Fencing Tests
@@ -456,6 +464,53 @@ async def test_context_builder_sanitizes_and_fences() -> None:
     )
     assert "<DOCUMENT_CONTEXT>" in doc_context_msg
     assert "</DOCUMENT_CONTEXT>" in doc_context_msg
+
+
+@pytest.mark.asyncio
+async def test_context_builder_expands_full_document_requests() -> None:
+    builder = ContextBuilderService()
+    session = make_mock_session()
+    blocks = [
+        {
+            "id": f"block_{index:03d}",
+            "type": "PARAGRAPH",
+            "text": f"Full placeholder content for section {index}.",
+        }
+        for index in range(1, 19)
+    ]
+    doc = ContentDocument(
+        id=uuid4(),
+        organization_id=uuid4(),
+        project_id=uuid4(),
+        page_id=uuid4(),
+        title="SEO Guide",
+        slug="seo-guide",
+        current_version=1,
+        lock_version=1,
+        content_blocks=blocks,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+
+    mock_scalars = MagicMock()
+    mock_scalars.first.return_value = None
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalars
+    session.execute = AsyncMock(return_value=mock_res)
+
+    messages, snapshot = await builder.build_context(
+        session=session,
+        document=doc,
+        user_message="Incorporate keywords and complete the entire article",
+        selected_block_id="block_007",
+    )
+
+    assert snapshot["full_document_request"] is True
+    assert "1-to-3 operation guideline does not apply" in messages[0].content
+    assert "Do not stop after a subset" in messages[0].content
+    assert "--- COMPLETE DOCUMENT BLOCKS ---" in messages[1].content
+    assert "[block_018]" in messages[1].content
+    assert "--- FOCUSED BLOCK" not in messages[1].content
 
 
 # ---------------------------------------------------------------------------

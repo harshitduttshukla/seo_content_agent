@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
+    ALLOW_LOCAL_AUTH: bool = False
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/seo_content"
     DATABASE_MIGRATION_URL: str = (
@@ -36,6 +37,12 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: tuple[str, ...] | str = ("http://localhost:3000",)
     REQUEST_ID_HEADER: str = "X-Request-ID"
+
+    AI_PROVIDER: str = "gemini"
+    AI_API_KEY: str = ""
+    AI_MODEL: str = "gemini-flash-latest"
+    AI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    AI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
 
     @field_validator("API_PREFIX")
     @classmethod
@@ -72,6 +79,8 @@ class Settings(BaseSettings):
                 raise ValueError("Wildcard CORS origins are forbidden in production")
             if self.AUTH_ISSUER.host == "identity.example.com":
                 raise ValueError("A real OIDC issuer is required in production")
+            if self.ALLOW_LOCAL_AUTH:
+                raise ValueError("Local authentication is forbidden in production")
         return self
 
 

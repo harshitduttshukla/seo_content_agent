@@ -301,6 +301,10 @@ describe("Phase 5: Content Brief & Chat-Native AI Content Editor", () => {
     const applyBtn = screen.getByTestId("apply-proposal-btn");
     fireEvent.click(applyBtn);
     expect(onApplyProposal).toHaveBeenCalledWith("prop-002");
+
+    await waitFor(() => {
+      expect(screen.getByText("Applied to Document")).toBeInTheDocument();
+    });
   });
 
   it("renders ContentPageWorkspace and toggles between Brief and Editor tabs", () => {
@@ -325,5 +329,237 @@ describe("Phase 5: Content Brief & Chat-Native AI Content Editor", () => {
     const editorTabBtn = screen.getByTestId("tab-editor-view");
     fireEvent.click(editorTabBtn);
     expect(screen.getByTestId("content-editor")).toBeInTheDocument();
+  });
+
+  it("renders human-readable diff text when proposal contains structured operations and text object", async () => {
+    const structuredProposal: AIProposal = {
+      id: "prop-003",
+      document_id: mockDoc.id,
+      status: "PROPOSED",
+      operation_type: "replace_block",
+      target_block_ids: ["block_001"],
+      old_content: { text: "Original technical SEO description." },
+      proposed_content: {
+        text: "Optimized: Technical SEO ensures search engines discover, crawl, and index your content.",
+        operations: [
+          {
+            operation: "replace_block",
+            block_id: "block_001",
+            new_content:
+              "Optimized: Technical SEO ensures search engines discover, crawl, and index your content.",
+          },
+        ],
+      },
+      diff_summary: {},
+      reason: "Polished phrasing according to active brand guidelines and SEO rules.",
+      ai_provider: "mock",
+      model: "mock-v1",
+      created_at: new Date().toISOString(),
+    };
+
+    vi.mocked(clientApi).mockImplementation((url: string) => {
+      if (url.includes("/chat")) {
+        return Promise.resolve({
+          id: "msg-003",
+          session_id: "sess-001",
+          document_id: mockDoc.id,
+          role: "assistant",
+          content: "I have proposed an edit to block 1.",
+          proposal: structuredProposal,
+          created_at: new Date().toISOString(),
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <EditorSidebar
+        document={mockDoc}
+        selectedBlockId="block_001"
+        onApplyProposal={vi.fn()}
+        onRejectProposal={vi.fn()}
+        onSelectBlock={vi.fn()}
+        onRestoreVersion={vi.fn()}
+      />
+    );
+
+    const input = screen.getByTestId("chat-input");
+    fireEvent.change(input, { target: { value: "Optimize block" } });
+    fireEvent.click(screen.getByTestId("send-chat-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("proposal-card")).toBeInTheDocument();
+      expect(screen.getByText("Original technical SEO description.")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Optimized: Technical SEO ensures search engines discover, crawl, and index your content."
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/\{"operations":/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders only the message from a legacy JSON chat envelope", async () => {
+    const readableMessage = "This page uses SEO naturally across its headings and paragraphs.";
+    vi.mocked(clientApi).mockImplementation((url: string) => {
+      if (url.includes("/chat")) {
+        return Promise.resolve({
+          id: "msg-json-envelope",
+          session_id: "sess-001",
+          document_id: mockDoc.id,
+          role: "assistant",
+          content: JSON.stringify({
+            message: readableMessage,
+            operations: [],
+            reason: "Answered the user's question.",
+            diff_summary: null,
+          }),
+          created_at: new Date().toISOString(),
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <EditorSidebar
+        document={mockDoc}
+        selectedBlockId={null}
+        onApplyProposal={vi.fn()}
+        onRejectProposal={vi.fn()}
+        onSelectBlock={vi.fn()}
+        onRestoreVersion={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("chat-input"), {
+      target: { value: "What SEO is added to this page?" },
+    });
+    fireEvent.click(screen.getByTestId("send-chat-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByText(readableMessage)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/\"operations\":\[\]/)).not.toBeInTheDocument();
+  });
+
+  it("copies assistant messages and lets users edit and resend their prompts", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    vi.mocked(clientApi).mockImplementation((url: string) => {
+      if (url.includes("/chat")) {
+        return Promise.resolve({
+          id: "assistant-actions",
+          session_id: "sess-001",
+          document_id: mockDoc.id,
+          role: "assistant",
+          content: "I updated your content proposal.",
+          created_at: new Date().toISOString(),
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <EditorSidebar
+        document={mockDoc}
+        selectedBlockId={null}
+        onApplyProposal={vi.fn()}
+        onRejectProposal={vi.fn()}
+        onSelectBlock={vi.fn()}
+        onRestoreVersion={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("chat-input"), {
+      target: { value: "Write this page" },
+    });
+    fireEvent.click(screen.getByTestId("send-chat-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByText("I updated your content proposal.")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("copy-message-assistant-actions"));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("I updated your content proposal.");
+    });
+
+    fireEvent.click(screen.getByTestId("edit-message-temp_1"));
+    const editInput = screen.getByTestId("edit-message-input-temp_1");
+    fireEvent.change(editInput, { target: { value: "Complete the entire page" } });
+    fireEvent.click(screen.getByTestId("save-edit-message-temp_1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Complete the entire page")).toBeInTheDocument();
+      expect(screen.queryByText("Write this page")).not.toBeInTheDocument();
+      expect(clientApi).toHaveBeenLastCalledWith(
+        `/content-documents/${mockDoc.id}/chat`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            message: "Complete the entire page",
+          }),
+        })
+      );
+    });
+  });
+
+  it("restores persisted chat history when the editor reloads", async () => {
+    vi.mocked(clientApi).mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes("/chat") && !options?.method) {
+        return Promise.resolve({
+          id: "session-history",
+          organization_id: "org-001",
+          project_id: "proj-001",
+          document_id: mockDoc.id,
+          title: "Document Assistant",
+          created_at: new Date().toISOString(),
+          messages: [
+            {
+              id: "persisted-user",
+              session_id: "session-history",
+              document_id: mockDoc.id,
+              role: "USER",
+              content: "Incorporate keywords",
+              context_snapshot: {},
+              token_usage: {},
+              created_at: new Date().toISOString(),
+            },
+            {
+              id: "persisted-assistant",
+              session_id: "session-history",
+              document_id: mockDoc.id,
+              role: "ASSISTANT",
+              content: "I prepared a keyword proposal.",
+              context_snapshot: {},
+              token_usage: {},
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <EditorSidebar
+        document={mockDoc}
+        selectedBlockId={null}
+        onApplyProposal={vi.fn()}
+        onRejectProposal={vi.fn()}
+        onSelectBlock={vi.fn()}
+        onRestoreVersion={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Incorporate keywords")).toBeInTheDocument();
+      expect(screen.getByText("I prepared a keyword proposal.")).toBeInTheDocument();
+      expect(screen.getByTestId("edit-message-persisted-user")).toBeInTheDocument();
+    });
   });
 });

@@ -141,6 +141,11 @@ class DocumentPatchService:
 
             # 2. Check idempotency
             if proposal.status == ProposalStatus.APPLIED:
+                doc_stmt = select(ContentDocument).where(ContentDocument.id == proposal.document_id)
+                doc_res = await session.execute(doc_stmt)
+                document = doc_res.scalars().first()
+                if document:
+                    return ContentDocumentDetail.model_validate(document)
                 raise ConflictError("This AI proposal has already been applied.")
             if (
                 proposal.status != ProposalStatus.PROPOSED

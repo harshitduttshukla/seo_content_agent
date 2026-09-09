@@ -12,6 +12,15 @@ class ToolRiskLevel(StrEnum):
     EXTERNAL_ACTION = "EXTERNAL_ACTION"
 
 
+class ToolAvailability(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class ToolAuthenticationRequirement(StrEnum):
+    OIDC_BEARER_JWT = "OIDC_BEARER_JWT"
+
+
 # Default limits
 DEFAULT_MAX_WORKFLOW_STEPS: Final[int] = 10
 ABSOLUTE_MAX_WORKFLOW_STEPS: Final[int] = 20

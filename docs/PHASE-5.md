@@ -93,7 +93,7 @@ Deterministic rules evaluated on document change:
   - Inline diff preview banner when an AI proposal targets a block.
   - Autosave status indicator (`Saved`, `Saving...`, `Conflict`).
 - **`EditorSidebar` (`apps/web/src/features/editor/editor-sidebar.tsx`)**:
-  - **AI Chat Tab**: Prompt input, quick action chips, message thread, and proposal review cards with 1-click **Apply** and **Reject**.
+  - **AI Chat Tab**: Prompt input, persistent message history, quick action chips, message copy/edit controls, and proposal review cards with 1-click **Apply** and **Reject**. Explicit full-page requests receive complete-document context and may produce a larger reviewed batch instead of the normal 1–3 focused operations.
   - **Outline Tab**: Dynamic H1/H2/H3 tree with jump-to-block highlighting.
   - **SEO Tab**: Quality score badge, word count progress bar, and check criteria list.
   - **History Tab**: Immutable version history list with 1-click non-destructive **Restore**.

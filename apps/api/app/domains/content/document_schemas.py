@@ -154,6 +154,14 @@ class AIEditResponse(BaseModel):
     operations: list[AIOperation] = Field(default_factory=list)
     reason: str = ""
     diff_summary: dict[str, object] = Field(default_factory=dict)
+    provider: str = ""
+    model: str = ""
+
+    @field_validator("diff_summary", mode="before")
+    @classmethod
+    def normalize_null_diff_summary(cls, value: object) -> object:
+        """Treat a provider's JSON null like an omitted optional summary."""
+        return {} if value is None else value
 
 
 class AIProposalDetail(BaseModel):

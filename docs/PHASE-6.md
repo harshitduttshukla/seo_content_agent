@@ -47,22 +47,36 @@ Three new PostgreSQL relational tables:
 ### 2. Tool Registry (`apps/api/app/domains/orchestrator/tool_registry.py`)
 Registers 14 strongly-typed domain tools by reusing existing Phase 1–5 services without duplicating business logic:
 
+Every registered tool now exposes a complete, versioned catalog contract:
+
+- `name` and `description`
+- generated Pydantic `input_schema` and `output_schema` JSON Schemas
+- `authentication_requirements` (`OIDC_BEARER_JWT`) and required RBAC `permissions`
+- declared incremental `cost` metadata
+- workflow and concurrency `rate_limits`
+- explicit `availability` plus the backward-compatible `enabled` flag
+- semantic `version`
+
+The tool catalog is returned by `GET /api/v1/orchestrator/tools`. All current tools are
+internal application-service operations, so their declared incremental per-call cost is USD 0;
+provider-level model usage remains recorded separately on the workflow.
+
 | Tool Name | Risk Level | Requires Approval | Backing Service / Capability |
 | :--- | :--- | :--- | :--- |
-| `read_document` | `READ` | No | `DocumentService.get_document` |
-| `read_seo_guide` | `READ` | No | `SEOGuideService` / DB query |
-| `read_brief` | `READ` | No | `BriefService.get_brief` |
-| `search_keywords` | `READ` | No | `KeywordService` database filtering |
-| `search_pages` | `READ` | No | `ContentArchitectureService` / Planned pages |
-| `retrieve_context` | `READ` | No | `ContextBuilderService.build_context` |
-| `analyze_content_quality` | `READ` | No | `SEOQualityService.evaluate_document` |
-| `check_cannibalization` | `READ` | No | `CannibalizationService.detect_cannibalization` |
-| `find_internal_link_opportunities`| `READ` | No | `InternalLinkingService.find_opportunities` |
-| `generate_link_suggestions` | `SUGGEST` | No | `InternalLinkingService` / candidate scoring |
-| `generate_content_brief` | `SUGGEST` | No | `BriefService.create_brief` |
-| `propose_edit` | `WRITE` | **Yes** | `DocumentPatchService.create_proposal` |
-| `propose_links` | `WRITE` | **Yes** | `DocumentPatchService.create_proposal` |
-| `delete_block` | `DESTRUCTIVE`| **Yes** | `DocumentPatchService.create_proposal` |
+| `read_document` | `READ` | No | Read the current structured document |
+| `read_section` | `READ` | No | Read a block by stable ID |
+| `rewrite_section` | `WRITE` | **Yes** | Propose a section rewrite |
+| `expand_section` | `WRITE` | **Yes** | Propose a section expansion |
+| `shorten_section` | `WRITE` | **Yes** | Propose a shorter section |
+| `generate_outline` | `SUGGEST` | No | Generate headings from the brief and SEO guide |
+| `seo_quality_check` | `READ` | No | Run deterministic SEO quality rules |
+| `keyword_check` | `READ` | No | Audit keyword inclusion and density |
+| `metadata_check` | `READ` | No | Audit title, metadata, and H1 requirements |
+| `find_link_opportunities` | `READ` | No | Find approved project link opportunities |
+| `suggest_internal_links` | `SUGGEST` | No | Match link candidates to document blocks |
+| `insert_internal_link` | `WRITE` | **Yes** | Propose a link insertion patch |
+| `get_page_relationships` | `READ` | No | Read content-map relationships |
+| `get_related_pages` | `READ` | No | Read sibling and parent topical pages |
 
 ### 3. Intent Classification & Deterministic Workflow Planner
 - **`IntentClassifier`** (`intent_classifier.py`):

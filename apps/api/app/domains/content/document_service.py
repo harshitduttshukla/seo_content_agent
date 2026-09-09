@@ -586,18 +586,38 @@ class ContentDocumentService:
                         else OperationType.BATCH_OPERATIONS.value
                     )
                     ops_dump = [o.model_dump() for o in ai_response.operations]
+
+                    # Extract previous content from operations or active blocks
+                    old_text = ""
+                    new_text = ""
+                    if ai_response.operations:
+                        first_op = ai_response.operations[0]
+                        if first_op.old_content:
+                            old_text = first_op.old_content
+                        elif first_op.block_id or first_op.target_block_id:
+                            target_id = first_op.block_id or first_op.target_block_id
+                            for b in document.content_blocks or []:
+                                if isinstance(b, dict) and b.get("id") == target_id:
+                                    old_text = str(b.get("text", ""))
+                                    break
+
+                        if first_op.new_content:
+                            new_text = first_op.new_content
+                        elif first_op.anchor_text and first_op.url:
+                            new_text = f"[{first_op.anchor_text}]({first_op.url})"
+
                     proposal = AIEditProposal(
                         document_id=document_id,
                         chat_message_id=None,  # updated after assistant msg is created
                         status=ProposalStatus.PROPOSED,
                         operation_type=op_type,
                         target_block_ids=target_ids,
-                        old_content={"operations": ops_dump},
-                        proposed_content={"operations": ops_dump},
+                        old_content={"text": old_text},
+                        proposed_content={"text": new_text, "operations": ops_dump},
                         diff_summary=ai_response.diff_summary,
                         reason=ai_response.reason,
-                        ai_provider="mock",
-                        model="mock-v1",
+                        ai_provider=ai_response.provider or "gemini",
+                        model=ai_response.model or "gemini-flash-latest",
                         created_at=datetime.now(UTC),
                     )
                     session.add(proposal)

@@ -9,17 +9,19 @@ import {
   randomBase64Url,
   sessionCookieOptions,
 } from "@/lib/oidc";
+import { isLocalAuthEnabled, isLocalAuthUser } from "@/lib/local-auth";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const devUser = searchParams.get("dev_user");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-  // Allow one-click dev sign in during development
-  if (devUser || process.env.NODE_ENV !== "production") {
-    const user = devUser || "admin";
+  if (devUser) {
+    if (!isLocalAuthEnabled() || !isLocalAuthUser(devUser)) {
+      return NextResponse.redirect(new URL("/login?error=local_auth_disabled", appUrl));
+    }
     const response = NextResponse.redirect(new URL("/organizations", appUrl));
-    response.cookies.set(ACCESS_COOKIE, `dev-${user}`, {
+    response.cookies.set(ACCESS_COOKIE, `dev-${devUser}`, {
       ...sessionCookieOptions,
       maxAge: 60 * 60 * 24 * 7,
     });

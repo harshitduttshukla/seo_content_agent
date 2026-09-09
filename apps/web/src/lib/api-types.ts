@@ -241,15 +241,35 @@ export type StepStatus =
   | "FAILED"
   | "SKIPPED";
 
-export type RiskLevel = "READ" | "SUGGEST" | "WRITE" | "DESTRUCTIVE";
+export type RiskLevel =
+  | "READ"
+  | "SUGGEST"
+  | "WRITE"
+  | "DESTRUCTIVE"
+  | "EXTERNAL_ACTION";
+
+export type ToolAvailability = "AVAILABLE" | "UNAVAILABLE";
 
 export interface ToolDescriptorDTO {
   name: string;
   description: string;
+  input_schema: Record<string, unknown>;
+  output_schema: Record<string, unknown>;
+  authentication_requirements: string[];
+  permissions: string[];
+  cost: {
+    estimated_usd_per_call: string;
+    billing_unit: string;
+  };
+  rate_limits: {
+    max_calls_per_workflow: number;
+    max_concurrent_calls: number;
+  };
+  availability: ToolAvailability;
+  version: string;
   risk_level: RiskLevel;
-  requires_approval: boolean;
-  timeout_seconds: number;
-  parameters: Record<string, unknown>;
+  required_permission: string;
+  enabled: boolean;
 }
 
 export interface ToolExecutionRecordDTO {
@@ -306,4 +326,3 @@ export interface WorkflowDetail {
   steps: WorkflowStepDetail[];
   executions: ToolExecutionRecordDTO[];
 }
-

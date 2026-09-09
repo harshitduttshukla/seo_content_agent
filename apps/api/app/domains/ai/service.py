@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from uuid import uuid4
 
 from app.ai.provider import (
+    AIMessage,
     AIProvider,
     EmbeddingResult,
     GenerationRequest,
@@ -18,6 +19,7 @@ from app.domains.content.document_schemas import (
     ContentBlock,
     OperationType,
 )
+from pydantic import ValidationError
 
 
 class MockAIProvider(AIProvider):
@@ -188,29 +190,110 @@ class MockAIProvider(AIProvider):
         )
 
 
+def get_ai_provider() -> AIProvider:
+    """Returns the configured AI provider based on process settings."""
+    from app.config.settings import get_settings
+    from app.integrations.gemini import GeminiAIProvider
+
+    settings = get_settings()
+    if settings.APP_ENV == "test" and settings.AI_PROVIDER != "gemini":
+        return MockAIProvider()
+
+    provider_name = (settings.AI_PROVIDER or "").lower().strip()
+    if provider_name in ("gemini", "gemini_api_key", "google") and settings.AI_API_KEY:
+        return GeminiAIProvider(
+            api_key=settings.AI_API_KEY,
+            model=settings.AI_MODEL or "gemini-flash-latest",
+            embedding_model=settings.AI_EMBEDDING_MODEL or "gemini-embedding-001",
+            base_url=settings.AI_BASE_URL,
+        )
+
+    return MockAIProvider()
+
+
 class ContentAIService:
     """Application AI service orchestrating provider calls, parsing, and validation."""
 
     def __init__(self, provider: AIProvider | None = None) -> None:
-        self._provider = provider or MockAIProvider()
+        self._provider = provider or get_ai_provider()
 
     async def generate_edit_proposal(
         self,
-        messages: list,
+        messages: list[AIMessage],
     ) -> AIEditResponse:
         req = GenerationRequest(
             messages=messages,
             temperature=0.1,
-            max_output_tokens=2048,
+            max_output_tokens=8192,
         )
         res = await self._provider.generate(req)
+        clean_text = res.text.strip()
+        # Strip markdown code blocks if present (e.g. ```json ... ```)
+        if clean_text.startswith("```"):
+            lines = clean_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            clean_text = "\n".join(lines).strip()
+
         try:
-            data = json.loads(res.text)
-            return AIEditResponse.model_validate(data)
-        except Exception:
-            # Fallback if raw text returned
+            data = json.loads(clean_text)
+        except json.JSONDecodeError:
+            # Providers may return a normal conversational response instead of JSON. A
+            # JSON-looking result is an incomplete/invalid proposal and must never be
+            # displayed as prose or persisted as an applicable edit.
+            if clean_text.startswith(("{", "[")):
+                limit_note = (
+                    " because the provider reached its output limit"
+                    if res.finish_reason.upper() in {"MAX_TOKENS", "LENGTH"}
+                    else ""
+                )
+                return AIEditResponse(
+                    message=(
+                        "The AI generated an incomplete structured proposal"
+                        f"{limit_note}. No document changes were created. Please retry the request."
+                    ),
+                    operations=[],
+                    reason="Rejected incomplete structured AI output.",
+                    provider=res.provider,
+                    model=res.model,
+                )
             return AIEditResponse(
                 message=res.text,
                 operations=[],
                 reason="Conversational response without document modifications.",
+                provider=res.provider,
+                model=res.model,
             )
+
+        try:
+            resp = AIEditResponse.model_validate(data)
+        except ValidationError:
+            # Never leak a structured provider envelope into the chat bubble. If the
+            # envelope has a usable message but unsafe/invalid operations, preserve
+            # only the conversational part and discard the proposed mutations.
+            if isinstance(data, dict) and isinstance(data.get("message"), str):
+                reason = data.get("reason")
+                return AIEditResponse(
+                    message=data["message"],
+                    operations=[],
+                    reason=(
+                        reason
+                        if isinstance(reason, str)
+                        else "Conversational response without valid document modifications."
+                    ),
+                    provider=res.provider,
+                    model=res.model,
+                )
+            return AIEditResponse(
+                message=res.text,
+                operations=[],
+                reason="Conversational response without document modifications.",
+                provider=res.provider,
+                model=res.model,
+            )
+
+        resp.provider = res.provider
+        resp.model = res.model
+        return resp

@@ -6,6 +6,7 @@ and handlers that reuse Phase 1-5 domain services without business logic duplica
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -14,7 +15,12 @@ from app.domains.content.editor_models import ContentBrief, ContentDocument
 from app.domains.content.models import PlannedContentPage
 from app.domains.internal_linking.service import InternalLinkingService
 from app.domains.orchestrator.exceptions import ToolNotFoundError
-from app.domains.orchestrator.policies import ToolRiskLevel
+from app.domains.orchestrator.policies import (
+    DEFAULT_MAX_WORKFLOW_STEPS,
+    ToolAuthenticationRequirement,
+    ToolAvailability,
+    ToolRiskLevel,
+)
 from app.domains.seo.models import SEOGuide
 from app.domains.seo.quality_service import SEOQualityService
 from app.security.principal import AuthenticatedUser, PermissionCode
@@ -215,6 +221,22 @@ ToolHandler = Callable[[ToolExecutionContext, dict[str, Any]], Awaitable[dict[st
 
 
 @dataclass(frozen=True)
+class ToolCost:
+    """Declared incremental cost of one tool invocation."""
+
+    estimated_usd_per_call: Decimal = Decimal("0")
+    billing_unit: str = "invocation"
+
+
+@dataclass(frozen=True)
+class ToolRateLimits:
+    """Execution bounds currently enforced by the sequential workflow planner."""
+
+    max_calls_per_workflow: int = DEFAULT_MAX_WORKFLOW_STEPS
+    max_concurrent_calls: int = 1
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     name: str
     description: str
@@ -223,7 +245,19 @@ class ToolDefinition:
     risk_level: ToolRiskLevel
     required_permission: PermissionCode
     handler: ToolHandler
+    authentication_requirements: tuple[ToolAuthenticationRequirement, ...] = (
+        ToolAuthenticationRequirement.OIDC_BEARER_JWT,
+    )
+    cost: ToolCost = ToolCost()
+    rate_limits: ToolRateLimits = ToolRateLimits()
+    availability: ToolAvailability = ToolAvailability.AVAILABLE
+    version: str = "1.0.0"
     enabled: bool = True
+
+    @property
+    def permissions(self) -> tuple[PermissionCode, ...]:
+        """Return the complete permission set required to execute the tool."""
+        return (self.required_permission,)
 
 
 # ---------------------------------------------------------------------------
@@ -516,7 +550,7 @@ async def _handle_suggest_internal_links(
     doc_res = await ctx.session.execute(doc_stmt)
     doc = doc_res.scalars().first()
 
-    suggestions = []
+    suggestions: list[dict[str, object]] = []
     blocks = (doc.content_blocks if doc else []) or []
     limit = int(args.get("limit", 5))
 
@@ -641,7 +675,7 @@ class ToolRegistry:
 
     def get(self, name: str) -> ToolDefinition:
         tool = self._tools.get(name)
-        if not tool or not tool.enabled:
+        if not tool or not tool.enabled or tool.availability != ToolAvailability.AVAILABLE:
             raise ToolNotFoundError(name)
         return tool
 

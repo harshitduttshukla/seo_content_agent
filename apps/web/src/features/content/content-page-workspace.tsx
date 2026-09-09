@@ -37,6 +37,8 @@ export function ContentPageWorkspace({
   const [document, setDocument] = useState<ContentDocument>(initialDocument);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [activeProposal, setActiveProposal] = useState<AIProposal | null>(null);
+  const [lastAppliedProposalId, setLastAppliedProposalId] = useState<string | null>(null);
+  const [lastRejectedProposalId, setLastRejectedProposalId] = useState<string | null>(null);
   const [actionNotification, setActionNotification] = useState<string | null>(null);
 
   const showNotification = (msg: string) => {
@@ -53,10 +55,12 @@ export function ContentPageWorkspace({
       );
       setDocument(updatedDocument);
       setActiveProposal(null);
+      setLastAppliedProposalId(proposalId);
       showNotification("AI Proposal applied successfully! Version incremented.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to apply AI proposal";
       alert(msg);
+      throw err;
     }
   };
 
@@ -68,10 +72,12 @@ export function ContentPageWorkspace({
         { method: "POST" }
       );
       setActiveProposal(null);
+      setLastRejectedProposalId(proposalId);
       showNotification("AI Proposal rejected.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to reject AI proposal";
       alert(msg);
+      throw err;
     }
   };
 
@@ -204,6 +210,9 @@ export function ContentPageWorkspace({
               onRejectProposal={handleRejectProposal}
               onSelectBlock={(id) => setSelectedBlockId(id)}
               onRestoreVersion={handleRestoreVersion}
+              onProposalCreated={(proposal) => setActiveProposal(proposal)}
+              lastAppliedProposalId={lastAppliedProposalId}
+              lastRejectedProposalId={lastRejectedProposalId}
             />
           </div>
         </div>

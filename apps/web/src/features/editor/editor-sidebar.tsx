@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import type {
+  AIProposal,
   ContentDocument,
   ContentDocumentVersion,
   ChatMessage,
+  ChatSession,
   SEOQualityReport,
   WorkflowDetail,
 } from "@/lib/api-types";
@@ -14,9 +16,11 @@ import {
   Bot,
   Check,
   ChevronRight,
+  Copy,
   History,
   ListOrdered,
   Loader2,
+  Pencil,
   RotateCcw,
   Send,
   Sparkles,
@@ -29,13 +33,66 @@ import { WorkflowActivity } from "./workflow-activity";
 interface EditorSidebarProps {
   document: ContentDocument;
   selectedBlockId?: string | null;
-  onApplyProposal: (proposalId: string) => void;
-  onRejectProposal: (proposalId: string) => void;
+  onApplyProposal: (proposalId: string) => Promise<void> | void;
+  onRejectProposal: (proposalId: string) => Promise<void> | void;
   onSelectBlock: (blockId: string) => void;
   onRestoreVersion: (versionNum: number) => void;
+  onProposalCreated?: (proposal: AIProposal) => void;
+  lastAppliedProposalId?: string | null;
+  lastRejectedProposalId?: string | null;
 }
 
 type SidebarTab = "chat" | "workflows" | "outline" | "seo" | "links" | "history";
+
+function formatDiffContent(content: unknown, isOld: boolean = false): string {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (typeof content === "object") {
+    const obj = content as Record<string, unknown>;
+    if (typeof obj.text === "string" && obj.text.trim()) {
+      return obj.text;
+    }
+    if (Array.isArray(obj.operations) && obj.operations.length > 0) {
+      const op = obj.operations[0] as Record<string, unknown>;
+      if (isOld) {
+        if (typeof op.old_content === "string") return op.old_content;
+      } else {
+        if (typeof op.new_content === "string") return op.new_content;
+        if (op.anchor_text && op.url) return `[${op.anchor_text}](${op.url})`;
+      }
+    }
+    if (Array.isArray(content) && content.length > 0) {
+      const first = content[0] as Record<string, unknown>;
+      if (typeof first.text === "string") return first.text;
+      if (isOld && typeof first.old_content === "string") return first.old_content;
+      if (!isOld && typeof first.new_content === "string") return first.new_content;
+    }
+    if (!isOld && obj.url && obj.anchor_text) {
+      return `[${obj.anchor_text}](${obj.url})`;
+    }
+  }
+  return JSON.stringify(content);
+}
+
+function formatChatContent(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return content;
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof (parsed as Record<string, unknown>).message === "string"
+    ) {
+      return (parsed as Record<string, string>).message;
+    }
+  } catch {
+    // The content is ordinary prose that happens to contain braces.
+  }
+
+  return content;
+}
 
 export function EditorSidebar({
   document: doc,
@@ -44,6 +101,9 @@ export function EditorSidebar({
   onRejectProposal,
   onSelectBlock,
   onRestoreVersion,
+  onProposalCreated,
+  lastAppliedProposalId,
+  lastRejectedProposalId,
 }: EditorSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("chat");
 
@@ -52,6 +112,79 @@ export function EditorSidebar({
   const [inputMessage, setInputMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [processingProposalId, setProcessingProposalId] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageContent, setEditingMessageContent] = useState("");
+
+  useEffect(() => {
+    if (lastAppliedProposalId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.proposal?.id === lastAppliedProposalId
+            ? { ...m, proposal: { ...m.proposal, status: "APPLIED" } }
+            : m
+        )
+      );
+    }
+  }, [lastAppliedProposalId]);
+
+  useEffect(() => {
+    if (lastRejectedProposalId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.proposal?.id === lastRejectedProposalId
+            ? { ...m, proposal: { ...m.proposal, status: "REJECTED" } }
+            : m
+        )
+      );
+    }
+  }, [lastRejectedProposalId]);
+
+  const handleApplyProposalAction = async (proposalId: string) => {
+    if (processingProposalId) return;
+    try {
+      setProcessingProposalId(proposalId);
+      await onApplyProposal(proposalId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.proposal?.id === proposalId
+            ? { ...m, proposal: { ...m.proposal, status: "APPLIED" } }
+            : m
+        )
+      );
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "";
+      if (errMsg.toLowerCase().includes("already been applied")) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.proposal?.id === proposalId
+              ? { ...m, proposal: { ...m.proposal, status: "APPLIED" } }
+              : m
+          )
+        );
+      }
+    } finally {
+      setProcessingProposalId(null);
+    }
+  };
+
+  const handleRejectProposalAction = async (proposalId: string) => {
+    if (processingProposalId) return;
+    try {
+      setProcessingProposalId(proposalId);
+      await onRejectProposal(proposalId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.proposal?.id === proposalId
+            ? { ...m, proposal: { ...m.proposal, status: "REJECTED" } }
+            : m
+        )
+      );
+    } finally {
+      setProcessingProposalId(null);
+    }
+  };
 
   // SEO Quality State
   const [qualityReport, setQualityReport] = useState<SEOQualityReport | null>(null);
@@ -61,6 +194,36 @@ export function EditorSidebar({
   const [versions, setVersions] = useState<ContentDocumentVersion[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const nextTemporaryMessageId = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadChatHistory() {
+      try {
+        const session = await clientApi<ChatSession>(`/content-documents/${doc.id}/chat`);
+        if (cancelled) return;
+        if (Array.isArray(session?.messages)) {
+          const historicalMessages = session.messages.map((message) => ({
+            ...message,
+            role: message.role.toLowerCase() as ChatMessage["role"],
+          }));
+          setMessages((prev) => {
+            const pending = prev.filter((m) => m.id.startsWith("temp_"));
+            return pending.length > 0
+              ? [...historicalMessages, ...pending]
+              : historicalMessages;
+          });
+        }
+      } catch (err) {
+        if (!cancelled) console.error("Failed to load chat history:", err);
+      }
+    }
+
+    void loadChatHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc.id]);
 
   // Orchestrator State (Phase 6)
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowDetail | null>(null);
@@ -194,26 +357,60 @@ export function EditorSidebar({
   }, [activeTab, doc.id, doc.current_version]);
 
   // Handle Chat Message Submit
-  const handleSendMessage = async (customPrompt?: string) => {
+  const handleCopyMessage = async (message: ChatMessage) => {
+    const content = formatChatContent(message.content);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(message.id);
+      window.setTimeout(() => {
+        setCopiedMessageId((current) => (current === message.id ? null : current));
+      }, 1500);
+    } catch {
+      setChatError("Could not copy this message. Please check clipboard permissions.");
+    }
+  };
+
+  const startEditingMessage = (message: ChatMessage) => {
+    setEditingMessageId(message.id);
+    setEditingMessageContent(message.content);
+    setChatError(null);
+  };
+
+  const cancelEditingMessage = () => {
+    setEditingMessageId(null);
+    setEditingMessageContent("");
+  };
+
+  const handleSendMessage = async (customPrompt?: string, editedMessageId?: string) => {
     const textToSend = customPrompt || inputMessage;
     if (!textToSend.trim() || isSending) return;
 
     setIsSending(true);
     setChatError(null);
 
-    // Optimistic user message
-    nextTemporaryMessageId.current += 1;
-    const userMsg: ChatMessage = {
-      id: `temp_${nextTemporaryMessageId.current}`,
-      session_id: "active",
-      document_id: doc.id,
-      role: "user",
-      content: textToSend,
-      context_snapshot: {},
-      token_usage: {},
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    if (editedMessageId) {
+      setMessages((prev) => {
+        const editedIndex = prev.findIndex((message) => message.id === editedMessageId);
+        if (editedIndex < 0) return prev;
+        const editedMessage = { ...prev[editedIndex], content: textToSend };
+        return [...prev.slice(0, editedIndex), editedMessage];
+      });
+      cancelEditingMessage();
+    } else {
+      // Optimistic user message
+      nextTemporaryMessageId.current += 1;
+      const userMsg: ChatMessage = {
+        id: `temp_${nextTemporaryMessageId.current}`,
+        session_id: "active",
+        document_id: doc.id,
+        role: "user",
+        content: textToSend,
+        context_snapshot: {},
+        token_usage: {},
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+    }
     setInputMessage("");
 
     try {
@@ -225,12 +422,20 @@ export function EditorSidebar({
         }),
       });
       setMessages((prev) => [...prev, responseMessage]);
+      if (responseMessage.proposal && onProposalCreated) {
+        onProposalCreated(responseMessage.proposal);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to process AI chat turn";
       setChatError(msg);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const saveEditedMessage = () => {
+    if (!editingMessageId || !editingMessageContent.trim()) return;
+    void handleSendMessage(editingMessageContent, editingMessageId);
   };
 
   // Quick Action Chips
@@ -367,7 +572,7 @@ export function EditorSidebar({
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex flex-col ${
+                  className={`group/message flex flex-col ${
                     msg.role === "user" ? "items-end" : "items-start"
                   }`}
                 >
@@ -378,8 +583,85 @@ export function EditorSidebar({
                         : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    {editingMessageId === msg.id ? (
+                      <div className="space-y-2 min-w-64">
+                        <textarea
+                          value={editingMessageContent}
+                          onChange={(event) => setEditingMessageContent(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              saveEditedMessage();
+                            }
+                            if (event.key === "Escape") cancelEditingMessage();
+                          }}
+                          rows={3}
+                          autoFocus
+                          className="w-full rounded-lg border border-blue-300 bg-white p-2 text-xs text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          aria-label="Edit message"
+                          data-testid={`edit-message-input-${msg.id}`}
+                        />
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={cancelEditingMessage}
+                            className="rounded-md bg-blue-500 px-2 py-1 text-[10px] font-medium text-white hover:bg-blue-400"
+                            data-testid={`cancel-edit-message-${msg.id}`}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={saveEditedMessage}
+                            disabled={!editingMessageContent.trim() || isSending}
+                            className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                            data-testid={`save-edit-message-${msg.id}`}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap leading-relaxed">
+                        {formatChatContent(msg.content)}
+                      </p>
+                    )}
                   </div>
+
+                  {editingMessageId !== msg.id && (
+                    <div
+                      className={`mt-1 flex items-center gap-0.5 text-slate-400 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100 ${
+                        msg.role === "user" ? "flex-row-reverse" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyMessage(msg)}
+                        className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        aria-label={copiedMessageId === msg.id ? "Message copied" : "Copy message"}
+                        title={copiedMessageId === msg.id ? "Copied" : "Copy"}
+                        data-testid={`copy-message-${msg.id}`}
+                      >
+                        {copiedMessageId === msg.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      {msg.role === "user" && (
+                        <button
+                          type="button"
+                          onClick={() => startEditingMessage(msg)}
+                          className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          aria-label="Edit message"
+                          title="Edit"
+                          data-testid={`edit-message-${msg.id}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Proposal Review Card if attached to assistant message */}
                   {msg.proposal && (
@@ -404,38 +686,69 @@ export function EditorSidebar({
                       )}
 
                       {/* Old vs New Diff Summary */}
-                      {Boolean(msg.proposal.old_content) && (
-                        <div className="space-y-1">
-                          <div className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 font-mono text-[11px] line-through">
-                            {typeof msg.proposal.old_content === "string"
-                              ? (msg.proposal.old_content as string)
-                              : JSON.stringify(msg.proposal.old_content)}
+                      {Boolean(msg.proposal.old_content || msg.proposal.proposed_content) && (() => {
+                        const oldDisplay =
+                          formatDiffContent(msg.proposal.old_content, true) ||
+                          (typeof msg.proposal.diff_summary?.old === "string" ? msg.proposal.diff_summary.old : "");
+                        const proposedDisplay =
+                          formatDiffContent(msg.proposal.proposed_content, false) ||
+                          (typeof msg.proposal.diff_summary?.new === "string" ? msg.proposal.diff_summary.new : "");
+
+                        return (
+                          <div className="space-y-1">
+                            {oldDisplay ? (
+                              <div className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 font-mono text-[11px] line-through">
+                                {oldDisplay}
+                              </div>
+                            ) : null}
+                            {proposedDisplay ? (
+                              <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-mono text-[11px]">
+                                {proposedDisplay}
+                              </div>
+                            ) : null}
                           </div>
-                          <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-mono text-[11px]">
-                            {typeof msg.proposal.proposed_content === "string"
-                              ? (msg.proposal.proposed_content as string)
-                              : JSON.stringify(msg.proposal.proposed_content)}
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Apply / Reject Actions */}
                       {msg.proposal.status === "PROPOSED" ? (
                         <div className="flex items-center gap-2 pt-1">
                           <button
-                            onClick={() => onApplyProposal(msg.proposal!.id)}
-                            className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-xs transition-colors"
+                            onClick={() => handleApplyProposalAction(msg.proposal!.id)}
+                            disabled={Boolean(processingProposalId)}
+                            className={`flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-xs transition-colors ${
+                              processingProposalId ? "opacity-60 cursor-not-allowed" : ""
+                            }`}
                             data-testid="apply-proposal-btn"
                           >
-                            <Check className="w-3.5 h-3.5" /> Apply Proposal
+                            {processingProposalId === msg.proposal.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-3.5 h-3.5" /> Apply Proposal
+                              </>
+                            )}
                           </button>
                           <button
-                            onClick={() => onRejectProposal(msg.proposal!.id)}
-                            className="py-1.5 px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-medium transition-colors"
+                            onClick={() => handleRejectProposalAction(msg.proposal!.id)}
+                            disabled={Boolean(processingProposalId)}
+                            className={`py-1.5 px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-medium transition-colors ${
+                              processingProposalId ? "opacity-60 cursor-not-allowed" : ""
+                            }`}
                             data-testid="reject-proposal-btn"
                           >
                             <X className="w-3.5 h-3.5" /> Reject
                           </button>
+                        </div>
+                      ) : msg.proposal.status === "APPLIED" ? (
+                        <div className="pt-1 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <Check className="w-3.5 h-3.5" /> Applied to Document
+                        </div>
+                      ) : msg.proposal.status === "REJECTED" ? (
+                        <div className="pt-1 flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                          <X className="w-3.5 h-3.5" /> Proposal Rejected
                         </div>
                       ) : (
                         <div className="pt-1 text-[11px] font-semibold text-slate-500">

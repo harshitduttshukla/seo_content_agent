@@ -30,6 +30,22 @@ def test_phase3_openapi_contract_contains_expected_resources() -> None:
     assert "/api/v1/projects/{project_id}/content-opportunities" in paths
     assert "/api/v1/projects/{project_id}/content-architecture/graph" in paths
 
+    # Governed tool catalog (Phase 6)
+    assert "/api/v1/orchestrator/tools" in paths
+    tool_descriptor = schema["components"]["schemas"]["ToolDescriptorDTO"]
+    assert {
+        "name",
+        "description",
+        "input_schema",
+        "output_schema",
+        "authentication_requirements",
+        "permissions",
+        "cost",
+        "rate_limits",
+        "availability",
+        "version",
+    }.issubset(tool_descriptor["required"])
+
     # Future Phase 4+ features must NOT be exposed yet
     assert not any(
         "/ai/writer" in path or "/publishing" in path or "/planner" in path for path in paths

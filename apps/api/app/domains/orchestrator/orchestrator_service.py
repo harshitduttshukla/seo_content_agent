@@ -9,7 +9,9 @@ from app.domains.orchestrator.intent_classifier import IntentClassifier
 from app.domains.orchestrator.planner import WorkflowPlanner
 from app.domains.orchestrator.schemas import (
     OrchestratorRequest,
+    ToolCostDTO,
     ToolDescriptorDTO,
+    ToolRateLimitsDTO,
     WorkflowDetail,
     WorkflowStepDetail,
 )
@@ -208,9 +210,23 @@ class OrchestratorService:
             ToolDescriptorDTO(
                 name=t.name,
                 description=t.description,
+                input_schema=t.input_schema.model_json_schema(),
+                output_schema=t.output_schema.model_json_schema(),
+                authentication_requirements=[item.value for item in t.authentication_requirements],
+                permissions=[permission.value for permission in t.permissions],
+                cost=ToolCostDTO(
+                    estimated_usd_per_call=t.cost.estimated_usd_per_call,
+                    billing_unit=t.cost.billing_unit,
+                ),
+                rate_limits=ToolRateLimitsDTO(
+                    max_calls_per_workflow=t.rate_limits.max_calls_per_workflow,
+                    max_concurrent_calls=t.rate_limits.max_concurrent_calls,
+                ),
+                availability=t.availability,
+                version=t.version,
                 risk_level=t.risk_level,
                 required_permission=t.required_permission.value,
-                enabled=t.enabled,
+                enabled=t.enabled and t.availability.value == "AVAILABLE",
             )
             for t in tools
         ]

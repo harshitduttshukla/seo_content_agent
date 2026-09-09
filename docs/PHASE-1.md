@@ -227,6 +227,7 @@ Documented in `.env.example`:
 ```bash
 # Application
 APP_ENV=local
+ALLOW_LOCAL_AUTH=true
 APP_NAME=seo-content-agent
 DEBUG=true
 LOG_LEVEL=INFO
@@ -244,6 +245,11 @@ AUTH_JWKS_URL=https://identity.example.com/.well-known/jwks.json
 API_INTERNAL_URL=http://localhost:8000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+The Docker Compose development stack enables local authentication by default. When both
+`APP_ENV=local` and `ALLOW_LOCAL_AUTH=true`, `/login` displays the allowlisted Admin User and
+SEO Manager shortcuts. Development tokens are rejected in staging and production, and production
+configuration validation forbids enabling local authentication.
 
 ---
 

@@ -1,6 +1,7 @@
 """Pydantic schemas for AI Orchestrator requests, workflows, tools, and results."""
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from app.domains.orchestrator.models import (
@@ -9,7 +10,7 @@ from app.domains.orchestrator.models import (
     WorkflowIntent,
     WorkflowStatus,
 )
-from app.domains.orchestrator.policies import ToolRiskLevel
+from app.domains.orchestrator.policies import ToolAvailability, ToolRiskLevel
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -119,11 +120,33 @@ class WorkflowCancelRequest(BaseModel):
     reason: str = "User cancelled"
 
 
+class ToolCostDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    estimated_usd_per_call: Decimal = Field(ge=0)
+    billing_unit: str
+
+
+class ToolRateLimitsDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    max_calls_per_workflow: int = Field(gt=0)
+    max_concurrent_calls: int = Field(gt=0)
+
+
 class ToolDescriptorDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: str
     description: str
+    input_schema: dict[str, object]
+    output_schema: dict[str, object]
+    authentication_requirements: list[str]
+    permissions: list[str]
+    cost: ToolCostDTO
+    rate_limits: ToolRateLimitsDTO
+    availability: ToolAvailability
+    version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     risk_level: ToolRiskLevel
     required_permission: str
     enabled: bool = True

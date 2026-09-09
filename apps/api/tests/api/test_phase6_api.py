@@ -78,6 +78,33 @@ async def test_orchestrator_tools_endpoint(
             assert "read_document" in names
             assert "seo_quality_check" in names
             assert "find_link_opportunities" in names
+            assert len(data) == 14
+
+            required_contract_fields = {
+                "name",
+                "description",
+                "input_schema",
+                "output_schema",
+                "authentication_requirements",
+                "permissions",
+                "cost",
+                "rate_limits",
+                "availability",
+                "version",
+            }
+            for tool in data:
+                assert required_contract_fields.issubset(tool)
+                assert tool["input_schema"]["type"] == "object"
+                assert tool["output_schema"]["type"] == "object"
+                assert tool["authentication_requirements"] == ["OIDC_BEARER_JWT"]
+                assert tool["permissions"] == [tool["required_permission"]]
+                assert tool["cost"]["estimated_usd_per_call"] == "0"
+                assert tool["rate_limits"] == {
+                    "max_calls_per_workflow": 10,
+                    "max_concurrent_calls": 1,
+                }
+                assert tool["availability"] == "AVAILABLE"
+                assert tool["version"] == "1.0.0"
 
 
 @pytest.mark.asyncio
