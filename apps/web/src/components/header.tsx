@@ -5,7 +5,7 @@ import { Brand } from "@/components/brand";
 
 export function Header({ backHref, backLabel }: { backHref?: string; backLabel?: string }) {
   return (
-    <header className="flex h-20 items-center justify-between border-b border-[var(--border)] px-5 sm:px-8">
+    <header className="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-[var(--border)] bg-[var(--canvas)] px-5 sm:px-8">
       <div className="flex items-center gap-5">
         <Brand />
         {backHref ? (

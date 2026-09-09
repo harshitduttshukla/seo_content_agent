@@ -202,7 +202,10 @@ export function ContentPageWorkspace({
           </div>
 
           {/* Right Sidebar: AI Chat, Outline, SEO, and History */}
-          <div className="lg:col-span-1 sticky top-6">
+          <div
+            className="lg:col-span-1 lg:sticky lg:top-4 lg:z-30 lg:self-start"
+            data-testid="editor-sidebar-shell"
+          >
             <EditorSidebar
               document={document}
               selectedBlockId={selectedBlockId}

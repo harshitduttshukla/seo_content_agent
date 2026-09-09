@@ -106,7 +106,12 @@ class ContextBuilderService:
             if isinstance(biz_ctx, dict) and biz_ctx.get("business_name"):
                 voice = f"{voice} ({biz_ctx.get('business_name')})"
         style = brand_info.get("style", "Scannable, structured, practical")
-        words_to_avoid = brand_info.get("words_to_avoid", [])
+        raw_words_to_avoid = brand_info.get("words_to_avoid", [])
+        words_to_avoid = (
+            [str(word) for word in raw_words_to_avoid]
+            if isinstance(raw_words_to_avoid, list)
+            else []
+        )
 
         # 5. Extract SEO Rules & Keywords
         primary_kw = (
@@ -209,8 +214,9 @@ You return structured recommendations and operations adhering to the exact Pydan
             if surrounding_blocks:
                 context_content_lines.append("\n--- SURROUNDING CONTEXT BLOCKS ---")
                 for sb in surrounding_blocks:
+                    surrounding_text = str(sb.get("text", ""))
                     context_content_lines.append(
-                        f"[{sb.get('id')}] {sb.get('type')}: {sb.get('text', '')[:120]}"
+                        f"[{sb.get('id')}] {sb.get('type')}: {surrounding_text[:120]}"
                     )
         else:
             context_content_lines.append(

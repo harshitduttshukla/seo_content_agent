@@ -74,9 +74,9 @@ function formatDiffContent(content: unknown, isOld: boolean = false): string {
   return JSON.stringify(content);
 }
 
-function formatChatContent(content: string): string {
+function formatChatContent(content: string, isAssistantMessage: boolean = false): string {
   const trimmed = content.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return content;
+  if (!trimmed.startsWith("{")) return content;
 
   try {
     const parsed: unknown = JSON.parse(trimmed);
@@ -88,10 +88,14 @@ function formatChatContent(content: string): string {
       return (parsed as Record<string, string>).message;
     }
   } catch {
-    // The content is ordinary prose that happens to contain braces.
+    if (isAssistantMessage) {
+      return "This earlier AI response was incomplete, so no document changes were created.";
+    }
   }
 
-  return content;
+  return isAssistantMessage
+    ? "This earlier AI response could not be converted into a reviewable proposal. No document changes were created."
+    : content;
 }
 
 export function EditorSidebar({
@@ -208,10 +212,9 @@ export function EditorSidebar({
             role: message.role.toLowerCase() as ChatMessage["role"],
           }));
           setMessages((prev) => {
-            const pending = prev.filter((m) => m.id.startsWith("temp_"));
-            return pending.length > 0
-              ? [...historicalMessages, ...pending]
-              : historicalMessages;
+            const historicalIds = new Set(historicalMessages.map((message) => message.id));
+            const newerLocalMessages = prev.filter((message) => !historicalIds.has(message.id));
+            return [...historicalMessages, ...newerLocalMessages];
           });
         }
       } catch (err) {
@@ -358,7 +361,7 @@ export function EditorSidebar({
 
   // Handle Chat Message Submit
   const handleCopyMessage = async (message: ChatMessage) => {
-    const content = formatChatContent(message.content);
+    const content = formatChatContent(message.content, message.role === "assistant");
     try {
       await navigator.clipboard.writeText(content);
       setCopiedMessageId(message.id);
@@ -453,7 +456,7 @@ export function EditorSidebar({
 
   return (
     <div
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col h-[750px] shadow-sm overflow-hidden"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col h-[750px] lg:h-[calc(100vh-2rem)] lg:max-h-[750px] shadow-sm overflow-hidden"
       data-testid="editor-sidebar"
     >
       {/* Sidebar Tabs */}
@@ -623,7 +626,7 @@ export function EditorSidebar({
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap leading-relaxed">
-                        {formatChatContent(msg.content)}
+                        {formatChatContent(msg.content, msg.role === "assistant")}
                       </p>
                     )}
                   </div>

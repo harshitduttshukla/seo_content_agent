@@ -319,6 +319,15 @@ describe("Phase 5: Content Brief & Chat-Native AI Content Editor", () => {
 
     expect(screen.getByTestId("content-page-workspace")).toBeInTheDocument();
     expect(screen.getByTestId("content-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("editor-sidebar-shell")).toHaveClass(
+      "lg:sticky",
+      "lg:top-4",
+      "lg:self-start"
+    );
+    expect(screen.getByTestId("editor-sidebar")).toHaveClass(
+      "lg:h-[calc(100vh-2rem)]",
+      "lg:max-h-[750px]"
+    );
 
     // Switch to Brief View
     const briefTabBtn = screen.getByTestId("tab-brief-view");
@@ -440,6 +449,54 @@ describe("Phase 5: Content Brief & Chat-Native AI Content Editor", () => {
       expect(screen.getByText(readableMessage)).toBeInTheDocument();
     });
     expect(screen.queryByText(/\"operations\":\[\]/)).not.toBeInTheDocument();
+  });
+
+  it("hides an incomplete legacy assistant JSON envelope", async () => {
+    vi.mocked(clientApi).mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes("/chat") && !options?.method) {
+        return Promise.resolve({
+          id: "session-incomplete",
+          organization_id: "org-001",
+          project_id: "proj-001",
+          document_id: mockDoc.id,
+          title: "Document Assistant",
+          created_at: new Date().toISOString(),
+          messages: [
+            {
+              id: "incomplete-assistant",
+              session_id: "session-incomplete",
+              document_id: mockDoc.id,
+              role: "ASSISTANT",
+              content: '{"message":"Completed the article","operations":[',
+              context_snapshot: {},
+              token_usage: {},
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <EditorSidebar
+        document={mockDoc}
+        selectedBlockId={null}
+        onApplyProposal={vi.fn()}
+        onRejectProposal={vi.fn()}
+        onSelectBlock={vi.fn()}
+        onRestoreVersion={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "This earlier AI response was incomplete, so no document changes were created."
+        )
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/\"operations\"/)).not.toBeInTheDocument();
   });
 
   it("copies assistant messages and lets users edit and resend their prompts", async () => {

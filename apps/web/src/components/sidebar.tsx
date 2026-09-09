@@ -37,7 +37,10 @@ export function Sidebar({ projectId, active }: { projectId: string; active: stri
     { label: "Settings", href: `/projects/${projectId}/settings`, icon: Settings },
   ];
   return (
-    <aside className="border-r border-[var(--border)] bg-[#f0f2f7] p-3 sm:p-5">
+    <aside
+      className="sticky top-20 h-[calc(100vh-5rem)] self-start overflow-y-auto border-r border-[var(--border)] bg-[#f0f2f7] p-3 sm:p-5"
+      data-testid="project-sidebar"
+    >
       <nav aria-label="Project navigation" className="grid gap-1">
         {items.map((item) => {
           const Icon = item.icon;
