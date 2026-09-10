@@ -6,7 +6,7 @@ import { Card } from "@/components/card";
 import { Dropdown } from "@/components/dropdown";
 import { Header } from "@/components/header";
 import { Input } from "@/components/input";
-import { Modal } from "@/components/modal";
+import { Sidebar } from "@/components/sidebar";
 import { ErrorState, LoadingState } from "@/components/states";
 import { Table, TableCell, TableHead } from "@/components/table";
 import { Toast } from "@/components/toast";
@@ -100,5 +100,16 @@ describe("Core UI Components", () => {
     render(<Header backHref="/projects" backLabel="Back to Projects" />);
     expect(screen.getByText("Back to Projects")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    expect(screen.getByRole("banner")).toHaveClass("sticky", "top-0", "z-50");
+  });
+
+  it("keeps project navigation fixed below the header", () => {
+    render(<Sidebar active="Content" projectId="project-001" />);
+    expect(screen.getByTestId("project-sidebar")).toHaveClass(
+      "sticky",
+      "top-20",
+      "h-[calc(100vh-5rem)]",
+      "overflow-y-auto"
+    );
   });
 });

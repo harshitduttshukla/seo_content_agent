@@ -26,6 +26,16 @@ def test_production_rejects_wildcard_cors() -> None:
         )
 
 
+def test_production_rejects_local_auth() -> None:
+    with pytest.raises(ValidationError, match="Local authentication is forbidden"):
+        settings(
+            APP_ENV="production",
+            ALLOW_LOCAL_AUTH=True,
+            AUTH_ISSUER="https://identity.company.test/",
+            AUTH_JWKS_URL="https://identity.company.test/.well-known/jwks.json",
+        )
+
+
 def test_comma_separated_origins_are_parsed() -> None:
     result = settings(CORS_ORIGINS="https://one.test, https://two.test")
 

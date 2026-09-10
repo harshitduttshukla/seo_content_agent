@@ -19,6 +19,8 @@ services:
   migrate:
     build:
       context: ./apps/api
+      network: host
+    image: sec-content-agent-api:latest
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_MIGRATION_URL: postgresql+psycopg://postgres:postgres@postgres:5432/seo_content
@@ -29,14 +31,22 @@ services:
   api:
     build:
       context: ./apps/api
+      network: host
+    image: sec-content-agent-api:latest
     environment:
-      APP_ENV: local
+      APP_ENV: ${APP_ENV:-local}
+      ALLOW_LOCAL_AUTH: ${ALLOW_LOCAL_AUTH:-true}
       DATABASE_URL: postgresql+asyncpg://seo_content_app:seo_content_app@postgres:5432/seo_content
       DATABASE_MIGRATION_URL: postgresql+psycopg://postgres:postgres@postgres:5432/seo_content
       AUTH_ISSUER: ${AUTH_ISSUER:-https://identity.example.com/}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-seo-content-api}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL:-https://identity.example.com/.well-known/jwks.json}
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-flash-latest}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-gemini-embedding-001}
+      AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
     ports:
       - "8000:8000"
     depends_on:
@@ -52,7 +62,10 @@ services:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
+      network: host
     environment:
+      APP_ENV: ${APP_ENV:-local}
+      ALLOW_LOCAL_AUTH: ${ALLOW_LOCAL_AUTH:-true}
       API_INTERNAL_URL: http://api:8000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       OIDC_ISSUER: ${AUTH_ISSUER:-https://identity.example.com/}

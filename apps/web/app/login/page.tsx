@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, LockKeyhole, UserCheck } from "lucide-react";
 
 import { Brand } from "@/components/brand";
 import { Card } from "@/components/card";
+import { isLocalAuthEnabled } from "@/lib/local-auth";
 
 export default async function LoginPage({
   searchParams,
@@ -9,7 +10,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const isDev = process.env.NODE_ENV !== "production";
+  const localAuthEnabled = isLocalAuthEnabled();
 
   return (
     <main className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.15fr_0.85fr]">
@@ -53,7 +54,7 @@ export default async function LoginPage({
             Continue with SSO <ArrowRight aria-hidden size={18} />
           </a>
 
-          {isDev ? (
+          {localAuthEnabled ? (
             <div className="mt-6 border-t border-[var(--border)] pt-5">
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
                 Local Development Logins

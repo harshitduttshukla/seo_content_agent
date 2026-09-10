@@ -1,7 +1,7 @@
 """Provider-neutral OIDC JWT verification."""
 
 import asyncio
-from typing import Protocol
+from typing import Final, Protocol
 
 import jwt
 from jwt import PyJWKClient
@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict
 
 from app.config.settings import Settings
 from app.core.errors import AuthenticationRequired
+
+LOCAL_AUTH_USERS: Final[frozenset[str]] = frozenset({"admin", "seo_lead"})
 
 
 class IdentityClaims(BaseModel):
@@ -36,10 +38,14 @@ class OIDCTokenVerifier:
         self._jwks = PyJWKClient(str(settings.AUTH_JWKS_URL), cache_keys=True)
 
     async def verify(self, token: str) -> IdentityClaims:
-        if self._settings.APP_ENV in ("local", "test") and (
-            token.startswith("dev-") or "example.com" in str(self._settings.AUTH_JWKS_URL)
-        ):
-            username = token.removeprefix("dev-").strip() or "admin"
+        if token.startswith("dev-"):
+            username = token.removeprefix("dev-").strip()
+            if (
+                self._settings.APP_ENV not in ("local", "test")
+                or not self._settings.ALLOW_LOCAL_AUTH
+                or username not in LOCAL_AUTH_USERS
+            ):
+                raise AuthenticationRequired("Local development authentication is disabled.")
             clean_name = username.replace("_", " ").replace("-", " ").title()
             return IdentityClaims(
                 issuer="http://local-dev",

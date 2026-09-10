@@ -42,7 +42,10 @@ def upgrade() -> None:
         uuid_column("website_id"),
         sa.Column("status", sa.String(32), server_default="queued", nullable=False),
         sa.Column(
-            "configuration", postgresql.JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False
+            "configuration",
+            postgresql.JSONB(),
+            server_default=sa.text("'{}'::jsonb"),
+            nullable=False,
         ),
         sa.Column("pages_discovered", sa.Integer(), server_default="0", nullable=False),
         sa.Column("pages_crawled", sa.Integer(), server_default="0", nullable=False),
@@ -78,9 +81,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_crawl_jobs"),
     )
-    op.create_index(
-        "ix_crawl_jobs_website_status", "crawl_jobs", ["website_id", "status"]
-    )
+    op.create_index("ix_crawl_jobs_website_status", "crawl_jobs", ["website_id", "status"])
     op.create_index(
         "ix_crawl_jobs_org_proj_created",
         "crawl_jobs",
@@ -111,7 +112,8 @@ def upgrade() -> None:
         ),
         sa.Column("crawled_at", sa.DateTime(timezone=True)),
         sa.CheckConstraint(
-            "status IN ('discovered', 'queued', 'crawling', 'crawled', 'failed', 'skipped', 'blocked')",
+            "status IN ('discovered', 'queued', 'crawling', "
+            "'crawled', 'failed', 'skipped', 'blocked')",
             name="ck_crawl_urls_status_allowed",
         ),
         sa.ForeignKeyConstraint(
@@ -158,9 +160,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_crawl_events"),
     )
-    op.create_index(
-        "ix_crawl_events_job_occurred", "crawl_events", ["crawl_job_id", "occurred_at"]
-    )
+    op.create_index("ix_crawl_events_job_occurred", "crawl_events", ["crawl_job_id", "occurred_at"])
 
     # 4. content_pages table
     op.create_table(
@@ -332,9 +332,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_page_links"),
     )
-    op.create_index(
-        "ix_page_links_website_source", "page_links", ["website_id", "source_page_id"]
-    )
+    op.create_index("ix_page_links_website_source", "page_links", ["website_id", "source_page_id"])
     op.create_index(
         "ix_page_links_website_target_page", "page_links", ["website_id", "target_page_id"]
     )

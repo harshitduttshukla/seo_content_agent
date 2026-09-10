@@ -37,6 +37,23 @@ class DomainError(AppError):
         super().__init__(code, message, http_status, details=details)
 
 
+class BadRequestError(AppError):
+    def __init__(
+        self,
+        message: str = "Invalid request.",
+        *,
+        field: str | None = None,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(
+            "BAD_REQUEST",
+            message,
+            HTTPStatus.BAD_REQUEST,
+            field=field,
+            details=details,
+        )
+
+
 class AuthenticationRequired(AppError):
     def __init__(self, message: str = "Authentication is required.") -> None:
         super().__init__("AUTHENTICATION_REQUIRED", message, HTTPStatus.UNAUTHORIZED)
@@ -60,10 +77,13 @@ class ConflictError(AppError):
     def __init__(
         self,
         code: str,
-        message: str,
+        message: str | None = None,
         *,
         details: dict[str, object] | None = None,
     ) -> None:
+        if message is None:
+            message = code
+            code = "CONFLICT"
         super().__init__(code, message, HTTPStatus.CONFLICT, details=details)
 
 
