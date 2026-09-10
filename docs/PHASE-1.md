@@ -260,6 +260,8 @@ For a temporary direct-IP HTTP deployment, set `NEXT_PUBLIC_APP_URL` and `CORS_O
 browser-visible origin (for example, `http://35.173.128.192:3000`). Keep `APP_ENV=local` and
 `ALLOW_LOCAL_AUTH=true` only for this controlled test. The web session cookie is allowed over HTTP
 in this mode; production still requires a secure cookie and must use HTTPS with local auth disabled.
+Client mutations use `crypto.randomUUID()` when available and fall back to UUID v4 generation with
+`crypto.getRandomValues()` so idempotency keys also work during direct-IP HTTP testing.
 
 ---
 
