@@ -1,13 +1,17 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
+
     environment:
       POSTGRES_DB: seo_content
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/001-app-role.sql:ro
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d seo_content"]
       interval: 5s
@@ -16,13 +20,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+
     volumes:
       - redis_data:/data
 
@@ -30,10 +35,16 @@ services:
     build:
       context: ./apps/api
       network: host
+
     image: sec-content-agent-api:latest
+
+    restart: "no"
+
     command: ["alembic", "upgrade", "head"]
+
     environment:
       DATABASE_MIGRATION_URL: postgresql+psycopg://postgres:postgres@postgres:5432/seo_content
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,32 +53,49 @@ services:
     build:
       context: ./apps/api
       network: host
+
     image: sec-content-agent-api:latest
+    restart: unless-stopped
+
     environment:
       APP_ENV: ${APP_ENV:-local}
       ALLOW_LOCAL_AUTH: ${ALLOW_LOCAL_AUTH:-true}
+
       DATABASE_URL: postgresql+asyncpg://seo_content_app:seo_content_app@postgres:5432/seo_content
       DATABASE_MIGRATION_URL: postgresql+psycopg://postgres:postgres@postgres:5432/seo_content
+
       AUTH_ISSUER: ${AUTH_ISSUER:-https://identity.example.com/}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-seo-content-api}
       AUTH_JWKS_URL: ${AUTH_JWKS_URL:-https://identity.example.com/.well-known/jwks.json}
+
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gemini-flash-latest}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-gemini-embedding-001}
       AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+
     ports:
       - "8000:8000"
+
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -77,19 +105,27 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       network: host
+
+    restart: unless-stopped
+
     environment:
       APP_ENV: ${APP_ENV:-local}
       ALLOW_LOCAL_AUTH: ${ALLOW_LOCAL_AUTH:-true}
+
       API_INTERNAL_URL: http://api:8000
+
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+
       OIDC_ISSUER: ${AUTH_ISSUER:-https://identity.example.com/}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_AUTHORIZATION_ENDPOINT: ${OIDC_AUTHORIZATION_ENDPOINT:-}
       OIDC_TOKEN_ENDPOINT: ${OIDC_TOKEN_ENDPOINT:-}
       OIDC_END_SESSION_ENDPOINT: ${OIDC_END_SESSION_ENDPOINT:-}
+
     ports:
       - "3000:3000"
+
     depends_on:
       api:
         condition: service_healthy
