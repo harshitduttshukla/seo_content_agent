@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID
@@ -33,6 +34,8 @@ from app.domains.websites.models import Website
 from app.domains.websites.service import WebsiteService
 from app.security.principal import AuthenticatedUser, PermissionCode
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 class CrawlService:
@@ -283,7 +286,7 @@ class CrawlService:
             job_detail = CrawlJobDetail.model_validate(job)
 
         # Launch crawl worker in background task
-        task = asyncio.create_task(self._execute_crawl(job_detail.id))
+        task = asyncio.create_task(self._execute_crawl(job_detail.id, actor.user_id))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
@@ -335,9 +338,45 @@ class CrawlService:
             )
             return CrawlJobDetail.model_validate(job)
 
-    async def _execute_crawl(self, crawl_job_id: UUID) -> None:
-        """Execute the full crawling loop asynchronously in background."""
+    async def _execute_crawl(self, crawl_job_id: UUID, actor_user_id: UUID) -> None:
+        """Execute the full crawling loop asynchronously in background.
+
+        Every background database session sets the RLS actor context so that
+        PostgreSQL row-level security policies on tables like ``websites``
+        can resolve the requesting user.
+        """
+        try:
+            await self._run_crawl_loop(crawl_job_id, actor_user_id)
+        except Exception as exc:
+            logger.exception("Crawl job %s failed with unhandled error", crawl_job_id)
+            try:
+                async with background_session_scope() as err_session, err_session.begin():
+                    await set_actor_context(err_session, actor_user_id)
+                    failed_job = await self._crawling.get_job(
+                        err_session, crawl_job_id=crawl_job_id
+                    )
+                    if failed_job and failed_job.status not in (
+                        CrawlJobStatus.COMPLETED,
+                        CrawlJobStatus.FAILED,
+                        CrawlJobStatus.CANCELLED,
+                    ):
+                        failed_job.status = CrawlJobStatus.FAILED
+                        failed_job.error_summary = str(exc)[:500]
+                        failed_job.error_count += 1
+                        failed_job.completed_at = datetime.now(UTC)
+                        await self._crawling.add_event(
+                            err_session,
+                            crawl_job_id=crawl_job_id,
+                            event_type="crawl.error",
+                            message=f"Unhandled error: {exc!s}"[:500],
+                        )
+            except Exception:
+                logger.exception("Could not persist failure for crawl job %s", crawl_job_id)
+
+    async def _run_crawl_loop(self, crawl_job_id: UUID, actor_user_id: UUID) -> None:
+        """Inner crawl loop extracted for clean error boundary."""
         async with background_session_scope() as session, session.begin():
+            await set_actor_context(session, actor_user_id)
             job = await self._crawling.get_job(session, crawl_job_id=crawl_job_id)
             if not job or job.status == CrawlJobStatus.CANCELLED:
                 return
@@ -356,6 +395,9 @@ class CrawlService:
             config = CrawlConfiguration.model_validate(job.configuration)
             base_host = website.normalized_host
             base_url = website.base_url
+            website_id = website.id
+            organization_id = website.organization_id
+            project_id = website.project_id
 
         frontier = CrawlFrontier(
             base_host=base_host,
@@ -409,6 +451,7 @@ class CrawlService:
         while not frontier.is_empty and pages_crawled < config.max_pages:
             # Check cancellation flag
             async with background_session_scope() as check_session:
+                await set_actor_context(check_session, actor_user_id)
                 current_job = await self._crawling.get_job(check_session, crawl_job_id=crawl_job_id)
                 if not current_job or current_job.status == CrawlJobStatus.CANCELLED:
                     return
@@ -421,10 +464,11 @@ class CrawlService:
             if config.respect_robots and not robots_parser.can_fetch(item.url):
                 pages_skipped += 1
                 async with background_session_scope() as session, session.begin():
+                    await set_actor_context(session, actor_user_id)
                     await self._crawling.add_url(
                         session,
                         crawl_job_id=crawl_job_id,
-                        website_id=website.id,
+                        website_id=website_id,
                         url=item.url,
                         normalized_url=item.normalized_url,
                         depth=item.depth,
@@ -437,6 +481,7 @@ class CrawlService:
             fetch_res = await fetcher.fetch(item.url)
 
             async with background_session_scope() as session, session.begin():
+                await set_actor_context(session, actor_user_id)
                 if fetch_res.is_success:
                     pages_crawled += 1
                     # Extract content
@@ -445,9 +490,9 @@ class CrawlService:
                     # Persist page & links
                     await self._content_service.index_extracted_page(
                         session,
-                        organization_id=website.organization_id,
-                        project_id=website.project_id,
-                        website_id=website.id,
+                        organization_id=organization_id,
+                        project_id=project_id,
+                        website_id=website_id,
                         url=item.url,
                         normalized_url=item.normalized_url,
                         http_status=fetch_res.status_code,
@@ -459,7 +504,7 @@ class CrawlService:
                     await self._crawling.add_url(
                         session,
                         crawl_job_id=crawl_job_id,
-                        website_id=website.id,
+                        website_id=website_id,
                         url=item.url,
                         normalized_url=item.normalized_url,
                         depth=item.depth,
@@ -480,7 +525,7 @@ class CrawlService:
                     await self._crawling.add_url(
                         session,
                         crawl_job_id=crawl_job_id,
-                        website_id=website.id,
+                        website_id=website_id,
                         url=item.url,
                         normalized_url=item.normalized_url,
                         depth=item.depth,
@@ -504,6 +549,7 @@ class CrawlService:
 
         # Mark job finished
         async with background_session_scope() as session, session.begin():
+            await set_actor_context(session, actor_user_id)
             final_job = await self._crawling.get_job(session, crawl_job_id=crawl_job_id)
             if final_job and final_job.status == CrawlJobStatus.RUNNING:
                 final_job.status = CrawlJobStatus.COMPLETED

@@ -317,6 +317,7 @@ export function CrawlPanel({
                 <TableHead>Pages Crawled</TableHead>
                 <TableHead>Discovered</TableHead>
                 <TableHead>Failed</TableHead>
+                <TableHead>Error</TableHead>
                 <TableHead>Started</TableHead>
               </tr>
             </thead>
@@ -342,6 +343,12 @@ export function CrawlPanel({
                   <TableCell>{job.pages_discovered}</TableCell>
                   <TableCell className={job.pages_failed > 0 ? "text-red-600 font-semibold" : ""}>
                     {job.pages_failed}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-[200px] truncate text-xs text-red-600"
+                    title={job.error_summary || ""}
+                  >
+                    {job.error_summary || "—"}
                   </TableCell>
                   <TableCell className="text-xs text-[var(--muted)]">
                     {new Date(job.created_at).toLocaleString()}

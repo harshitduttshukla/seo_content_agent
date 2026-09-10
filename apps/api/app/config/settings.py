@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     AI_EMBEDDING_MODEL: str = "gemini-embedding-001"
     AI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
 
+    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
+
     @field_validator("API_PREFIX")
     @classmethod
     def validate_api_prefix(cls, value: str) -> str:
