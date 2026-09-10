@@ -15,4 +15,5 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     """Base class for domain-owned ORM models."""
 
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
