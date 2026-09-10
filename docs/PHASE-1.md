@@ -251,6 +251,11 @@ The Docker Compose development stack enables local authentication by default. Wh
 SEO Manager shortcuts. Development tokens are rejected in staging and production, and production
 configuration validation forbids enabling local authentication.
 
+For a temporary direct-IP HTTP deployment, set `NEXT_PUBLIC_APP_URL` and `CORS_ORIGINS` to the
+browser-visible origin (for example, `http://35.173.128.192:3000`). Keep `APP_ENV=local` and
+`ALLOW_LOCAL_AUTH=true` only for this controlled test. The web session cookie is allowed over HTTP
+in this mode; production still requires a secure cookie and must use HTTPS with local auth disabled.
+
 ---
 
 ## 11. Deferred Features & Phase 2 Transition
