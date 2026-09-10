@@ -72,6 +72,8 @@ class SEOStrategyService:
                     resource_id=strategy.id,
                     request_id=request_id,
                 )
+                await session.flush()
+                await session.refresh(strategy)
                 return StrategyResponse(
                     id=strategy.id,
                     organization_id=strategy.organization_id,
@@ -170,6 +172,8 @@ class SEOStrategyService:
                 event_type="strategy.version_created",
                 payload={"version": new_version_no},
             )
+            await session.flush()
+            await session.refresh(strategy)
             return StrategyResponse(
                 id=strategy.id,
                 organization_id=strategy.organization_id,
