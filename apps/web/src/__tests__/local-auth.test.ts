@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "../../app/api/auth/login/route";
 import { isLocalAuthEnabled, isLocalAuthUser } from "@/lib/local-auth";
+import { isSecureCookieEnabled } from "@/lib/oidc";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -18,6 +19,22 @@ describe("local authentication policy", () => {
     expect(isLocalAuthUser("seo_lead")).toBe(true);
     expect(isLocalAuthUser("unknown")).toBe(false);
     expect(isLocalAuthUser(null)).toBe(false);
+  });
+
+  it("allows HTTP cookies for direct-IP testing but enforces them for production and HTTPS", () => {
+    expect(
+      isSecureCookieEnabled({
+        APP_ENV: "local",
+        NEXT_PUBLIC_APP_URL: "http://35.173.128.192:3000",
+      }),
+    ).toBe(false);
+    expect(
+      isSecureCookieEnabled({
+        APP_ENV: "local",
+        NEXT_PUBLIC_APP_URL: "https://content.example.com",
+      }),
+    ).toBe(true);
+    expect(isSecureCookieEnabled({ APP_ENV: "production" })).toBe(true);
   });
 
   it("creates a local session only when the local gate is enabled", async () => {

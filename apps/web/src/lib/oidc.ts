@@ -35,9 +35,25 @@ export function pkceChallenge(verifier: string) {
   return crypto.createHash("sha256").update(verifier).digest("base64url");
 }
 
+interface SessionCookieEnvironment {
+  APP_ENV?: string;
+  NEXT_PUBLIC_APP_URL?: string;
+}
+
+export function isSecureCookieEnabled(env?: SessionCookieEnvironment): boolean {
+  const runtimeEnv = env ?? {
+    APP_ENV: process.env.APP_ENV,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  };
+  return (
+    runtimeEnv.APP_ENV === "production" ||
+    runtimeEnv.NEXT_PUBLIC_APP_URL?.startsWith("https://") === true
+  );
+}
+
 export const sessionCookieOptions = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
+  secure: isSecureCookieEnabled(),
   path: "/",
 };
