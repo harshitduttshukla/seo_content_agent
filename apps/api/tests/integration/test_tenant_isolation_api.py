@@ -64,6 +64,42 @@ def mutation_headers(user: str, key: str) -> dict[str, str]:
 
 
 @pytest.mark.asyncio
+async def test_organization_creation_bootstraps_admin_membership(
+    client: AsyncClient,
+) -> None:
+    me = await client.get("/api/v1/users/me", headers=auth("creator"))
+    assert me.status_code == 200, me.text
+
+    headers = mutation_headers("creator", "create-bootstrap-org")
+    organization = await client.post(
+        "/api/v1/organizations",
+        headers=headers,
+        json={"name": "Bootstrap Organization"},
+    )
+    assert organization.status_code == 201, organization.text
+    organization_id = organization.json()["data"]["id"]
+
+    repeated = await client.post(
+        "/api/v1/organizations",
+        headers=headers,
+        json={"name": "Bootstrap Organization"},
+    )
+    assert repeated.status_code == 201, repeated.text
+    assert repeated.json()["data"]["id"] == organization_id
+
+    members = await client.get(
+        f"/api/v1/organizations/{organization_id}/members",
+        headers=auth("creator"),
+    )
+    assert members.status_code == 200, members.text
+    member_items = members.json()["data"]["items"]
+    assert len(member_items) == 1
+    assert member_items[0]["user_id"] == me.json()["data"]["id"]
+    assert member_items[0]["role"] == "admin"
+    assert member_items[0]["status"] == "active"
+
+
+@pytest.mark.asyncio
 async def test_user_cannot_cross_organization_api_or_rls(client: AsyncClient) -> None:
     user_ids: dict[str, str] = {}
     resources: dict[str, dict[str, object]] = {}

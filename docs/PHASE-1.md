@@ -251,6 +251,11 @@ The Docker Compose development stack enables local authentication by default. Wh
 SEO Manager shortcuts. Development tokens are rejected in staging and production, and production
 configuration validation forbids enabling local authentication.
 
+Organization creation uses a transaction-local bootstrap organization ID. The RLS policies allow
+only that authenticated transaction to insert and read the new memberless organization; the
+service then flushes the creator's admin membership before audit and outbox records. The entire
+bootstrap commits or rolls back as one transaction.
+
 For a temporary direct-IP HTTP deployment, set `NEXT_PUBLIC_APP_URL` and `CORS_ORIGINS` to the
 browser-visible origin (for example, `http://35.173.128.192:3000`). Keep `APP_ENV=local` and
 `ALLOW_LOCAL_AUTH=true` only for this controlled test. The web session cookie is allowed over HTTP

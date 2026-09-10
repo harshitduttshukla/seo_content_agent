@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.core.cursor import decode_cursor, encode_cursor
 from app.core.errors import ConflictError, ResourceNotFound
 from app.core.pagination import PageResult
 from app.core.validators import normalize_slug
-from app.db.session import set_actor_context
+from app.db.session import set_actor_context, set_organization_bootstrap_context
 from app.domains.audit.repository import (
     AuditWriter,
     IdempotencyRepository,
@@ -67,7 +67,10 @@ class OrganizationService:
                 )
                 if not created:
                     return OrganizationDetail.model_validate(record.response_data)
+                organization_id = uuid4()
+                await set_organization_bootstrap_context(session, organization_id)
                 organization = Organization(
+                    id=organization_id,
                     name=payload.name.strip(),
                     slug=slug,
                     status=OrganizationStatus.ACTIVE,
@@ -86,6 +89,7 @@ class OrganizationService:
                         joined_at=datetime.now(UTC),
                     )
                 )
+                await session.flush()
                 detail = OrganizationDetail.model_validate(organization)
                 self._audit.add(
                     session,

@@ -80,3 +80,12 @@ async def set_actor_context(session: AsyncSession, user_id: UUID) -> None:
         text("SELECT set_config('app.user_id', :user_id, true)"),
         {"user_id": str(user_id)},
     )
+
+
+async def set_organization_bootstrap_context(session: AsyncSession, organization_id: UUID) -> None:
+    """Authorize one organization ID for creation in the current transaction."""
+
+    await session.execute(
+        text("SELECT set_config('app.bootstrap_organization_id', :organization_id, true)"),
+        {"organization_id": str(organization_id)},
+    )
