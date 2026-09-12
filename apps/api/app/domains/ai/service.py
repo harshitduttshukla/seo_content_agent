@@ -26,6 +26,118 @@ class MockAIProvider(AIProvider):
     """Deterministic AI provider for development, testing, and runtime fallback."""
 
     async def generate(self, request: GenerationRequest) -> GenerationResult:
+        # Check if this is an SEO strategy generation request
+        is_strategy_request = False
+        strategy_context = ""
+        for m in request.messages:
+            if "<STRATEGY_CONTEXT>" in m.content or "INITIAL SEO STRATEGY" in m.content:
+                is_strategy_request = True
+                strategy_context += "\n" + m.content
+
+        if is_strategy_request:
+            biz_name = "Acme Intelligence"
+            if "Project Name: " in strategy_context:
+                import contextlib
+
+                with contextlib.suppress(Exception):
+                    biz_name = (
+                        strategy_context.split("Project Name: ")[1].split("\n")[0].strip()
+                        or biz_name
+                    )
+
+            strategy_json = json.dumps(
+                {
+                    "business_context": {
+                        "business_name": biz_name,
+                        "description": (
+                            f"{biz_name} provides comprehensive solutions "
+                            "and services tailored to industry standards."
+                        ),
+                        "industry": "Software & Technology Services",
+                        "locations": ["Global"],
+                    },
+                    "audience": {
+                        "segments": ["Enterprise Decision Makers", "Technical Practitioners"],
+                        "personas": [
+                            {
+                                "name": "Technical Leader",
+                                "description": (
+                                    "Evaluates scalability, reliability, and security "
+                                    "of modern digital solutions."
+                                ),
+                                "problems": ["Complex toolchains", "Lack of clear metrics"],
+                                "goals": [
+                                    "Improve operational efficiency",
+                                    "Achieve high organic visibility",
+                                ],
+                                "funnel_stage": "MOFU",
+                            }
+                        ],
+                        "needs": [
+                            "Automated insights",
+                            "Reliable execution",
+                            "Clear return on investment",
+                        ],
+                        "buying_stages": ["Awareness", "Evaluation", "Decision"],
+                    },
+                    "products": [
+                        {
+                            "name": f"{biz_name} Core Platform",
+                            "description": (
+                                "Unified platform for managing and optimizing strategic "
+                                "digital operations."
+                            ),
+                            "category": "Core Product",
+                            "url": None,
+                            "priority": 1,
+                        }
+                    ],
+                    "services": [],
+                    "markets": [
+                        {"name": "United States", "code": "US", "is_primary": True},
+                        {"name": "Europe", "code": "EU", "is_primary": False},
+                    ],
+                    "goals": [
+                        {
+                            "type": "LEAD_GENERATION",
+                            "description": (
+                                "Increase qualified organic inbound inquiries by 35% "
+                                "year-over-year."
+                            ),
+                            "priority": 1,
+                        }
+                    ],
+                    "competitors": [
+                        {
+                            "name": "Legacy Competitor",
+                            "domain": "competitor.example.com",
+                            "strengths": ["Brand awareness", "Large customer base"],
+                        }
+                    ],
+                    "seo_objectives": [
+                        "Establish topical authority in core market category",
+                        "Rank on page 1 for high-intent product queries",
+                    ],
+                    "content_objectives": [
+                        "Produce high-value architectural guides and solutions documentation",
+                        "Build structured topic clusters covering essential buyer problems",
+                    ],
+                    "priority_topics": [
+                        "Solution Architecture",
+                        "Platform Migration",
+                        "Best Practices & Guides",
+                    ],
+                },
+                indent=2,
+            )
+            return GenerationResult(
+                text=strategy_json,
+                provider="mock",
+                model="mock-strategy-v1",
+                usage=Usage(input_tokens=150, output_tokens=350),
+                finish_reason="stop",
+            )
+
         user_text = ""
         context_text = ""
         for m in request.messages:
