@@ -130,6 +130,18 @@ class ContentRepository:
     ) -> tuple[ContentPage, bool]:
         """Upsert page; if content_hash changes, create a new ContentPageVersion."""
         now = datetime.now(UTC)
+        url = str(url)[:2048].replace("\x00", "")
+        normalized_url = str(normalized_url)[:2048].replace("\x00", "")
+        canonical_url = str(canonical_url)[:2048].replace("\x00", "") if canonical_url else None
+        title = str(title)[:500].replace("\x00", "")
+        meta_description = str(meta_description)[:1000].replace("\x00", "")
+        language = str(language)[:20].replace("\x00", "") or "en"
+        content_type = str(content_type)[:120].replace("\x00", "")
+        content_hash = str(content_hash)[:64]
+        content_status = str(content_status)[:32]
+        cleaned_content = str(cleaned_content).replace("\x00", "")
+        raw_html = str(raw_html).replace("\x00", "") if raw_html else None
+
         page = await self.get_page_by_url(
             session, website_id=website_id, normalized_url=normalized_url
         )
@@ -242,13 +254,21 @@ class ContentRepository:
 
         now = datetime.now(UTC)
         for link_data in links:
+            target_url = str(link_data["target_url"])[:2048].replace("\x00", "")
+            normalized_target_url = str(link_data["normalized_target_url"])[:2048].replace(
+                "\x00", ""
+            )
+            anchor_text = str(link_data.get("anchor_text", ""))[:500].replace("\x00", "")
+            rel_val = link_data.get("rel")
+            rel_str = str(rel_val)[:120].replace("\x00", "") if rel_val else None
+
             page_link = PageLink(
                 website_id=website_id,
                 source_page_id=source_page_id,
-                target_url=str(link_data["target_url"]),
-                normalized_target_url=str(link_data["normalized_target_url"]),
-                anchor_text=str(link_data.get("anchor_text", "")),
-                rel=str(link_data["rel"]) if link_data.get("rel") else None,
+                target_url=target_url,
+                normalized_target_url=normalized_target_url,
+                anchor_text=anchor_text,
+                rel=rel_str,
                 is_internal=bool(link_data.get("is_internal", True)),
                 nofollow=bool(link_data.get("nofollow", False)),
                 ugc=bool(link_data.get("ugc", False)),

@@ -72,8 +72,11 @@ class CrawlFrontier:
             # Prevent frontier memory inflation beyond 3x page budget
             return None
 
+        if len(url) > 2048:
+            return None
+
         normalized = normalize_crawl_url(url)
-        if not normalized.startswith(("http://", "https://")):
+        if len(normalized) > 2048 or not normalized.startswith(("http://", "https://")):
             return None
 
         if not self.is_url_allowed(normalized):

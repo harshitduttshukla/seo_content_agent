@@ -82,11 +82,11 @@ class CrawlRepository:
         crawl_url = CrawlUrl(
             crawl_job_id=crawl_job_id,
             website_id=website_id,
-            url=url,
-            normalized_url=normalized_url,
+            url=str(url)[:2048].replace("\x00", ""),
+            normalized_url=str(normalized_url)[:2048].replace("\x00", ""),
             depth=depth,
-            source=source,
-            status=status,
+            source=str(source)[:64].replace("\x00", ""),
+            status=str(status)[:32].replace("\x00", ""),
             discovered_at=datetime.now(UTC),
         )
         session.add(crawl_url)
@@ -105,9 +105,9 @@ class CrawlRepository:
     ) -> CrawlEvent:
         event = CrawlEvent(
             crawl_job_id=crawl_job_id,
-            event_type=event_type,
-            url=url,
-            message=message,
+            event_type=str(event_type)[:64].replace("\x00", ""),
+            url=str(url)[:2048].replace("\x00", "") if url else None,
+            message=str(message)[:500].replace("\x00", ""),
             metadata_=metadata or {},
             occurred_at=datetime.now(UTC),
         )

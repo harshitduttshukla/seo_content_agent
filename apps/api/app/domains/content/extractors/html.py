@@ -63,6 +63,15 @@ def _attr_to_str(val: Any) -> str:
     return str(val).strip()
 
 
+def _clean_str(val: Any, max_len: int | None = None) -> str:
+    if val is None:
+        return ""
+    text = str(val).replace("\x00", "").strip()
+    if max_len is not None and len(text) > max_len:
+        return text[:max_len]
+    return text
+
+
 class HtmlContentExtractor:
     def __init__(self, base_host: str, include_subdomains: bool = False) -> None:
         self.base_host = base_host
@@ -89,18 +98,19 @@ class HtmlContentExtractor:
 
         soup = BeautifulSoup(html, "html.parser")
 
-        # 1. Extract Title
+        # 1. Extract Title (max 500 chars, no null bytes)
         title = ""
         title_tag = soup.find("title")
-        if title_tag and title_tag.string:
-            title = title_tag.string.strip()
+        if title_tag:
+            title = _clean_str(title_tag.get_text(strip=True), max_len=500)
 
-        # 2. Extract Language
+        # 2. Extract Language (max 20 chars)
         html_tag = soup.find("html")
         language = "en"
         if html_tag and isinstance(html_tag, Tag):
-            lang_attr = _attr_to_str(html_tag.get("lang") or html_tag.get("xml:lang"))
-            language = (lang_attr or "en")[:20]
+            lang_attr = _clean_str(html_tag.get("lang") or html_tag.get("xml:lang"), max_len=20)
+            if lang_attr:
+                language = lang_attr
 
         # 3. Extract Meta tags & OpenGraph
         meta_description = ""
@@ -116,13 +126,13 @@ class HtmlContentExtractor:
                 continue
 
             if name in ("description", "meta_description"):
-                meta_description = content[:1000]
+                meta_description = _clean_str(content, max_len=1000)
             elif name == "robots":
-                robots_meta = content
+                robots_meta = _clean_str(content, max_len=500)
             elif name.startswith("og:"):
-                og_dict[name] = content
+                og_dict[name] = _clean_str(content, max_len=1000)
             elif name.startswith("twitter:"):
-                twitter_dict[name] = content
+                twitter_dict[name] = _clean_str(content, max_len=1000)
 
         meta_dict["robots"] = robots_meta
         meta_dict["open_graph"] = og_dict
@@ -148,7 +158,9 @@ class HtmlContentExtractor:
         if canonical_tag and isinstance(canonical_tag, Tag):
             href = _attr_to_str(canonical_tag.get("href"))
             if href:
-                canonical_url = normalize_crawl_url(href, base_url=page_url)
+                normalized_canonical = normalize_crawl_url(href, base_url=page_url)
+                if len(normalized_canonical) <= 2048:
+                    canonical_url = _clean_str(normalized_canonical, max_len=2048)
 
         # 5. Extract Headings Hierarchy
         ordered_headings: list[dict[str, object]] = []
@@ -158,7 +170,9 @@ class HtmlContentExtractor:
             if text:
                 h_order += 1
                 level = int(h_tag.name[1])
-                ordered_headings.append({"level": level, "text": text[:500], "order": h_order})
+                ordered_headings.append(
+                    {"level": level, "text": _clean_str(text, max_len=500), "order": h_order}
+                )
 
         # 6. Extract Links
         links_list: list[ExtractedLink] = []
@@ -174,8 +188,11 @@ class HtmlContentExtractor:
             if not normalized_target.startswith(("http://", "https://")):
                 continue
 
-            anchor_text = a_tag.get_text(separator=" ", strip=True)[:500]
-            rel_str = _attr_to_str(a_tag.get("rel"))
+            if len(resolved_url) > 2048 or len(normalized_target) > 2048:
+                continue
+
+            anchor_text = _clean_str(a_tag.get_text(separator=" ", strip=True), max_len=500)
+            rel_str = _clean_str(_attr_to_str(a_tag.get("rel")), max_len=120)
             rel_lower = rel_str.lower()
 
             is_internal = is_same_domain(
@@ -204,9 +221,9 @@ class HtmlContentExtractor:
         images_list: list[dict[str, object]] = []
         for img in soup.find_all("img", src=True):
             src_str = _attr_to_str(img.get("src"))
-            src = urljoin(page_url, src_str)
-            alt = _attr_to_str(img.get("alt"))
-            img_title = _attr_to_str(img.get("title"))
+            src = _clean_str(urljoin(page_url, src_str), max_len=2048)
+            alt = _clean_str(_attr_to_str(img.get("alt")), max_len=1000)
+            img_title = _clean_str(_attr_to_str(img.get("title")), max_len=500)
             width_val = _attr_to_str(img.get("width"))
             height_val = _attr_to_str(img.get("height"))
 
@@ -238,7 +255,7 @@ class HtmlContentExtractor:
         for node in clean_soup.find_all(
             ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote"]
         ):
-            node_text = node.get_text(separator=" ", strip=True)
+            node_text = _clean_str(node.get_text(separator=" ", strip=True))
             if not node_text:
                 continue
 
@@ -267,7 +284,7 @@ class HtmlContentExtractor:
 
         # Plain text
         main_text = clean_soup.get_text(separator="\n", strip=True)
-        cleaned_text = re.sub(r"\n\s*\n+", "\n\n", main_text).strip()
+        cleaned_text = _clean_str(re.sub(r"\n\s*\n+", "\n\n", main_text))
         words = re.findall(r"\b\w+\b", cleaned_text)
         word_count = len(words)
 
