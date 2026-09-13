@@ -480,37 +480,39 @@ class CrawlService:
             # Fetch page
             fetch_res = await fetcher.fetch(item.url)
 
-            async with background_session_scope() as session, session.begin():
-                await set_actor_context(session, actor_user_id)
-                if fetch_res.is_success:
-                    pages_crawled += 1
+            if fetch_res.is_success:
+                try:
                     # Extract content
                     extracted = extractor.extract(fetch_res.text_content, fetch_res.final_url)
 
-                    # Persist page & links
-                    await self._content_service.index_extracted_page(
-                        session,
-                        organization_id=organization_id,
-                        project_id=project_id,
-                        website_id=website_id,
-                        url=item.url,
-                        normalized_url=item.normalized_url,
-                        http_status=fetch_res.status_code,
-                        content_type=fetch_res.content_type,
-                        extracted=extracted,
-                        crawl_job_id=crawl_job_id,
-                    )
+                    async with background_session_scope() as session, session.begin():
+                        await set_actor_context(session, actor_user_id)
+                        # Persist page & links
+                        await self._content_service.index_extracted_page(
+                            session,
+                            organization_id=organization_id,
+                            project_id=project_id,
+                            website_id=website_id,
+                            url=item.url,
+                            normalized_url=item.normalized_url,
+                            http_status=fetch_res.status_code,
+                            content_type=fetch_res.content_type,
+                            extracted=extracted,
+                            crawl_job_id=crawl_job_id,
+                        )
 
-                    await self._crawling.add_url(
-                        session,
-                        crawl_job_id=crawl_job_id,
-                        website_id=website_id,
-                        url=item.url,
-                        normalized_url=item.normalized_url,
-                        depth=item.depth,
-                        source=item.source,
-                        status=CrawlUrlStatus.CRAWLED,
-                    )
+                        await self._crawling.add_url(
+                            session,
+                            crawl_job_id=crawl_job_id,
+                            website_id=website_id,
+                            url=item.url,
+                            normalized_url=item.normalized_url,
+                            depth=item.depth,
+                            source=item.source,
+                            status=CrawlUrlStatus.CRAWLED,
+                        )
+
+                    pages_crawled += 1
 
                     # Discover links for frontier
                     for link in extracted.links:
@@ -520,20 +522,58 @@ class CrawlService:
                                 depth=item.depth + 1,
                                 source="internal_link",
                             )
-                else:
-                    pages_failed += 1
-                    await self._crawling.add_url(
-                        session,
-                        crawl_job_id=crawl_job_id,
-                        website_id=website_id,
-                        url=item.url,
-                        normalized_url=item.normalized_url,
-                        depth=item.depth,
-                        source=item.source,
-                        status=CrawlUrlStatus.FAILED,
+                except Exception as page_err:
+                    logger.warning(
+                        "Error processing page %s during crawl %s: %s",
+                        item.url,
+                        crawl_job_id,
+                        page_err,
+                        exc_info=True,
                     )
+                    pages_failed += 1
+                    try:
+                        async with background_session_scope() as session, session.begin():
+                            await set_actor_context(session, actor_user_id)
+                            await self._crawling.add_url(
+                                session,
+                                crawl_job_id=crawl_job_id,
+                                website_id=website_id,
+                                url=item.url,
+                                normalized_url=item.normalized_url,
+                                depth=item.depth,
+                                source=item.source,
+                                status=CrawlUrlStatus.FAILED,
+                            )
+                            await self._crawling.add_event(
+                                session,
+                                crawl_job_id=crawl_job_id,
+                                event_type="crawl.page_error",
+                                url=item.url,
+                                message=f"Page indexing failed: {page_err!s}"[:500],
+                            )
+                    except Exception:
+                        logger.exception("Failed to record page error event for %s", item.url)
+            else:
+                pages_failed += 1
+                try:
+                    async with background_session_scope() as session, session.begin():
+                        await set_actor_context(session, actor_user_id)
+                        await self._crawling.add_url(
+                            session,
+                            crawl_job_id=crawl_job_id,
+                            website_id=website_id,
+                            url=item.url,
+                            normalized_url=item.normalized_url,
+                            depth=item.depth,
+                            source=item.source,
+                            status=CrawlUrlStatus.FAILED,
+                        )
+                except Exception:
+                    logger.exception("Failed to record failed url %s", item.url)
 
-                # Update progressive job counts
+            # Update progressive job counts
+            async with background_session_scope() as session, session.begin():
+                await set_actor_context(session, actor_user_id)
                 db_job = await self._crawling.get_job(session, crawl_job_id=crawl_job_id)
                 if db_job:
                     if db_job.status == CrawlJobStatus.CANCELLED:

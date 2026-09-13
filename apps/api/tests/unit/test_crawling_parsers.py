@@ -225,3 +225,60 @@ def test_html_content_extractor() -> None:
     # Content hash
     assert len(extracted.content_hash) == 64
     assert extracted.word_count > 10
+
+
+def test_html_extractor_resilience_to_oversized_fields_and_null_bytes() -> None:
+    """Verify that oversized titles, rels, and null bytes are sanitized and bounded."""
+    oversized_title = "T" * 800 + "\x00weird"
+    oversized_rel = "nofollow " * 30 + "\x00"
+    oversized_anchor = "A" * 700 + "\x00text"
+    oversized_meta = "M" * 1500 + "\x00desc"
+    body_with_null = "Hello\x00 world! This is a test paragraph with null bytes."
+
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en-US-very-long-locale-string-here">
+    <head>
+        <title>{oversized_title}</title>
+        <meta name="description" content="{oversized_meta}">
+    </head>
+    <body>
+        <h1>Heading\x00 with null</h1>
+        <p>{body_with_null}</p>
+        <a href="/test" rel="{oversized_rel}">{oversized_anchor}</a>
+        <img src="/img.png" alt="{"Alt" * 500}" title="{"Title" * 300}">
+    </body>
+    </html>
+    """
+
+    extractor = HtmlContentExtractor(base_host="example.com")
+    extracted = extractor.extract(html, "https://example.com")
+
+    # Title capped at 500, no null byte
+    assert len(extracted.title) <= 500
+    assert "\x00" not in extracted.title
+
+    # Language capped at 20, no null byte
+    assert len(extracted.language) <= 20
+    assert "\x00" not in extracted.language
+
+    # Meta description capped at 1000, no null byte
+    assert len(extracted.meta_description) <= 1000
+    assert "\x00" not in extracted.meta_description
+
+    # Headings and clean content free of null bytes
+    assert all("\x00" not in str(h.get("text", "")) for h in extracted.headings)
+    assert "\x00" not in extracted.cleaned_content
+
+    # Links capped
+    assert len(extracted.links) == 1
+    assert len(extracted.links[0].anchor_text) <= 500
+    assert "\x00" not in extracted.links[0].anchor_text
+    assert extracted.links[0].rel is not None
+    assert len(extracted.links[0].rel) <= 120
+    assert "\x00" not in extracted.links[0].rel
+
+    # Images capped
+    assert len(extracted.images) == 1
+    assert len(str(extracted.images[0].get("alt", ""))) <= 1000
+    assert len(str(extracted.images[0].get("title", ""))) <= 500

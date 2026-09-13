@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.api.responses import success
 from app.domains.strategy.schemas import (
+    StrategyDataSchema,
     StrategyResponse,
     StrategyUpdateRequest,
     StrategyVersionListResponse,
@@ -56,6 +57,25 @@ async def update_strategy(
         request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
     )
     return success(request, strategy)
+
+
+@router.post(
+    "/projects/{project_id}/strategy/generate",
+    response_model=ApiResponse[StrategyDataSchema],
+)
+async def generate_strategy_draft(
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[StrategyDataSchema]:
+    draft = await SEOStrategyService().generate_initial_strategy_draft(
+        session,
+        actor=actor,
+        project_id=project_id,
+        request_id=request.state.request_id if hasattr(request.state, "request_id") else "",
+    )
+    return success(request, draft)
 
 
 @router.get(

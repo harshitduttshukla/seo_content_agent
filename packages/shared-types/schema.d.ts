@@ -402,6 +402,187 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orchestrator/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tools
+         * @description Lists complete registered tool contracts and execution metadata.
+         */
+        get: operations["list_tools_api_v1_orchestrator_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Workflow
+         * @description Creates, plans, and executes an AI workflow.
+         */
+        post: operations["create_workflow_api_v1_orchestrator_workflows_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workflow
+         * @description Retrieves workflow status, plan, and accumulated tool results.
+         */
+        get: operations["get_workflow_api_v1_orchestrator_workflows__workflow_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Workflow
+         * @description Cancels an in-progress or waiting workflow.
+         */
+        post: operations["cancel_workflow_api_v1_orchestrator_workflows__workflow_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Workflow
+         * @description Resumes a paused or failed workflow.
+         */
+        post: operations["resume_workflow_api_v1_orchestrator_workflows__workflow_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Workflow Steps
+         * @description Lists ordered steps and tool execution outputs for a workflow.
+         */
+        get: operations["list_workflow_steps_api_v1_orchestrator_workflows__workflow_id__steps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps/{step_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Workflow Step
+         * @description Approves a waiting write action, applies the patch, verifies consistency,
+         *     and resumes workflow.
+         */
+        post: operations["approve_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps/{step_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Workflow Step
+         * @description Rejects a waiting step proposal and terminates the workflow safely.
+         */
+        post: operations["reject_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/workflows/{workflow_id}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tools
+         * @description Lists complete registered tool contracts and execution metadata.
+         */
+        get: operations["list_tools_api_v1_orchestrator_workflows__workflow_id__tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations": {
         parameters: {
             query?: never;
@@ -1058,6 +1239,23 @@ export interface paths {
         /** Update Strategy */
         put: operations["update_strategy_api_v1_projects__project_id__strategy_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/strategy/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Strategy Draft */
+        post: operations["generate_strategy_draft_api_v1_projects__project_id__strategy_generate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1778,6 +1976,13 @@ export interface components {
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** ApiResponse[StrategyDataSchema] */
+        ApiResponse_StrategyDataSchema_: {
+            data: components["schemas"]["StrategyDataSchema-Output"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         /** ApiResponse[StrategyResponse] */
         ApiResponse_StrategyResponse_: {
             data: components["schemas"]["StrategyResponse"] | null;
@@ -1841,12 +2046,35 @@ export interface components {
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** ApiResponse[WorkflowDetail] */
+        ApiResponse_WorkflowDetail_: {
+            data: components["schemas"]["WorkflowDetail"] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         /** ApiResponse[dict[str, str]] */
         ApiResponse_dict_str__str__: {
             /** Data */
             data: {
                 [key: string]: string;
             } | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[list[ToolDescriptorDTO]] */
+        ApiResponse_list_ToolDescriptorDTO__: {
+            /** Data */
+            data: components["schemas"]["ToolDescriptorDTO"][] | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** ApiResponse[list[WorkflowStepDetail]] */
+        ApiResponse_list_WorkflowStepDetail__: {
+            /** Data */
+            data: components["schemas"]["WorkflowStepDetail"][] | null;
             /** Errors */
             errors?: components["schemas"]["ErrorItem"][];
             meta: components["schemas"]["ResponseMeta"];
@@ -3804,6 +4032,21 @@ export interface components {
          * @enum {string}
          */
         OpportunityStatus: "proposed" | "reviewed" | "approved" | "rejected";
+        /** OrchestratorRequest */
+        OrchestratorRequest: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            intent?: components["schemas"]["WorkflowIntent"] | null;
+            /** Message */
+            message: string;
+            /** Metadata */
+            metadata?: Record<string, never>;
+            /** Selected Block Ids */
+            selected_block_ids?: string[];
+        };
         /** OrganizationCreate */
         OrganizationCreate: {
             /** Name */
@@ -4702,6 +4945,11 @@ export interface components {
          * @enum {string}
          */
         SearchIntent: "INFORMATIONAL" | "COMMERCIAL" | "TRANSACTIONAL" | "NAVIGATIONAL" | "LOCAL" | "UNKNOWN";
+        /**
+         * StepStatus
+         * @enum {string}
+         */
+        StepStatus: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED" | "WAITING_FOR_APPROVAL";
         /** StrategyDataSchema */
         "StrategyDataSchema-Input": {
             audience?: components["schemas"]["AudienceSchema"];
@@ -4831,6 +5079,58 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * ToolAvailability
+         * @enum {string}
+         */
+        ToolAvailability: "AVAILABLE" | "UNAVAILABLE";
+        /** ToolCostDTO */
+        ToolCostDTO: {
+            /** Billing Unit */
+            billing_unit: string;
+            /** Estimated Usd Per Call */
+            estimated_usd_per_call: string;
+        };
+        /** ToolDescriptorDTO */
+        ToolDescriptorDTO: {
+            /** Authentication Requirements */
+            authentication_requirements: string[];
+            availability: components["schemas"]["ToolAvailability"];
+            cost: components["schemas"]["ToolCostDTO"];
+            /** Description */
+            description: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Input Schema */
+            input_schema: Record<string, never>;
+            /** Name */
+            name: string;
+            /** Output Schema */
+            output_schema: Record<string, never>;
+            /** Permissions */
+            permissions: string[];
+            rate_limits: components["schemas"]["ToolRateLimitsDTO"];
+            /** Required Permission */
+            required_permission: string;
+            risk_level: components["schemas"]["ToolRiskLevel"];
+            /** Version */
+            version: string;
+        };
+        /** ToolRateLimitsDTO */
+        ToolRateLimitsDTO: {
+            /** Max Calls Per Workflow */
+            max_calls_per_workflow: number;
+            /** Max Concurrent Calls */
+            max_concurrent_calls: number;
+        };
+        /**
+         * ToolRiskLevel
+         * @enum {string}
+         */
+        ToolRiskLevel: "READ" | "SUGGEST" | "WRITE" | "DESTRUCTIVE" | "EXTERNAL_ACTION";
         /** TopicCreate */
         TopicCreate: {
             /**
@@ -5080,6 +5380,115 @@ export interface components {
              * @default http_meta
              */
             method: string;
+        };
+        /** WorkflowCancelRequest */
+        WorkflowCancelRequest: {
+            /**
+             * Reason
+             * @default User cancelled
+             */
+            reason: string;
+        };
+        /** WorkflowDetail */
+        WorkflowDetail: {
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Id */
+            created_by_id: string | null;
+            /** Current Step */
+            current_step: number;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Error */
+            error?: Record<string, never> | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intent */
+            intent: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Pending Proposal Id */
+            pending_proposal_id?: string | null;
+            /** Plan */
+            plan: Record<string, never>[];
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Result */
+            result: Record<string, never>;
+            /** Started At */
+            started_at?: string | null;
+            status: components["schemas"]["WorkflowStatus"];
+            /** Steps */
+            steps?: components["schemas"]["WorkflowStepDetail"][];
+            /** Token Usage */
+            token_usage: Record<string, never>;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * WorkflowIntent
+         * @enum {string}
+         */
+        WorkflowIntent: "EDIT_DOCUMENT" | "ANALYZE_SEO" | "GENERATE_OUTLINE" | "RESEARCH_TOPIC" | "FIND_INTERNAL_LINKS" | "OPTIMIZE_METADATA" | "ANALYZE_CONTENT" | "MULTI_STEP_CONTENT_TASK";
+        /** WorkflowResumeRequest */
+        WorkflowResumeRequest: {
+            /** Step Id */
+            step_id?: string | null;
+        };
+        /**
+         * WorkflowStatus
+         * @enum {string}
+         */
+        WorkflowStatus: "PENDING" | "PLANNING" | "RUNNING" | "WAITING_FOR_APPROVAL" | "COMPLETED" | "FAILED" | "CANCELLED";
+        /** WorkflowStepDetail */
+        WorkflowStepDetail: {
+            /** Completed At */
+            completed_at?: string | null;
+            /** Error */
+            error?: Record<string, never> | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input */
+            input: Record<string, never>;
+            /** Output */
+            output: Record<string, never>;
+            /** Started At */
+            started_at?: string | null;
+            status: components["schemas"]["StepStatus"];
+            /** Step Index */
+            step_index: number;
+            /** Step Type */
+            step_type: string;
+            /** Tool Name */
+            tool_name: string;
+            /**
+             * Workflow Id
+             * Format: uuid
+             */
+            workflow_id: string;
         };
     };
     responses: never;
@@ -6044,6 +6453,297 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponse_CrawlJobDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tools_api_v1_orchestrator_tools_get: {
+        parameters: {
+            query?: {
+                workflow_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_list_ToolDescriptorDTO__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_workflow_api_v1_orchestrator_workflows_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrchestratorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workflow_api_v1_orchestrator_workflows__workflow_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_workflow_api_v1_orchestrator_workflows__workflow_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WorkflowCancelRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_workflow_api_v1_orchestrator_workflows__workflow_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WorkflowResumeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_workflow_steps_api_v1_orchestrator_workflows__workflow_id__steps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_list_WorkflowStepDetail__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_WorkflowDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tools_api_v1_orchestrator_workflows__workflow_id__tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_list_ToolDescriptorDTO__"];
                 };
             };
             /** @description Validation Error */
@@ -7857,6 +8557,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponse_StrategyResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_strategy_draft_api_v1_projects__project_id__strategy_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_StrategyDataSchema_"];
                 };
             };
             /** @description Validation Error */

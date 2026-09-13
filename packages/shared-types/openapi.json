@@ -1798,6 +1798,37 @@
         "title": "ApiResponse[SEOQualityReport]",
         "type": "object"
       },
+      "ApiResponse_StrategyDataSchema_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyDataSchema-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[StrategyDataSchema]",
+        "type": "object"
+      },
       "ApiResponse_StrategyResponse_": {
         "additionalProperties": false,
         "properties": {
@@ -2077,6 +2108,37 @@
         "title": "ApiResponse[WebsiteVerificationDetail]",
         "type": "object"
       },
+      "ApiResponse_WorkflowDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[WorkflowDetail]",
+        "type": "object"
+      },
       "ApiResponse_dict_str__str__": {
         "additionalProperties": false,
         "properties": {
@@ -2110,6 +2172,76 @@
           "meta"
         ],
         "title": "ApiResponse[dict[str, str]]",
+        "type": "object"
+      },
+      "ApiResponse_list_ToolDescriptorDTO__": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ToolDescriptorDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[list[ToolDescriptorDTO]]",
+        "type": "object"
+      },
+      "ApiResponse_list_WorkflowStepDetail__": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowStepDetail"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorItem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ApiResponse[list[WorkflowStepDetail]]",
         "type": "object"
       },
       "ArchitectureStatus": {
@@ -6448,6 +6580,48 @@
         "title": "OpportunityStatus",
         "type": "string"
       },
+      "OrchestratorRequest": {
+        "properties": {
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowIntent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata": {
+            "title": "Metadata",
+            "type": "object"
+          },
+          "selected_block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected Block Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document_id",
+          "message"
+        ],
+        "title": "OrchestratorRequest",
+        "type": "object"
+      },
       "OrganizationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -8610,6 +8784,18 @@
         "title": "SearchIntent",
         "type": "string"
       },
+      "StepStatus": {
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "COMPLETED",
+          "FAILED",
+          "SKIPPED",
+          "WAITING_FOR_APPROVAL"
+        ],
+        "title": "StepStatus",
+        "type": "string"
+      },
       "StrategyDataSchema-Input": {
         "properties": {
           "audience": {
@@ -8900,6 +9086,141 @@
         ],
         "title": "StrategyVersionResponse",
         "type": "object"
+      },
+      "ToolAvailability": {
+        "enum": [
+          "AVAILABLE",
+          "UNAVAILABLE"
+        ],
+        "title": "ToolAvailability",
+        "type": "string"
+      },
+      "ToolCostDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "billing_unit": {
+            "title": "Billing Unit",
+            "type": "string"
+          },
+          "estimated_usd_per_call": {
+            "title": "Estimated Usd Per Call",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estimated_usd_per_call",
+          "billing_unit"
+        ],
+        "title": "ToolCostDTO",
+        "type": "object"
+      },
+      "ToolDescriptorDTO": {
+        "properties": {
+          "authentication_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authentication Requirements",
+            "type": "array"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/ToolAvailability"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/ToolCostDTO"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "input_schema": {
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "rate_limits": {
+            "$ref": "#/components/schemas/ToolRateLimitsDTO"
+          },
+          "required_permission": {
+            "title": "Required Permission",
+            "type": "string"
+          },
+          "risk_level": {
+            "$ref": "#/components/schemas/ToolRiskLevel"
+          },
+          "version": {
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "input_schema",
+          "output_schema",
+          "authentication_requirements",
+          "permissions",
+          "cost",
+          "rate_limits",
+          "availability",
+          "version",
+          "risk_level",
+          "required_permission"
+        ],
+        "title": "ToolDescriptorDTO",
+        "type": "object"
+      },
+      "ToolRateLimitsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "max_calls_per_workflow": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Calls Per Workflow",
+            "type": "integer"
+          },
+          "max_concurrent_calls": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Concurrent Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_calls_per_workflow",
+          "max_concurrent_calls"
+        ],
+        "title": "ToolRateLimitsDTO",
+        "type": "object"
+      },
+      "ToolRiskLevel": {
+        "enum": [
+          "READ",
+          "SUGGEST",
+          "WRITE",
+          "DESTRUCTIVE",
+          "EXTERNAL_ACTION"
+        ],
+        "title": "ToolRiskLevel",
+        "type": "string"
       },
       "TopicCreate": {
         "additionalProperties": false,
@@ -9541,6 +9862,289 @@
           }
         },
         "title": "WebsiteVerificationRequest",
+        "type": "object"
+      },
+      "WorkflowCancelRequest": {
+        "properties": {
+          "reason": {
+            "default": "User cancelled",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "WorkflowCancelRequest",
+        "type": "object"
+      },
+      "WorkflowDetail": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "current_step": {
+            "title": "Current Step",
+            "type": "integer"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intent": {
+            "title": "Intent",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "pending_proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Proposal Id"
+          },
+          "plan": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Plan",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "result": {
+            "title": "Result",
+            "type": "object"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowStatus"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStepDetail"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "token_usage": {
+            "title": "Token Usage",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "document_id",
+          "created_by_id",
+          "intent",
+          "status",
+          "current_step",
+          "plan",
+          "result",
+          "token_usage",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkflowDetail",
+        "type": "object"
+      },
+      "WorkflowIntent": {
+        "enum": [
+          "EDIT_DOCUMENT",
+          "ANALYZE_SEO",
+          "GENERATE_OUTLINE",
+          "RESEARCH_TOPIC",
+          "FIND_INTERNAL_LINKS",
+          "OPTIMIZE_METADATA",
+          "ANALYZE_CONTENT",
+          "MULTI_STEP_CONTENT_TASK"
+        ],
+        "title": "WorkflowIntent",
+        "type": "string"
+      },
+      "WorkflowResumeRequest": {
+        "properties": {
+          "step_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          }
+        },
+        "title": "WorkflowResumeRequest",
+        "type": "object"
+      },
+      "WorkflowStatus": {
+        "enum": [
+          "PENDING",
+          "PLANNING",
+          "RUNNING",
+          "WAITING_FOR_APPROVAL",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED"
+        ],
+        "title": "WorkflowStatus",
+        "type": "string"
+      },
+      "WorkflowStepDetail": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "title": "Input",
+            "type": "object"
+          },
+          "output": {
+            "title": "Output",
+            "type": "object"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatus"
+          },
+          "step_index": {
+            "title": "Step Index",
+            "type": "integer"
+          },
+          "step_type": {
+            "title": "Step Type",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          },
+          "workflow_id": {
+            "format": "uuid",
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workflow_id",
+          "step_index",
+          "step_type",
+          "tool_name",
+          "status",
+          "input",
+          "output"
+        ],
+        "title": "WorkflowStepDetail",
         "type": "object"
       }
     },
@@ -11108,6 +11712,513 @@
         "summary": "Cancel Crawl",
         "tags": [
           "crawling"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/tools": {
+      "get": {
+        "description": "Lists complete registered tool contracts and execution metadata.",
+        "operationId": "list_tools_api_v1_orchestrator_tools_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workflow_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_ToolDescriptorDTO__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tools",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows": {
+      "post": {
+        "description": "Creates, plans, and executes an AI workflow.",
+        "operationId": "create_workflow_api_v1_orchestrator_workflows_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrchestratorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Workflow",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}": {
+      "get": {
+        "description": "Retrieves workflow status, plan, and accumulated tool results.",
+        "operationId": "get_workflow_api_v1_orchestrator_workflows__workflow_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Workflow",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/cancel": {
+      "post": {
+        "description": "Cancels an in-progress or waiting workflow.",
+        "operationId": "cancel_workflow_api_v1_orchestrator_workflows__workflow_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/WorkflowCancelRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Workflow",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/resume": {
+      "post": {
+        "description": "Resumes a paused or failed workflow.",
+        "operationId": "resume_workflow_api_v1_orchestrator_workflows__workflow_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/WorkflowResumeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resume Workflow",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps": {
+      "get": {
+        "description": "Lists ordered steps and tool execution outputs for a workflow.",
+        "operationId": "list_workflow_steps_api_v1_orchestrator_workflows__workflow_id__steps_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_WorkflowStepDetail__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Workflow Steps",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps/{step_id}/approve": {
+      "post": {
+        "description": "Approves a waiting write action, applies the patch, verifies consistency,\nand resumes workflow.",
+        "operationId": "approve_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Step Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Workflow Step",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/steps/{step_id}/reject": {
+      "post": {
+        "description": "Rejects a waiting step proposal and terminates the workflow safely.",
+        "operationId": "reject_workflow_step_api_v1_orchestrator_workflows__workflow_id__steps__step_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Step Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_WorkflowDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Workflow Step",
+        "tags": [
+          "orchestrator"
+        ]
+      }
+    },
+    "/api/v1/orchestrator/workflows/{workflow_id}/tools": {
+      "get": {
+        "description": "Lists complete registered tool contracts and execution metadata.",
+        "operationId": "list_tools_api_v1_orchestrator_workflows__workflow_id__tools_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_ToolDescriptorDTO__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tools",
+        "tags": [
+          "orchestrator"
         ]
       }
     },
@@ -14456,6 +15567,54 @@
           }
         ],
         "summary": "Update Strategy",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/strategy/generate": {
+      "post": {
+        "operationId": "generate_strategy_draft_api_v1_projects__project_id__strategy_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_StrategyDataSchema_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Strategy Draft",
         "tags": [
           "strategy"
         ]

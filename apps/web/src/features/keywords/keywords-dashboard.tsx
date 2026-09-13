@@ -102,12 +102,23 @@ export function KeywordsDashboard({
         const formData = new FormData();
         formData.append("file", importFile);
 
-        const res = await fetch(`/api/v1/projects/${projectId}/keywords/import`, {
+        const res = await fetch(`/api/backend/projects/${projectId}/keywords/import`, {
           method: "POST",
           body: formData,
         });
         if (!res.ok) {
-          throw new Error("Failed to import CSV file");
+          let errorMessage = "Failed to import CSV file";
+          try {
+            const payload = await res.json();
+            if (payload?.errors && Array.isArray(payload.errors) && payload.errors.length > 0) {
+              errorMessage = payload.errors[0].message || errorMessage;
+            } else if (payload?.detail) {
+              errorMessage = typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail);
+            }
+          } catch {
+            // fallback if response is not JSON
+          }
+          throw new Error(errorMessage);
         }
         setShowImportModal(false);
         setImportFile(null);
