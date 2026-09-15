@@ -48,7 +48,9 @@ class SEOStrategyService:
                 project_id=project_id,
                 permission=PermissionCode.STRATEGY_READ,
             )
-            strategy = await self._repository.get_by_project_id(session, project_id=project.id)
+            strategy = await self._repository.get_by_project_id(
+                session, project_id=project.id, organization_id=project.organization_id
+            )
             if strategy is None:
                 strategy = await self._repository.create_strategy(
                     session,
@@ -129,7 +131,12 @@ class SEOStrategyService:
                 project_id=project_id,
                 permission=PermissionCode.STRATEGY_WRITE,
             )
-            strategy = await self._repository.get_by_project_id(session, project_id=project.id)
+            strategy = await self._repository.get_by_project_id(
+                session,
+                project_id=project.id,
+                organization_id=project.organization_id,
+                for_update=True,
+            )
             is_first_save = False
             latest_version = None
             if strategy is None:
@@ -155,7 +162,11 @@ class SEOStrategyService:
                     strategy.status = StrategyStatus.ACTIVE
                     is_first_save = True
                 else:
-                    new_version_no = strategy.current_version + 1
+                    max_ver = max(
+                        strategy.current_version,
+                        latest_version.version if latest_version else 0,
+                    )
+                    new_version_no = max_ver + 1
                     strategy.current_version = new_version_no
                     strategy.revision += 1
                     strategy.status = StrategyStatus.ACTIVE
@@ -425,7 +436,9 @@ class SEOStrategyService:
                 project_id=project_id,
                 permission=PermissionCode.STRATEGY_READ,
             )
-            strategy = await self._repository.get_by_project_id(session, project_id=project.id)
+            strategy = await self._repository.get_by_project_id(
+                session, project_id=project.id, organization_id=project.organization_id
+            )
             if strategy is None:
                 return StrategyVersionListResponse(items=[])
 
@@ -462,7 +475,9 @@ class SEOStrategyService:
                 project_id=project_id,
                 permission=PermissionCode.STRATEGY_READ,
             )
-            strategy = await self._repository.get_by_project_id(session, project_id=project.id)
+            strategy = await self._repository.get_by_project_id(
+                session, project_id=project.id, organization_id=project.organization_id
+            )
             if strategy is None:
                 raise ResourceNotFound("seo_strategy")
 

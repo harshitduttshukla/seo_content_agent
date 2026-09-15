@@ -11,9 +11,18 @@ class SEOStrategyRepository:
     """Encapsulates database queries for SEO strategies and strategy versions."""
 
     async def get_by_project_id(
-        self, session: AsyncSession, *, project_id: UUID
+        self,
+        session: AsyncSession,
+        *,
+        project_id: UUID,
+        organization_id: UUID | None = None,
+        for_update: bool = False,
     ) -> SEOStrategy | None:
         stmt = select(SEOStrategy).where(SEOStrategy.project_id == project_id)
+        if organization_id is not None:
+            stmt = stmt.where(SEOStrategy.organization_id == organization_id)
+        if for_update:
+            stmt = stmt.with_for_update()
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 

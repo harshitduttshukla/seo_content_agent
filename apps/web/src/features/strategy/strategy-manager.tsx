@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   History,
@@ -34,12 +34,24 @@ export function StrategyManager({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [currentStrategy, setCurrentStrategy] = useState<SEOStrategy>(initialStrategy);
+  const [versionList, setVersionList] = useState<SEOStrategyVersion[]>(versions);
   const [strategyData, setStrategyData] = useState<StrategyData>(initialStrategy.strategy_data);
   const [changeSummary, setChangeSummary] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<SEOStrategyVersion | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+
+  useEffect(() => {
+    setCurrentStrategy(initialStrategy);
+  }, [initialStrategy]);
+
+  useEffect(() => {
+    setVersionList(versions);
+  }, [versions]);
 
   // AI Generation State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -47,10 +59,10 @@ export function StrategyManager({
   const [aiErrorMessage, setAiErrorMessage] = useState("");
 
   const isInitialDraft =
-    versions.length === 0 ||
-    (versions.length === 1 &&
-      (versions[0].change_summary === "Initial strategy template initialized" ||
-        initialStrategy.status === "draft"));
+    versionList.length === 0 ||
+    (versionList.length === 1 &&
+      (versionList[0].change_summary === "Initial strategy template initialized" ||
+        currentStrategy.status === "draft"));
 
   const handleGenerateWithAi = async () => {
     setIsGenerating(true);
@@ -78,30 +90,127 @@ export function StrategyManager({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRef.current || isSaving || isPending || isGenerating) {
+      return;
+    }
+    isSavingRef.current = true;
+    setIsSaving(true);
     setSaveStatus("idle");
     setErrorMessage("");
 
-    startTransition(async () => {
-      try {
-        const defaultSummary = isInitialDraft
-          ? "Initial SEO strategy reviewed and saved as Version 1"
-          : "Saved strategy updates";
+    try {
+      const defaultSummary = isInitialDraft
+        ? "Initial SEO strategy reviewed and saved as Version 1"
+        : "Saved strategy updates";
+      const finalSummary = changeSummary.trim() || defaultSummary;
 
-        await clientApi(`/projects/${projectId}/strategy`, {
-          method: "PUT",
-          body: JSON.stringify({
-            change_summary: changeSummary.trim() || defaultSummary,
-            strategy_data: strategyData,
-          }),
-        });
-        setSaveStatus("success");
-        setChangeSummary("");
-        router.refresh();
-      } catch (err: unknown) {
-        setSaveStatus("error");
-        setErrorMessage(err instanceof Error ? err.message : "Failed to save strategy");
+      const payloadStrategyData = {
+        business_context: {
+          business_name: strategyData.business_context?.business_name ?? "",
+          description: strategyData.business_context?.description ?? "",
+          industry: strategyData.business_context?.industry ?? "",
+          locations: Array.isArray(strategyData.business_context?.locations)
+            ? strategyData.business_context.locations
+            : [],
+        },
+        audience: {
+          segments: Array.isArray(strategyData.audience?.segments)
+            ? strategyData.audience.segments
+            : [],
+          personas: Array.isArray(strategyData.audience?.personas)
+            ? strategyData.audience.personas.map((p) => ({
+                name: p.name ?? "",
+                description: p.description ?? "",
+                problems: Array.isArray(p.problems) ? p.problems : [],
+                goals: Array.isArray(p.goals) ? p.goals : [],
+                funnel_stage: p.funnel_stage ?? "TOFU",
+              }))
+            : [],
+          needs: Array.isArray(strategyData.audience?.needs)
+            ? strategyData.audience.needs
+            : [],
+          buying_stages: Array.isArray(strategyData.audience?.buying_stages)
+            ? strategyData.audience.buying_stages
+            : [],
+        },
+        products: Array.isArray(strategyData.products)
+          ? strategyData.products.map((prod) => ({
+              name: prod.name ?? "",
+              description: prod.description ?? "",
+              category: prod.category ?? "Core Product",
+              url: prod.url ?? null,
+              priority: typeof prod.priority === "number" ? prod.priority : 1,
+            }))
+          : [],
+        services: Array.isArray(strategyData.services)
+          ? strategyData.services.map((srv) => ({
+              name: srv.name ?? "",
+              description: srv.description ?? "",
+              category: srv.category ?? "Service",
+              url: srv.url ?? null,
+              priority: typeof srv.priority === "number" ? srv.priority : 1,
+            }))
+          : [],
+        markets: Array.isArray(strategyData.markets)
+          ? strategyData.markets.map((m) => ({
+              name: m.name ?? "",
+              code: m.code ?? "",
+              is_primary: Boolean(m.is_primary),
+            }))
+          : [],
+        goals: Array.isArray(strategyData.goals)
+          ? strategyData.goals.map((g) => ({
+              type: g.type ?? "LEAD_GENERATION",
+              description: g.description ?? "",
+              priority: typeof g.priority === "number" ? g.priority : 1,
+            }))
+          : [],
+        competitors: Array.isArray(strategyData.competitors)
+          ? strategyData.competitors.map((c) => ({
+              name: c.name ?? "",
+              domain: c.domain ?? "",
+              strengths: Array.isArray(c.strengths) ? c.strengths : [],
+            }))
+          : [],
+        seo_objectives: Array.isArray(strategyData.seo_objectives)
+          ? strategyData.seo_objectives
+          : [],
+        content_objectives: Array.isArray(strategyData.content_objectives)
+          ? strategyData.content_objectives
+          : [],
+        priority_topics: Array.isArray(strategyData.priority_topics)
+          ? strategyData.priority_topics
+          : [],
+      };
+
+      const updatedStrategy = await clientApi<SEOStrategy>(`/projects/${projectId}/strategy`, {
+        method: "PUT",
+        body: JSON.stringify({
+          change_summary: finalSummary,
+          strategy_data: payloadStrategyData,
+        }),
+      });
+
+      const versionsRes = await clientApi<{ items: SEOStrategyVersion[] }>(
+        `/projects/${projectId}/strategy/versions`
+      ).catch(() => null);
+
+      setCurrentStrategy(updatedStrategy);
+      if (versionsRes?.items) {
+        setVersionList(versionsRes.items);
       }
-    });
+      setSaveStatus("success");
+      setChangeSummary("");
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (err: unknown) {
+      setSaveStatus("error");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to save strategy");
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const addProduct = () => {
@@ -191,14 +300,14 @@ export function StrategyManager({
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-[var(--surface-soft)] px-2.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
-              Version {initialStrategy.current_version}
+              Version {currentStrategy.current_version}
             </span>
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 capitalize">
-              {isInitialDraft ? "Draft" : initialStrategy.status}
+              {isInitialDraft ? "Draft" : currentStrategy.status}
             </span>
           </div>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Last updated: {new Date(initialStrategy.updated_at).toLocaleString()}
+            Last updated: {new Date(currentStrategy.updated_at).toLocaleString()}
           </p>
         </div>
 
@@ -206,7 +315,7 @@ export function StrategyManager({
           <button
             type="button"
             onClick={handleGenerateWithAi}
-            disabled={isGenerating || isPending}
+            disabled={isGenerating || isPending || isSaving}
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition cursor-pointer shadow-xs"
           >
             {isGenerating ? (
@@ -223,9 +332,10 @@ export function StrategyManager({
           <button
             type="button"
             onClick={() => setShowHistory(!showHistory)}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-3.5 py-2 text-sm font-semibold hover:bg-slate-50 transition cursor-pointer"
+            disabled={isGenerating || isPending || isSaving}
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-3.5 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50 transition cursor-pointer"
           >
-            <History size={16} /> Version History ({versions.length})
+            <History size={16} /> Version History ({versionList.length})
           </button>
         </div>
       </div>
@@ -304,7 +414,7 @@ export function StrategyManager({
             </button>
           </div>
           <div className="grid gap-2 max-h-60 overflow-y-auto">
-            {versions.map((v) => (
+            {versionList.map((v) => (
               <div
                 key={v.id}
                 onClick={() => setSelectedVersion(v)}
@@ -696,11 +806,15 @@ export function StrategyManager({
             </div>
             <button
               type="submit"
-              disabled={isPending || isGenerating}
+              disabled={isSaving || isPending || isGenerating}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition cursor-pointer"
             >
-              <Save size={16} />{" "}
-              {isPending
+              {isSaving || isPending ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Save size={16} />
+              )}
+              {isSaving || isPending
                 ? isInitialDraft
                   ? "Saving Version 1..."
                   : "Saving Version..."
