@@ -8,6 +8,7 @@ from app.api.v1.content_briefs import router as content_briefs_router
 from app.api.v1.content_documents import router as content_documents_router
 from app.api.v1.content_map import router as content_map_router
 from app.api.v1.content_pages import router as content_pages_router
+from app.api.v1.content_harness import router as content_harness_router
 from app.api.v1.crawling import router as crawling_router
 from app.api.v1.internal_linking import router as internal_linking_router
 from app.api.v1.keywords import router as keywords_router
@@ -38,3 +39,5 @@ router.include_router(content_map_router)
 router.include_router(seo_guides_router)
 router.include_router(internal_linking_router)
 router.include_router(orchestrator_router)
+router.include_router(content_harness_router)
+

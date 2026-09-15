@@ -1,7 +1,9 @@
 """Pydantic schemas for AI Orchestrator requests, workflows, tools, and results."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
+from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from app.domains.orchestrator.models import (
@@ -174,3 +176,86 @@ class LLMReasoningOutput(BaseModel):
     message: str
     tool_calls: list[LLMToolCall] = Field(default_factory=list)
     explanation: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Content Agent Decision, Observation, and Execution Contracts
+# ---------------------------------------------------------------------------
+
+
+class AgentDecisionType(StrEnum):
+    TOOL_CALL = "TOOL_CALL"
+    FINAL = "FINAL"
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+
+
+class AgentDecision(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: AgentDecisionType
+    tool_name: str | None = None
+    tool_input: dict[str, Any] = Field(default_factory=dict)
+    reasoning_summary: str | None = Field(default=None, max_length=500)
+    final_response: str | None = None
+    approval_reason: str | None = None
+
+
+class ToolObservation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    execution_id: str
+    tool_name: str
+    status: str  # SUCCESS, FAILED, REJECTED, TIMEOUT
+    input_summary: dict[str, Any] = Field(default_factory=dict)
+    output: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    iteration: int = 0
+    duration_ms: float | None = None
+    provenance: dict[str, Any] | None = None
+
+
+class AgentTerminationReason(StrEnum):
+    COMPLETED = "COMPLETED"
+    WAITING_FOR_APPROVAL = "WAITING_FOR_APPROVAL"
+    MAX_ITERATIONS = "MAX_ITERATIONS"
+    MAX_TOOL_CALLS = "MAX_TOOL_CALLS"
+    TIMEOUT = "TIMEOUT"
+    PERMISSION_DENIED = "PERMISSION_DENIED"
+    MODEL_ERROR = "MODEL_ERROR"
+    TOOL_ERROR = "TOOL_ERROR"
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class AgentResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    workflow_id: UUID
+    status: WorkflowStatus
+    intent: str
+    summary: str
+    actions_taken: list[str] = Field(default_factory=list)
+    proposals_created: list[UUID] = Field(default_factory=list)
+    observations_summary: list[str] = Field(default_factory=list)
+    verification: dict[str, Any] | None = None
+    approval_required: bool = False
+    termination_reason: str = AgentTerminationReason.COMPLETED.value
+
+
+class AgentState(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    workflow_id: UUID
+    iteration: int = 0
+    tool_call_count: int = 0
+    user_request: str
+    intent: str
+    status: WorkflowStatus = WorkflowStatus.PENDING
+    decisions: list[AgentDecision] = Field(default_factory=list)
+    observations: list[ToolObservation] = Field(default_factory=list)
+    pending_proposal_id: UUID | None = None
+    termination_reason: str | None = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None

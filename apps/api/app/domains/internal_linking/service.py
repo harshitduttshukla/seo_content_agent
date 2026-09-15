@@ -5,7 +5,7 @@ from collections import defaultdict
 from uuid import UUID
 
 from app.core.errors import ConflictError, DomainError, ResourceNotFound
-from app.db.session import set_actor_context
+from app.db.session import set_actor_context, transactional_session
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.repository import ContentRepository
 from app.domains.internal_linking.models import (
@@ -93,7 +93,7 @@ class InternalLinkingService:
         project_id: UUID,
         status: str | None = None,
     ) -> PageRelationshipList:
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -117,7 +117,7 @@ class InternalLinkingService:
         payload: PageRelationshipCreate,
         request_id: str = "",
     ) -> PageRelationshipDetail:
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -188,7 +188,7 @@ class InternalLinkingService:
         relationship_id: UUID,
         request_id: str = "",
     ) -> None:
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -224,7 +224,7 @@ class InternalLinkingService:
         request_id: str = "",
     ) -> LinkOpportunityList:
         """Runs the deterministic internal linking recommendation engine."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -347,7 +347,7 @@ class InternalLinkingService:
         project_id: UUID,
         status: str | None = None,
     ) -> LinkOpportunityList:
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -372,7 +372,7 @@ class InternalLinkingService:
         request_id: str = "",
     ) -> LinkOpportunityDetail:
         """Approves a link opportunity and promotes it to an active PageRelationship."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -438,7 +438,7 @@ class InternalLinkingService:
         opportunity_id: UUID,
         request_id: str = "",
     ) -> LinkOpportunityDetail:
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,
@@ -478,7 +478,7 @@ class InternalLinkingService:
         page_id: UUID,
     ) -> InternalLinksSummary:
         """Retrieves crawled links, planned relationships, and recommendations for a page."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             page = await self._content.get_planned_page_by_id(session, page_id=page_id)
             if not page:
@@ -556,7 +556,7 @@ class InternalLinkingService:
         project_id: UUID,
     ) -> OrphanPageList:
         """Detects pages with zero internal inbound link relationships."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             project = await self._projects.get_model(
                 session,

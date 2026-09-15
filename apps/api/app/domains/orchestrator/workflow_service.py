@@ -3,11 +3,13 @@
 retries, idempotency, and audit logging.
 """
 
+import contextlib
 from datetime import UTC, datetime
-from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from app.ai.provider import AIProvider
 from app.core.errors import BadRequestError, ConflictError, ResourceNotFound
+from app.domains.ai.context_builder import ContentAgentContextBuilder
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.editor_models import (
     AIEditProposal,
@@ -15,8 +17,8 @@ from app.domains.content.editor_models import (
     ProposalStatus,
 )
 from app.domains.content.patch_service import DocumentPatchService
+from app.domains.orchestrator.agent_loop import AgentLoop
 from app.domains.orchestrator.exceptions import (
-    ToolExecutionError,
     WorkflowStateError,
 )
 from app.domains.orchestrator.models import (
@@ -26,12 +28,8 @@ from app.domains.orchestrator.models import (
     WorkflowIntent,
     WorkflowStatus,
 )
-from app.domains.orchestrator.policies import (
-    DEFAULT_MAX_RETRIES,
-    is_error_retryable,
-    requires_human_approval,
-)
 from app.domains.orchestrator.schemas import (
+    ToolObservation,
     WorkflowDetail,
     WorkflowPlanStep,
     WorkflowStepDetail,
@@ -52,6 +50,9 @@ class WorkflowService:
         tool_registry: ToolRegistry | None = None,
         patch_service: DocumentPatchService | None = None,
         verification_service: VerificationService | None = None,
+        ai_provider: AIProvider | None = None,
+        context_builder: ContentAgentContextBuilder | None = None,
+        agent_loop: AgentLoop | None = None,
     ) -> None:
         self._registry = tool_registry or ToolRegistry()
         self._executor = tool_executor or ToolExecutor(registry=self._registry)
@@ -59,6 +60,14 @@ class WorkflowService:
         self._verifier = verification_service or VerificationService()
         self._audit = AuditWriter()
         self._projects = ProjectService()
+        self._loop = agent_loop or AgentLoop(
+            provider=ai_provider,
+            registry=self._registry,
+            executor=self._executor,
+            context_builder=context_builder,
+            verifier=self._verifier,
+            audit=self._audit,
+        )
 
     async def create_workflow(
         self,
@@ -70,6 +79,8 @@ class WorkflowService:
         document_id: UUID,
         intent: WorkflowIntent,
         plan_steps: list[WorkflowPlanStep],
+        user_message: str = "",
+        selected_block_ids: list[str] | None = None,
     ) -> AIWorkflow:
         """Initializes a workflow record and its associated ordered steps."""
         # Validate project permissions
@@ -80,7 +91,15 @@ class WorkflowService:
             permission=PermissionCode.AI_USE,
         )
 
+        initial_result: dict[str, object] = {}
+        if user_message:
+            initial_result["user_message"] = user_message
+        if selected_block_ids:
+            initial_result["selected_block_ids"] = selected_block_ids
+
+        wf_id = uuid4()
         workflow = AIWorkflow(
+            id=wf_id,
             organization_id=organization_id,
             project_id=project_id,
             document_id=document_id,
@@ -89,7 +108,7 @@ class WorkflowService:
             status=WorkflowStatus.PENDING.value,
             current_step=0,
             plan=[s.model_dump() for s in plan_steps],
-            result={},
+            result=initial_result,
             token_usage={"total_tokens": 0},
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
@@ -99,7 +118,8 @@ class WorkflowService:
 
         for s in plan_steps:
             step_record = AIWorkflowStep(
-                workflow_id=workflow.id,
+                id=uuid4(),
+                workflow_id=wf_id,
                 step_index=s.step_index,
                 step_type="tool_call",
                 tool_name=s.tool_name,
@@ -130,6 +150,8 @@ class WorkflowService:
         *,
         actor: AuthenticatedUser,
         workflow_id: UUID,
+        user_message: str | None = None,
+        selected_block_ids: list[str] | None = None,
     ) -> AIWorkflow:
         """Runs the bounded orchestration loop until completion or an approval gate."""
         workflow = await self._get_workflow_for_update(session, workflow_id)
@@ -140,166 +162,57 @@ class WorkflowService:
         ):
             return workflow
 
-        workflow.status = WorkflowStatus.RUNNING.value
-        if not workflow.started_at:
-            workflow.started_at = datetime.now(UTC)
-        workflow.updated_at = datetime.now(UTC)
-        await session.flush()
-
-        await self._audit.log_event(
-            session=session,
-            actor_user_id=actor.user_id,
-            action="workflow.started",
-            resource_type="ai_workflow",
-            resource_id=workflow.id,
-            organization_id=workflow.organization_id,
-            project_id=workflow.project_id,
-            metadata={"current_step": workflow.current_step},
+        # Retrieve stored message and context metadata
+        stored_result = workflow.result if isinstance(workflow.result, dict) else {}
+        msg = user_message or str(
+            stored_result.get("user_message") or f"Execute task for intent: {workflow.intent}"
         )
+        blocks = selected_block_ids or stored_result.get("selected_block_ids") or []
 
-        # Retrieve steps
+        # Parse initial advisory plan
+        initial_plan: list[WorkflowPlanStep] = []
+        if isinstance(workflow.plan, list):
+            for step_data in workflow.plan:
+                if isinstance(step_data, dict):
+                    with contextlib.suppress(Exception):
+                        initial_plan.append(WorkflowPlanStep.model_validate(step_data))
+
+        # Collect existing observations from previously completed steps
         step_stmt = (
             select(AIWorkflowStep)
             .where(AIWorkflowStep.workflow_id == workflow.id)
             .order_by(AIWorkflowStep.step_index.asc())
         )
         step_res = await session.execute(step_stmt)
-        steps = list(step_res.scalars().all())
-
-        accumulated_results: dict[str, Any] = dict(workflow.result or {})
-
-        for step in steps[workflow.current_step :]:
-            if step.status == StepStatus.COMPLETED.value:
-                continue
-
-            tool = self._registry.get(step.tool_name)
-
-            # Check Approval Gate for Write / Destructive actions
-            if requires_human_approval(tool.risk_level):
-                # Formulate and create AIEditProposal for human review
-                proposal = await self._create_proposal_for_step(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    step=step,
+        completed_steps = [
+            s for s in step_res.scalars().all() if s.status == StepStatus.COMPLETED.value
+        ]
+        existing_observations: list[ToolObservation] = []
+        for s in completed_steps:
+            existing_observations.append(
+                ToolObservation(
+                    execution_id=str(s.id),
+                    tool_name=s.tool_name,
+                    status="SUCCESS",
+                    input_summary=s.input if isinstance(s.input, dict) else {},
+                    output=s.output if isinstance(s.output, dict) else {},
+                    iteration=s.step_index,
                 )
+            )
 
-                step.status = StepStatus.WAITING_FOR_APPROVAL.value
-                step.output = {
-                    "proposal_id": str(proposal.id),
-                    "operation_type": proposal.operation_type,
-                    "target_block_ids": proposal.target_block_ids,
-                    "proposed_content": proposal.proposed_content,
-                    "reason": proposal.reason,
-                }
-                workflow.status = WorkflowStatus.WAITING_FOR_APPROVAL.value
-                workflow.current_step = step.step_index
-                workflow.updated_at = datetime.now(UTC)
-                await session.flush()
-
-                await self._audit.log_event(
-                    session=session,
-                    actor_user_id=actor.user_id,
-                    action="approval.requested",
-                    resource_type="ai_workflow",
-                    resource_id=workflow.id,
-                    organization_id=workflow.organization_id,
-                    project_id=workflow.project_id,
-                    metadata={
-                        "step_id": str(step.id),
-                        "proposal_id": str(proposal.id),
-                        "tool_name": step.tool_name,
-                    },
-                )
-                # Halt execution loop at approval gate
-                return workflow
-
-            # Step does not require approval -> Execute directly with bounded retry
-            step.status = StepStatus.RUNNING.value
-            step.started_at = datetime.now(UTC)
-            await session.flush()
-
-            step_input = dict(step.input or {})
-            success = False
-            last_err_msg = ""
-
-            for attempt in range(DEFAULT_MAX_RETRIES):
-                try:
-                    tool_result = await self._executor.execute(
-                        session,
-                        tool_name=step.tool_name,
-                        arguments=step_input,
-                        actor=actor,
-                        workflow_id=workflow.id,
-                        step_id=step.id,
-                        organization_id=workflow.organization_id,
-                        project_id=workflow.project_id,
-                        document_id=workflow.document_id,
-                        retry_count=attempt,
-                    )
-                    step.status = StepStatus.COMPLETED.value
-                    step.output = tool_result.result
-                    step.completed_at = datetime.now(UTC)
-                    accumulated_results[step.tool_name] = tool_result.result
-                    success = True
-                    break
-                except ToolExecutionError as exc:
-                    last_err_msg = str(exc)
-                    should_retry = is_error_retryable("TOOL_EXECUTION_FAILED")
-                    if not should_retry or attempt == DEFAULT_MAX_RETRIES - 1:
-                        break
-                except Exception as exc:
-                    last_err_msg = str(exc)
-                    break
-
-            if not success:
-                step.status = StepStatus.FAILED.value
-                step.error = {"error": last_err_msg}
-                step.completed_at = datetime.now(UTC)
-
-                workflow.status = WorkflowStatus.FAILED.value
-                workflow.error = {"failed_step": step.step_index, "error": last_err_msg}
-                workflow.completed_at = datetime.now(UTC)
-                workflow.updated_at = datetime.now(UTC)
-                await session.flush()
-
-                await self._audit.log_event(
-                    session=session,
-                    actor_user_id=actor.user_id,
-                    action="workflow.failed",
-                    resource_type="ai_workflow",
-                    resource_id=workflow.id,
-                    organization_id=workflow.organization_id,
-                    project_id=workflow.project_id,
-                    outcome="failed",
-                    metadata={"step_id": str(step.id), "error": last_err_msg},
-                )
-                return workflow
-
-            workflow.current_step = step.step_index + 1
-            workflow.result = accumulated_results
-            workflow.updated_at = datetime.now(UTC)
-            await session.flush()
-
-        # All steps completed successfully
-        workflow.status = WorkflowStatus.COMPLETED.value
-        workflow.completed_at = datetime.now(UTC)
-        workflow.updated_at = datetime.now(UTC)
-        await session.flush()
-
-        await self._audit.log_event(
-            session=session,
-            actor_user_id=actor.user_id,
-            action="workflow.completed",
-            resource_type="ai_workflow",
-            resource_id=workflow.id,
-            organization_id=workflow.organization_id,
-            project_id=workflow.project_id,
-            outcome="success",
-            metadata={"steps_completed": len(steps)},
+        # Delegate execution to Content AgentLoop
+        await self._loop.run(
+            session,
+            actor=actor,
+            workflow=workflow,
+            user_message=msg,
+            selected_block_ids=blocks if isinstance(blocks, list) else [],
+            initial_plan=initial_plan,
+            existing_observations=existing_observations,
         )
 
-        return workflow
+        # Refresh and return updated workflow
+        return await self._get_workflow_for_update(session, workflow_id)
 
     async def approve_step(
         self,
@@ -561,7 +474,9 @@ class WorkflowService:
         session: AsyncSession,
         workflow_id: UUID,
     ) -> AIWorkflow:
-        stmt = select(AIWorkflow).where(AIWorkflow.id == workflow_id).with_for_update()
+        stmt = select(AIWorkflow).where(AIWorkflow.id == workflow_id)
+        if session.in_transaction():
+            stmt = stmt.with_for_update()
         res = await session.execute(stmt)
         workflow = res.scalars().first()
         if not workflow:
@@ -620,6 +535,7 @@ class WorkflowService:
             diff_summary = {"old": old_text, "new": new_text}
 
         proposal = AIEditProposal(
+            id=uuid4(),
             document_id=workflow.document_id,
             chat_message_id=None,
             status=ProposalStatus.PROPOSED.value,

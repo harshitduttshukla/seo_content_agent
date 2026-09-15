@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.errors import BadRequestError, ConflictError, ResourceNotFound
-from app.db.session import set_actor_context
+from app.db.session import set_actor_context, transactional_session
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.document_schemas import (
     AIOperation,
@@ -129,7 +129,7 @@ class DocumentPatchService:
         proposal_id: UUID,
     ) -> ContentDocumentDetail:
         """Atomically validates, applies patch, bumps version, and records audit history."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
             # 1. Fetch proposal
@@ -260,7 +260,7 @@ class DocumentPatchService:
         proposal_id: UUID,
     ) -> AIEditProposal:
         """Marks a proposed patch as rejected."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
             prop_stmt = select(AIEditProposal).where(AIEditProposal.id == proposal_id)

@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from app.core.errors import ResourceNotFound
-from app.db.session import set_actor_context
+from app.db.session import set_actor_context, transactional_session
 from app.domains.content.editor_models import ContentBrief, ContentDocument
 from app.domains.projects.service import ProjectService
 from app.domains.seo.models import SEOGuide
@@ -45,7 +45,7 @@ class SEOQualityService:
         document_id: UUID,
     ) -> SEOQualityReport:
         """Runs deterministic SEO and structural quality rules against a document."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
             doc_stmt = select(ContentDocument).where(ContentDocument.id == document_id)

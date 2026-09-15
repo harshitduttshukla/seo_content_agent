@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1260" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0d1117; }
+      .title-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 26px; font-weight: 800; fill: #ffffff; letter-spacing: -0.5px; }
+      .subtitle-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 500; fill: #8b949e; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #ffffff; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 400; fill: #8b949e; line-height: 1.4; }
+      .badge-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+      .arrow { stroke: #6366f1; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .arrow-head { fill: #6366f1; }
+      .step-num { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 800; fill: #6366f1; }
+    </style>
+
+    <linearGradient id="grad-input" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e" />
+      <stop offset="100%" stop-color="#181825" />
+    </linearGradient>
+    <linearGradient id="grad-ai" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2a1f4e" />
+      <stop offset="100%" stop-color="#19172e" />
+    </linearGradient>
+    <linearGradient id="grad-eval" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#162c33" />
+      <stop offset="100%" stop-color="#111c24" />
+    </linearGradient>
+    <linearGradient id="grad-store" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1c281e" />
+      <stop offset="100%" stop-color="#121a14" />
+    </linearGradient>
+    
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="960" height="1260" rx="16" fill="#0b0f19" />
+
+  <!-- Header Section -->
+  <g transform="translate(60, 45)">
+    <rect x="0" y="0" width="130" height="26" rx="13" fill="#1e1b4b" stroke="#4338ca" stroke-width="1" />
+    <text x="65" y="17" text-anchor="middle" class="badge-text" fill="#a5b4fc">TEST BENCH PIPELINE</text>
+    <text x="0" y="65" class="title-text">AI SEO Content Harness Architecture</text>
+    <text x="0" y="90" class="subtitle-text">Deterministic Generation, Multi-Dimensional Evaluation &amp; Safe Run Comparison</text>
+  </g>
+
+  <!-- Flow Items Definition -->
+
+  <!-- STEP 1: INPUT -->
+  <g transform="translate(180, 165)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-input)" stroke="#313244" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#1e1b4b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num">01</text>
+    <text x="75" y="36" class="box-title">INPUT SPECIFICATIONS</text>
+    <text x="75" y="58" class="box-desc">Primary Keyword, Secondary Keywords, Target Audience, Intent, Target Word Count,</text>
+    <text x="75" y="74" class="box-desc">Brand Rules (tone &amp; forbidden words), and approved Internal Link Targets</text>
+  </g>
+
+  <!-- Connector 1 -->
+  <path d="M 480 250 L 480 280" class="arrow" />
+  <polygon points="475,278 480,286 485,278" class="arrow-head" />
+
+  <!-- STEP 2: CONTEXT -->
+  <g transform="translate(180, 285)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-input)" stroke="#313244" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#1e1b4b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num">02</text>
+    <text x="75" y="36" class="box-title">CONTEXT ASSEMBLY &amp; ENRICHMENT</text>
+    <text x="75" y="58" class="box-desc">Extracts Strategy &amp; Brief context if referenced. Fences raw data inside</text>
+    <text x="75" y="74" class="box-desc">&lt;WEBSITE_CONTEXT&gt; to ground facts and prevent instruction injection.</text>
+  </g>
+
+  <!-- Connector 2 -->
+  <path d="M 480 370 L 480 400" class="arrow" />
+  <polygon points="475,398 480,406 485,398" class="arrow-head" />
+
+  <!-- STEP 3: PROMPT -->
+  <g transform="translate(180, 405)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-input)" stroke="#313244" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#1e1b4b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num">03</text>
+    <text x="75" y="36" class="box-title">VERSIONED PROMPT BUILDER</text>
+    <text x="75" y="58" class="box-desc">Builds decoupled System Prompt (Schema &amp; Rules) and User Prompt (Data).</text>
+    <text x="75" y="74" class="box-desc">Supports Prompt V1 vs. V2 comparison or experimental custom templates.</text>
+  </g>
+
+  <!-- Connector 3 -->
+  <path d="M 480 490 L 480 520" class="arrow" />
+  <polygon points="475,518 480,526 485,518" class="arrow-head" />
+
+  <!-- STEP 4: AI PROVIDER -->
+  <g transform="translate(180, 525)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-ai)" stroke="#6366f1" stroke-width="1.8" />
+    <circle cx="40" cy="42" r="16" fill="#312e81" />
+    <text x="40" y="46" text-anchor="middle" class="step-num" fill="#c7d2fe">04</text>
+    <text x="75" y="36" class="box-title" fill="#e0e7ff">AI PROVIDER INVOCATION</text>
+    <text x="75" y="58" class="box-desc" fill="#a5b4fc">Calls unified AIProvider abstraction (GeminiAIProvider in prod, MockAIProvider in dev).</text>
+    <text x="75" y="74" class="box-desc" fill="#a5b4fc">Enforces temperature, token budget (8192 max), and records latency &amp; usage.</text>
+  </g>
+
+  <!-- Connector 4 -->
+  <path d="M 480 610 L 480 640" class="arrow" />
+  <polygon points="475,638 480,646 485,638" class="arrow-head" />
+
+  <!-- STEP 5: OUTPUT -->
+  <g transform="translate(180, 645)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-input)" stroke="#313244" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#1e1b4b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num">05</text>
+    <text x="75" y="36" class="box-title">STRUCTURED OUTPUT EXTRACTION</text>
+    <text x="75" y="58" class="box-desc">Receives raw AI generation and extracts JSON: title, meta description,</text>
+    <text x="75" y="74" class="box-desc">full content markdown, hierarchical sections (H2/H3), and keyword lists.</text>
+  </g>
+
+  <!-- Connector 5 -->
+  <path d="M 480 730 L 480 760" class="arrow" />
+  <polygon points="475,758 480,766 485,758" class="arrow-head" />
+
+  <!-- STEP 6: VALIDATION -->
+  <g transform="translate(180, 765)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-input)" stroke="#313244" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#1e1b4b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num">06</text>
+    <text x="75" y="36" class="box-title">TECHNICAL SCHEMA VALIDATION</text>
+    <text x="75" y="58" class="box-desc">Pydantic validation via HarnessGeneratedContent. Verifies required fields,</text>
+    <text x="75" y="74" class="box-desc">non-empty title &amp; content, valid sections array. Yields PASS / FAIL.</text>
+  </g>
+
+  <!-- Connector 6 -->
+  <path d="M 480 850 L 480 880" class="arrow" />
+  <polygon points="475,878 480,886 485,878" class="arrow-head" />
+
+  <!-- STEP 7: EVALUATION -->
+  <g transform="translate(180, 885)" filter="url(#shadow)">
+    <rect width="600" height="95" rx="12" fill="url(#grad-eval)" stroke="#0ea5e9" stroke-width="1.5" />
+    <circle cx="40" cy="47" r="16" fill="#082f49" />
+    <text x="40" y="51" text-anchor="middle" class="step-num" fill="#7dd3fc">07</text>
+    <text x="75" y="34" class="box-title" fill="#e0f2fe">DETERMINISTIC MULTI-RULE EVALUATION</text>
+    <text x="75" y="54" class="box-desc" fill="#bae6fd">• SEO: Keyword in Title (+25), Intro (+20), Headings (+15), Density (0.4-2.8%)</text>
+    <text x="75" y="70" class="box-desc" fill="#bae6fd">• Content: Word count tolerance (±20%), Required topics, Questions addressed</text>
+    <text x="75" y="86" class="box-desc" fill="#bae6fd">• Brand &amp; Links: Forbidden words (-25 each), Approved target URLs &amp; anchor text</text>
+  </g>
+
+  <!-- Connector 7 -->
+  <path d="M 480 980 L 480 1010" class="arrow" />
+  <polygon points="475,1008 480,1016 485,1008" class="arrow-head" />
+
+  <!-- STEP 8: SCORE -->
+  <g transform="translate(180, 1015)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-eval)" stroke="#10b981" stroke-width="1.5" />
+    <circle cx="40" cy="42" r="16" fill="#064e3b" />
+    <text x="40" y="46" text-anchor="middle" class="step-num" fill="#6ee7b7">08</text>
+    <text x="75" y="36" class="box-title" fill="#ecfdf5">SCORECARD &amp; STATUS AGGREGATION</text>
+    <text x="75" y="58" class="box-desc" fill="#a7f3d0">Weighted Score: 30% SEO + 30% Content + 20% Brand + 20% Linking.</text>
+    <text x="75" y="74" class="box-desc" fill="#a7f3d0">Assigns PASS / NEEDS IMPROVEMENT status with granular itemized findings.</text>
+  </g>
+
+  <!-- Connector 8 -->
+  <path d="M 480 1100 L 480 1130" class="arrow" />
+  <polygon points="475,1128 480,1136 485,1128" class="arrow-head" />
+
+  <!-- STEP 9: RUN HISTORY & COMPARISON -->
+  <g transform="translate(180, 1135)" filter="url(#shadow)">
+    <rect width="600" height="85" rx="12" fill="url(#grad-store)" stroke="#22c55e" stroke-width="1.8" />
+    <circle cx="40" cy="42" r="16" fill="#14532d" />
+    <text x="40" y="46" text-anchor="middle" class="step-num" fill="#86efac">09</text>
+    <text x="75" y="36" class="box-title" fill="#f0fdf4">POSTGRESQL STORAGE &amp; RUN COMPARISON</text>
+    <text x="75" y="58" class="box-desc" fill="#bbf7d0">Stored in content_harness_runs with tenant isolation. Side-by-side run</text>
+    <text x="75" y="74" class="box-desc" fill="#bbf7d0">comparison displays score deltas, improved rules, and regressions.</text>
+  </g>
+
+</svg>

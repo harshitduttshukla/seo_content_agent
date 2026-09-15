@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 from uuid import uuid4
 
 from app.ai.provider import (
@@ -136,6 +137,339 @@ class MockAIProvider(AIProvider):
                 model="mock-strategy-v1",
                 usage=Usage(input_tokens=150, output_tokens=350),
                 finish_reason="stop",
+            )
+
+        # Check if this is an AI qualitative evaluation request
+        if any("### ARTICLE TO EVALUATE:" in m.content for m in request.messages):
+            eval_json = json.dumps(
+                {
+                    "ai_score": 88,
+                    "factual_accuracy": "HIGH",
+                    "hallucination_detected": False,
+                    "strengths": [
+                        "Direct search intent alignment",
+                        "Grounded in verified operational principles",
+                        "Consistent professional tone",
+                    ],
+                    "weaknesses": ["Could provide deeper technical edge-case diagnostics"],
+                    "qualitative_summary": (
+                        "The generated article successfully delivers authoritative, "
+                        "search-optimized content aligned with audience requirements."
+                    ),
+                },
+                indent=2,
+            )
+            return GenerationResult(
+                text=eval_json,
+                provider="mock",
+                model="mock-evaluator-v1",
+                usage=Usage(input_tokens=200, output_tokens=120),
+                finish_reason="stop",
+            )
+
+        # Check if this is a Content Harness generation request
+        is_harness_request = False
+        harness_context = ""
+        for m in request.messages:
+            if "<CONTENT_HARNESS_REQUEST>" in m.content:
+                is_harness_request = True
+                harness_context += "\n" + m.content
+
+        if is_harness_request:
+            # Check for simulated invalid output test case
+            if (
+                "case 6: malformed output" in harness_context.lower()
+                or "telematics hardware failure" in harness_context.lower()
+            ):
+                return GenerationResult(
+                    text="<<<MALFORMED_JSON_OUTPUT_FOR_TESTING>>> {title: missing quotes}",
+                    provider="mock",
+                    model="mock-harness-v1",
+                    usage=Usage(input_tokens=100, output_tokens=30),
+                    finish_reason="stop",
+                    provider_request_id=f"mock_harness_err_{uuid4().hex[:8]}",
+                )
+
+            # Parse specifications from harness context
+            kw = "fleet vehicle tracking"
+            if "- Primary Keyword: " in harness_context:
+                kw = harness_context.split("- Primary Keyword: ")[1].split("\n")[0].strip() or kw
+
+            sec_kws: list[str] = []
+            if "- Secondary Keywords: " in harness_context:
+                try:
+                    raw_sec = (
+                        harness_context.split("- Secondary Keywords: ")[1].split("\n")[0].strip()
+                    )
+                    sec_kws = json.loads(raw_sec)
+                except Exception:
+                    pass
+
+            target_links: list[dict[str, str]] = []
+            if "### APPROVED INTERNAL LINK TARGETS:" in harness_context:
+                try:
+                    raw_links = (
+                        harness_context.split("### APPROVED INTERNAL LINK TARGETS:")[1]
+                        .split("###")[0]
+                        .strip()
+                    )
+                    parsed_targets = json.loads(raw_links)
+                    if isinstance(parsed_targets, list):
+                        target_links = [
+                            {"url": t.get("url", ""), "anchor_text": t.get("anchor_text", "")}
+                            for t in parsed_targets
+                            if isinstance(t, dict) and t.get("url")
+                        ]
+                except Exception:
+                    pass
+
+            title = f"Complete Guide to {kw.title()}"
+            meta_desc = (
+                f"Discover how {kw} optimizes vehicle operations, reduces overhead costs, "
+                "and enhances fleet visibility."
+            )
+
+            link_html_or_md = ""
+            if target_links:
+                first_link = target_links[0]
+                link_html_or_md = (
+                    f" Learn more through our [{first_link['anchor_text']}]({first_link['url']})."
+                )
+
+            sec_kw_mention = (
+                f" Modern telematics architectures seamlessly integrate {', '.join(sec_kws)} "
+                "to provide end-to-end fleet diagnostics and operational optimization."
+                if sec_kws
+                else ""
+            )
+
+            sec1_content = (
+                f"Implementing {kw} gives modern logistics managers real-time visibility "
+                "into vehicle locations, engine metrics, and transit performance. "
+                "In today's fast-moving distribution environment, "
+                f"{kw} is essential for ensuring vehicle health and schedule adherence."
+                f"{link_html_or_md} "
+                "By collecting diagnostic data from onboard vehicle sensors, operations teams gain "
+                "actionable insights into fuel usage, driver behaviors, and scheduled route "
+                f"efficiency.{sec_kw_mention}"
+            )
+
+            sec2_heading = f"Core Benefits of {kw.title()}"
+            sec2_content = (
+                f"A primary advantage of {kw} is substantial operational efficiency. "
+                "Automated route tracking and dispatch integration reduce unnecessary idling, "
+                "minimize deadhead miles, and alert technicians to preventative maintenance "
+                "needs before critical failure. "
+                f"Deploying {kw} also improves accountability and safety compliance across "
+                "all operating depots."
+            )
+
+            sec3_heading = "Best Practices for Implementation"
+            sec3_content = (
+                f"When rolling out {kw}, organizations should configure automated alerts, "
+                "train drivers on telematics expectations, and integrate telemetry logs into "
+                "existing maintenance management tools. "
+                "Consistent measurement of key metrics ensures continuous improvement and "
+                "long-term cost containment."
+            )
+
+            all_sections = [
+                {"heading": f"Understanding {kw.title()}", "level": 2, "content": sec1_content},
+                {"heading": sec2_heading, "level": 2, "content": sec2_content},
+                {"heading": sec3_heading, "level": 2, "content": sec3_content},
+            ]
+
+            # Add extra links if present
+            if len(target_links) > 1:
+                sec2_content += (
+                    f" Integrate with our [{target_links[1]['anchor_text']}]"
+                    f"({target_links[1]['url']}) for deeper synergy."
+                )
+                all_sections[1]["content"] = sec2_content
+
+            content_body = (
+                f"# {title}\n\n{sec1_content}\n\n"
+                f"## {sec2_heading}\n\n{sec2_content}\n\n"
+                f"## {sec3_heading}\n\n{sec3_content}"
+            )
+            words = content_body.split()
+
+            # If target word count is higher, repeat informative blocks to hit realistic word counts
+            if len(words) < 900:
+                padding_block = (
+                    f"\n\n## Advanced Telematics and Operational Analytics\n\n"
+                    f"Modern telemetry expands the capabilities of {kw} by synchronizing engine "
+                    "diagnostics with route scheduling algorithms. Logistics teams analyze fuel "
+                    "consumption patterns, monitor driver brake applications, and benchmark depot "
+                    "performance across operating regions. Structured data capture ensures audit "
+                    "compliance with federal transportation regulations."
+                )
+                content_body += padding_block * 3
+                all_sections.append(
+                    {
+                        "heading": "Advanced Telematics and Operational Analytics",
+                        "level": 2,
+                        "content": padding_block.strip(),
+                    }
+                )
+
+            words_count = len(content_body.split())
+
+            harness_output = {
+                "title": title,
+                "meta_description": meta_desc,
+                "content": content_body,
+                "sections": all_sections,
+                "used_keywords": [kw, *sec_kws],
+                "internal_links": target_links,
+                "word_count": words_count,
+            }
+
+            return GenerationResult(
+                text=json.dumps(harness_output, indent=2),
+                provider="mock",
+                model="mock-harness-v1",
+                usage=Usage(input_tokens=350, output_tokens=650),
+                finish_reason="stop",
+                provider_request_id=f"mock_harness_{uuid4().hex[:8]}",
+            )
+
+        # Check if this is an Agent Loop request
+        is_agent_request = any("<AVAILABLE_TOOLS>" in m.content for m in request.messages) or any(
+            "You are the Content Agent" in m.content for m in request.messages
+        )
+        if is_agent_request:
+            user_msg = ""
+            obs_content = ""
+            plan_content = ""
+            for m in request.messages:
+                if "<USER_REQUEST>" in m.content:
+                    user_msg = (
+                        m.content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
+                    )
+                if "<TOOL_OBSERVATIONS>" in m.content:
+                    obs_content = (
+                        m.content.split("<TOOL_OBSERVATIONS>")[1]
+                        .split("</TOOL_OBSERVATIONS>")[0]
+                        .strip()
+                    )
+                if "<INITIAL_PLAN>" in m.content:
+                    plan_content = (
+                        m.content.split("<INITIAL_PLAN>")[1].split("</INITIAL_PLAN>")[0].strip()
+                    )
+
+            user_lower = user_msg.lower()
+            has_obs = "Tool: " in obs_content
+
+            # Check if there is an initial plan to follow
+            plan_tools: list[str] = []
+            if plan_content:
+                for line in plan_content.splitlines():
+                    line = line.strip()
+                    if line and line[0].isdigit() and ". " in line:
+                        part = line.split(". ", 1)[1]
+                        t_name = part.split(" ")[0].strip()
+                        if t_name:
+                            plan_tools.append(t_name)
+
+            if plan_tools:
+                executed_count = obs_content.count("Tool: ")
+                if executed_count < len(plan_tools):
+                    next_tool = plan_tools[executed_count]
+                    t_input: dict[str, Any] = {}
+                    if next_tool in ("rewrite_section", "expand_section", "shorten_section"):
+                        t_input = {
+                            "block_id": "b1",
+                            "instruction": "Rewrite section for optimal SEO",
+                        }
+                    elif next_tool == "insert_internal_link":
+                        t_input = {
+                            "block_id": "b1",
+                            "url": "/test-link",
+                            "anchor_text": "test anchor",
+                        }
+                    decision_data = {
+                        "type": "TOOL_CALL",
+                        "tool_name": next_tool,
+                        "tool_input": t_input,
+                        "reasoning_summary": f"Executing planned step: {next_tool}",
+                    }
+                else:
+                    decision_data = {
+                        "type": "FINAL",
+                        "final_response": "All planned workflow steps executed successfully.",
+                        "reasoning_summary": "Workflow plan steps completed.",
+                    }
+            elif has_obs:
+                if (
+                    "rewrite" in user_lower
+                    or "improve" in user_lower
+                    or "edit" in user_lower
+                    or "optimize" in user_lower
+                ):
+                    if "rewrite_section" in obs_content:
+                        decision_data = {
+                            "type": "FINAL",
+                            "final_response": (
+                                "I have analyzed the article and proposed SEO improvements "
+                                "for your review."
+                            ),
+                            "reasoning_summary": (
+                                "All required SEO optimizations and proposals have been formulated."
+                            ),
+                        }
+                    else:
+                        decision_data = {
+                            "type": "TOOL_CALL",
+                            "tool_name": "rewrite_section",
+                            "tool_input": {
+                                "block_id": "block_001",
+                                "instruction": (
+                                    "Incorporate primary keyword into opening section and "
+                                    "optimize clarity."
+                                ),
+                            },
+                            "reasoning_summary": (
+                                "SEO audit revealed missing keyword in introductory section; "
+                                "proposing rewrite."
+                            ),
+                        }
+                else:
+                    decision_data = {
+                        "type": "FINAL",
+                        "final_response": (
+                            "Analysis complete based on gathered evidence. "
+                            "Quality rules and linking opportunities evaluated."
+                        ),
+                        "reasoning_summary": "Completed inspection and analysis.",
+                    }
+            else:
+                # First iteration - select initial inspection tool
+                if "link" in user_lower:
+                    tool = "find_link_opportunities"
+                elif "outline" in user_lower:
+                    tool = "generate_outline"
+                elif "keyword" in user_lower:
+                    tool = "keyword_check"
+                elif "read" in user_lower:
+                    tool = "read_document"
+                else:
+                    tool = "seo_quality_check"
+
+                decision_data = {
+                    "type": "TOOL_CALL",
+                    "tool_name": tool,
+                    "tool_input": {},
+                    "reasoning_summary": f"Starting task by inspecting with {tool}.",
+                }
+
+            return GenerationResult(
+                text=json.dumps(decision_data),
+                provider="mock",
+                model="mock-agent-v1",
+                usage=Usage(input_tokens=250, output_tokens=100),
+                finish_reason="stop",
+                provider_request_id=f"mock_agent_{uuid4().hex[:8]}",
             )
 
         user_text = ""
@@ -304,11 +638,17 @@ class MockAIProvider(AIProvider):
 
 def get_ai_provider() -> AIProvider:
     """Returns the configured AI provider based on process settings."""
+    import os
+
     from app.config.settings import get_settings
     from app.integrations.gemini import GeminiAIProvider
 
+    # Always use deterministic test double during test runs
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("APP_ENV") in ("test", "testing"):
+        return MockAIProvider()
+
     settings = get_settings()
-    if settings.APP_ENV == "test" and settings.AI_PROVIDER != "gemini":
+    if settings.APP_ENV in ("test", "testing"):
         return MockAIProvider()
 
     provider_name = (settings.AI_PROVIDER or "").lower().strip()
