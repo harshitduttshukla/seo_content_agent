@@ -10,6 +10,7 @@ import {
   Network,
   SearchCheck,
   Settings,
+  Sparkles,
   Target,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ export function Sidebar({ projectId, active }: { projectId: string; active: stri
     { label: "Content", href: `/projects/${projectId}/content`, icon: FileText },
     { label: "SEO", icon: SearchCheck },
     { label: "Internal Linking", href: `/projects/${projectId}/internal-linking`, icon: Link2 },
+    { label: "Content Harness", href: `/projects/${projectId}/content-harness`, icon: Sparkles },
     { label: "Knowledge", icon: BookOpen },
     { label: "AI Assistant", icon: Bot },
     { label: "Analytics", icon: BarChart3 },

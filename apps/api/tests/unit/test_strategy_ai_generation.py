@@ -262,3 +262,106 @@ async def test_version_1_and_version_2_lifecycle(
     service._repository.create_version.assert_called_once()
     assert service._repository.create_version.call_args[1]["version"] == 2
     assert service._audit.add.call_args[1]["action"] == "strategy.updated"
+
+
+@pytest.mark.asyncio
+async def test_save_version_increments_and_locks_row(
+    mock_actor: AuthenticatedUser,
+    mock_project: Project,
+) -> None:
+    service = SEOStrategyService()
+    session = make_mock_session()
+    service._projects.get_model = AsyncMock(return_value=mock_project)
+
+    strategy_id = uuid4()
+    strat = SEOStrategy()
+    strat.id = strategy_id
+    strat.organization_id = mock_project.organization_id
+    strat.project_id = mock_project.id
+    strat.current_version = 2
+    strat.status = StrategyStatus.ACTIVE
+    strat.revision = 2
+    strat.created_at = datetime.now(UTC)
+    strat.updated_at = datetime.now(UTC)
+
+    v2_version = SEOStrategyVersion()
+    v2_version.version = 2
+    v2_version.change_summary = "Version 2 changes"
+    v2_version.strategy_data = {"business_context": {"business_name": "FleetIQ V2"}}
+
+    v3_version = SEOStrategyVersion()
+    v3_version.version = 3
+    v3_version.change_summary = "Version 3 with competitors"
+    v3_version.strategy_data = {"business_context": {"business_name": "FleetIQ V3"}}
+
+    service._repository.get_by_project_id = AsyncMock(return_value=strat)
+    service._repository.get_latest_version = AsyncMock(return_value=v2_version)
+    service._repository.create_version = AsyncMock(return_value=v3_version)
+    service._audit.add = MagicMock()
+    service._outbox.add = MagicMock()
+
+    v3_payload = StrategyUpdateRequest(
+        change_summary="Version 3 with competitors",
+        strategy_data=StrategyDataSchema(
+            business_context={"business_name": "FleetIQ V3"},
+            competitors=[{"name": "Competitor A", "domain": "compa.com", "strengths": ["pricing"]}],
+            seo_objectives=["Rank top 1 for telematics"],
+            priority_topics=["Fleet tracking"],
+        ),
+    )
+
+    res = await service.update_strategy(
+        session,
+        actor=mock_actor,
+        project_id=mock_project.id,
+        payload=v3_payload,
+    )
+
+    # Verifies row was locked with for_update and scoped to organization_id
+    service._repository.get_by_project_id.assert_called_once_with(
+        session,
+        project_id=mock_project.id,
+        organization_id=mock_project.organization_id,
+        for_update=True,
+    )
+
+    # Verifies version was incremented to 3
+    assert res.current_version == 3
+    service._repository.create_version.assert_called_once()
+    assert service._repository.create_version.call_args[1]["version"] == 3
+    assert service._repository.create_version.call_args[1]["strategy_id"] == strategy_id
+    assert (
+        service._repository.create_version.call_args[1]["organization_id"]
+        == mock_project.organization_id
+    )
+    assert service._repository.create_version.call_args[1]["created_by_id"] == mock_actor.user_id
+
+    # Verifies previous version (v2) data was not modified
+    assert v2_version.version == 2
+    assert v2_version.change_summary == "Version 2 changes"
+    assert v2_version.strategy_data == {"business_context": {"business_name": "FleetIQ V2"}}
+
+
+@pytest.mark.asyncio
+async def test_update_strategy_cross_tenant_denied(
+    mock_actor: AuthenticatedUser,
+) -> None:
+    service = SEOStrategyService()
+    session = make_mock_session()
+
+    from app.core.errors import PermissionDenied
+
+    service._projects.get_model = AsyncMock(side_effect=PermissionDenied("STRATEGY_WRITE"))
+
+    payload = StrategyUpdateRequest(
+        change_summary="Unauthorized change",
+        strategy_data=StrategyDataSchema(),
+    )
+
+    with pytest.raises(PermissionDenied):
+        await service.update_strategy(
+            session,
+            actor=mock_actor,
+            project_id=uuid4(),
+            payload=payload,
+        )

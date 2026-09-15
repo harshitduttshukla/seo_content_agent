@@ -2,8 +2,9 @@
 
 from uuid import UUID
 
+from app.ai.provider import AIProvider
 from app.core.errors import ResourceNotFound
-from app.db.session import set_actor_context
+from app.db.session import set_actor_context, transactional_session
 from app.domains.content.editor_models import ContentDocument
 from app.domains.orchestrator.intent_classifier import IntentClassifier
 from app.domains.orchestrator.planner import WorkflowPlanner
@@ -30,11 +31,15 @@ class OrchestratorService:
         planner: WorkflowPlanner | None = None,
         workflow_service: WorkflowService | None = None,
         registry: ToolRegistry | None = None,
+        ai_provider: AIProvider | None = None,
     ) -> None:
         self._registry = registry or ToolRegistry()
         self._classifier = classifier or IntentClassifier()
         self._planner = planner or WorkflowPlanner(registry=self._registry)
-        self._workflows = workflow_service or WorkflowService(tool_registry=self._registry)
+        self._workflows = workflow_service or WorkflowService(
+            tool_registry=self._registry,
+            ai_provider=ai_provider,
+        )
         self._projects = ProjectService()
 
     async def initiate_workflow(
@@ -45,17 +50,18 @@ class OrchestratorService:
         request: OrchestratorRequest,
     ) -> WorkflowDetail:
         """Entrypoint for creating, planning, and executing an AI workflow."""
-        async with session.begin():
+        # 1. Initialize workflow record within its own short transaction
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
-            # 1. Fetch document and validate ownership
+            # Fetch document and validate ownership
             doc_stmt = select(ContentDocument).where(ContentDocument.id == request.document_id)
             doc_res = await session.execute(doc_stmt)
             doc = doc_res.scalars().first()
             if not doc:
                 raise ResourceNotFound(f"Document {request.document_id} was not found.")
 
-            # 2. Permission check
+            # Permission check
             await self._projects.get_model(
                 session,
                 actor=actor,
@@ -63,7 +69,7 @@ class OrchestratorService:
                 permission=PermissionCode.AI_USE,
             )
 
-            # 3. Intent Detection
+            # Intent Detection
             if request.intent:
                 intent_res = self._classifier.classify(
                     message=request.message,
@@ -78,7 +84,7 @@ class OrchestratorService:
                     selected_block_ids=request.selected_block_ids,
                 )
 
-            # 4. Workflow Planning
+            # Workflow Planning (Advisory Initial Guidance)
             plan_steps = self._planner.create_plan(
                 intent_result=intent_res,
                 user_message=request.message,
@@ -86,7 +92,7 @@ class OrchestratorService:
                 selected_block_ids=request.selected_block_ids,
             )
 
-            # 5. Create Workflow Record
+            # Create Workflow Record
             workflow = await self._workflows.create_workflow(
                 session,
                 actor=actor,
@@ -95,12 +101,22 @@ class OrchestratorService:
                 document_id=doc.id,
                 intent=intent_res.intent,
                 plan_steps=plan_steps,
+                user_message=request.message,
+                selected_block_ids=request.selected_block_ids,
             )
 
-            # 6. Execute Workflow until completion or approval gate
-            await self._workflows.run_workflow(session, actor=actor, workflow_id=workflow.id)
+        # 2. Execute Workflow via Content Agent Loop (outside the creation transaction)
+        await self._workflows.run_workflow(
+            session,
+            actor=actor,
+            workflow_id=workflow.id,
+            user_message=request.message,
+            selected_block_ids=request.selected_block_ids,
+        )
 
-            # 7. Return detailed response
+        # 3. Return detailed response
+        async with transactional_session(session):
+            await set_actor_context(session, actor.user_id)
             return await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow.id
             )
@@ -113,7 +129,7 @@ class OrchestratorService:
         workflow_id: UUID,
     ) -> WorkflowDetail:
         """Retrieves workflow status and results."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             return await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow_id
@@ -128,11 +144,11 @@ class OrchestratorService:
         step_id: UUID,
     ) -> WorkflowDetail:
         """Human approval for a proposed write action."""
-        async with session.begin():
+        await self._workflows.approve_step(
+            session, actor=actor, workflow_id=workflow_id, step_id=step_id
+        )
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
-            await self._workflows.approve_step(
-                session, actor=actor, workflow_id=workflow_id, step_id=step_id
-            )
             return await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow_id
             )
@@ -146,11 +162,11 @@ class OrchestratorService:
         step_id: UUID,
     ) -> WorkflowDetail:
         """Human rejection of a proposed write action."""
-        async with session.begin():
+        await self._workflows.reject_step(
+            session, actor=actor, workflow_id=workflow_id, step_id=step_id
+        )
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
-            await self._workflows.reject_step(
-                session, actor=actor, workflow_id=workflow_id, step_id=step_id
-            )
             return await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow_id
             )
@@ -164,7 +180,7 @@ class OrchestratorService:
         reason: str = "User cancelled",
     ) -> WorkflowDetail:
         """Cancels a workflow."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             await self._workflows.cancel_workflow(
                 session, actor=actor, workflow_id=workflow_id, reason=reason
@@ -181,7 +197,7 @@ class OrchestratorService:
         workflow_id: UUID,
     ) -> WorkflowDetail:
         """Resumes a paused workflow."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             await self._workflows.resume_workflow(session, actor=actor, workflow_id=workflow_id)
             return await self._workflows.get_workflow_detail(
@@ -196,7 +212,7 @@ class OrchestratorService:
         workflow_id: UUID,
     ) -> list[WorkflowStepDetail]:
         """Lists steps for a workflow."""
-        async with session.begin():
+        async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
             detail = await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow_id

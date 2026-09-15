@@ -31,6 +31,7 @@ from app.domains.content_map.models import (
     ContentMapEdge,
     ContentMapNode,
 )
+from app.domains.content_harness.models import ContentHarnessRun
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
 from app.domains.internal_linking.models import LinkOpportunity, PageRelationship
 from app.domains.keywords.models import (
@@ -66,6 +67,7 @@ __all__ = [
     "ContentChatSession",
     "ContentDocument",
     "ContentDocumentVersion",
+    "ContentHarnessRun",
     "ContentMapEdge",
     "ContentMapNode",
     "ContentOpportunity",
