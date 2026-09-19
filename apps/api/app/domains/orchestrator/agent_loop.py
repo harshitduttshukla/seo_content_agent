@@ -4,16 +4,23 @@ Orchestrates iterative LLM-driven decision making, dynamic tool selection,
 observation feedback, bounded termination, transaction safety, and approval gating.
 """
 
+import asyncio
+import contextlib
 import json
 import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.ai.provider import AIMessage, AIProvider, GenerationRequest
 from app.core.errors import ResourceNotFound
-from app.db.session import set_actor_context, transactional_session
+from app.db.session import (
+    async_session_factory,
+    has_explicit_transaction,
+    set_actor_context,
+    transactional_session,
+)
 from app.domains.ai.context import ContentAgentContext
 from app.domains.ai.context_builder import ContentAgentContextBuilder
 from app.domains.ai.service import get_ai_provider
@@ -53,7 +60,7 @@ from app.domains.orchestrator.verification_service import VerificationService
 from app.security.principal import AuthenticatedUser
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +143,44 @@ class AgentLoop:
         initial_plan: list[WorkflowPlanStep] | None = None,
         existing_observations: list[ToolObservation] | None = None,
     ) -> AgentResult:
+        """Run only outside a caller-owned transaction and persist unexpected failures."""
+        if has_explicit_transaction(session):
+            raise RuntimeError("AgentLoop cannot run inside an explicit caller transaction")
+        try:
+            return await self._run_impl(
+                session,
+                actor=actor,
+                workflow=workflow,
+                user_message=user_message,
+                selected_block_ids=selected_block_ids,
+                initial_plan=initial_plan,
+                existing_observations=existing_observations,
+            )
+        except asyncio.CancelledError as exc:
+            try:
+                await self._persist_unexpected_failure(
+                    session, actor=actor, workflow=workflow, error=exc
+                )
+            except Exception:
+                logger.exception("Could not persist cancelled AgentLoop as FAILED")
+            raise
+        except Exception as exc:
+            logger.exception("Agent loop failed before or during a checkpoint: %s", exc)
+            return await self._persist_unexpected_failure(
+                session, actor=actor, workflow=workflow, error=exc
+            )
+
+    async def _run_impl(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        workflow: AIWorkflow,
+        user_message: str,
+        selected_block_ids: list[str] | None = None,
+        initial_plan: list[WorkflowPlanStep] | None = None,
+        existing_observations: list[ToolObservation] | None = None,
+    ) -> AgentResult:
         """Executes the agent loop until a terminal state or approval gate is reached."""
         start_time = time.monotonic()
 
@@ -182,186 +227,209 @@ class AgentLoop:
         max_consecutive_model_failures = 2
 
         # 4. Iterative Decision & Execution Loop
-        while state.iteration < self._max_iterations:
-            # Check bounded limits
-            if time.monotonic() - start_time > self._timeout_seconds:
-                return await self._terminate(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    reason=AgentTerminationReason.TIMEOUT,
-                    summary=f"Agent loop timed out after {self._timeout_seconds} seconds.",
-                )
-
-            if state.tool_call_count >= self._max_tool_calls:
-                return await self._terminate(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    reason=AgentTerminationReason.MAX_TOOL_CALLS,
-                    summary=f"Reached maximum tool call limit ({self._max_tool_calls}).",
-                )
-
-            # Build messages for model
-            messages = self._build_model_messages(
-                agent_context=agent_context,
-                user_message=user_message,
-                observations=state.observations,
-                initial_plan=initial_plan,
-            )
-
-            # Call AIProvider (outside of database transaction)
-            gen_req = GenerationRequest(
-                messages=messages,
-                temperature=0.1,
-                max_output_tokens=2048,
-                metadata={"workflow_id": str(workflow.id), "iteration": str(state.iteration)},
-            )
-
-            try:
-                gen_result = await self._provider.generate(gen_req)
-                decision = self._parse_decision(gen_result.text)
-                consecutive_model_failures = 0
-            except (json.JSONDecodeError, ValidationError) as exc:
-                consecutive_model_failures += 1
-                logger.warning(
-                    "Model generated invalid decision schema on iteration %d: %s",
-                    state.iteration,
-                    exc,
-                )
-                if consecutive_model_failures > max_consecutive_model_failures:
+        try:
+            while state.iteration < self._max_iterations:
+                # Check bounded limits
+                if time.monotonic() - start_time > self._timeout_seconds:
                     return await self._terminate(
                         session,
                         actor=actor,
                         workflow=workflow,
                         state=state,
-                        reason=AgentTerminationReason.MODEL_ERROR,
-                        summary=f"Model failed to produce valid AgentDecision: {exc}",
-                        error_detail={"error": str(exc)},
+                        reason=AgentTerminationReason.TIMEOUT,
+                        summary=f"Agent loop timed out after {self._timeout_seconds} seconds.",
                     )
-                # Bounded retry: add observation of failure and continue
-                state.observations.append(
-                    ToolObservation(
-                        execution_id=str(uuid4()),
-                        tool_name="decision_parser",
-                        status="FAILED",
-                        error=(
-                            f"Invalid response format: {exc}. "
-                            "Please return valid JSON conforming to AgentDecision schema."
-                        ),
-                        iteration=state.iteration,
+
+                if state.tool_call_count >= self._max_tool_calls:
+                    return await self._terminate(
+                        session,
+                        actor=actor,
+                        workflow=workflow,
+                        state=state,
+                        reason=AgentTerminationReason.MAX_TOOL_CALLS,
+                        summary=f"Reached maximum tool call limit ({self._max_tool_calls}).",
                     )
-                )
-                state.iteration += 1
-                continue
-            except Exception as exc:
-                return await self._terminate(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    reason=AgentTerminationReason.MODEL_ERROR,
-                    summary=f"AIProvider invocation failed: {exc}",
-                    error_detail={"error": str(exc)},
+
+                # Build messages for model
+                messages = self._build_model_messages(
+                    agent_context=agent_context,
+                    user_message=user_message,
+                    observations=state.observations,
+                    initial_plan=initial_plan,
                 )
 
-            state.decisions.append(decision)
+                # Check checkpoint ownership instead of committing caller work here.
+                if session.in_transaction():
+                    raise RuntimeError("AgentLoop transaction is open at AI provider boundary")
 
-            # Route decision
-            if decision.type == AgentDecisionType.FINAL:
-                return await self._handle_final_decision(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    decision=decision,
+                # Call AIProvider (outside of database transaction)
+                gen_req = GenerationRequest(
+                    messages=messages,
+                    temperature=0.1,
+                    max_output_tokens=2048,
+                    metadata={"workflow_id": str(workflow.id), "iteration": str(state.iteration)},
                 )
 
-            if decision.type == AgentDecisionType.APPROVAL_REQUIRED:
-                return await self._handle_approval_required(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    decision=decision,
-                )
-
-            if decision.type == AgentDecisionType.TOOL_CALL:
-                tool_name = (decision.tool_name or "").strip()
-                if not tool_name:
-                    state.observations.append(
-                        ToolObservation(
-                            execution_id=str(uuid4()),
-                            tool_name="validation",
-                            status="REJECTED",
-                            error="TOOL_CALL requested without a tool_name.",
-                            iteration=state.iteration,
-                        )
-                    )
-                    state.iteration += 1
-                    continue
-
-                # Lookup tool in ToolRegistry
                 try:
-                    tool_def = self._registry.get(tool_name)
-                except ToolNotFoundError:
+                    gen_result = await self._provider.generate(gen_req)
+                    decision = self._parse_decision(gen_result.text)
+                    consecutive_model_failures = 0
+                except (json.JSONDecodeError, ValidationError) as exc:
+                    consecutive_model_failures += 1
+                    logger.warning(
+                        "Model generated invalid decision schema on iteration %d: %s",
+                        state.iteration,
+                        exc,
+                    )
+                    if consecutive_model_failures > max_consecutive_model_failures:
+                        return await self._terminate(
+                            session,
+                            actor=actor,
+                            workflow=workflow,
+                            state=state,
+                            reason=AgentTerminationReason.MODEL_ERROR,
+                            summary=f"Model failed to produce valid AgentDecision: {exc}",
+                            error_detail={"error": str(exc)},
+                        )
+                    # Bounded retry: add observation of failure and continue
                     state.observations.append(
                         ToolObservation(
                             execution_id=str(uuid4()),
-                            tool_name=tool_name,
-                            status="REJECTED",
+                            tool_name="decision_parser",
+                            status="FAILED",
                             error=(
-                                f"Tool '{tool_name}' does not exist or is disabled. "
-                                "Choose from available tools."
+                                f"Invalid response format: {exc}. "
+                                "Please return valid JSON conforming to AgentDecision schema."
                             ),
                             iteration=state.iteration,
                         )
                     )
                     state.iteration += 1
                     continue
-
-                # Check if tool requires human approval (WRITE tool)
-                if requires_human_approval(tool_def.risk_level):
-                    return await self._handle_write_tool_proposal(
+                except Exception as exc:
+                    return await self._terminate(
                         session,
                         actor=actor,
                         workflow=workflow,
                         state=state,
-                        tool_def=tool_def,
-                        decision=decision,
-                        document=document,
+                        reason=AgentTerminationReason.MODEL_ERROR,
+                        summary=f"AIProvider invocation failed: {exc}",
+                        error_detail={"error": str(exc)},
                     )
 
-                # Execute READ / SUGGEST tool via ToolExecutor
-                obs = await self._execute_tool(
-                    session,
-                    actor=actor,
-                    workflow=workflow,
-                    state=state,
-                    tool_name=tool_name,
-                    arguments=decision.tool_input,
-                )
-                state.observations.append(obs)
-                state.tool_call_count += 1
-                state.iteration += 1
+                state.decisions.append(decision)
 
-                # Update workflow current_step in DB (short transaction)
-                async with transactional_session(session):
-                    workflow.current_step = state.iteration
-                    workflow.updated_at = datetime.now(UTC)
-                    await session.flush()
+                # Route decision
+                if decision.type == AgentDecisionType.FINAL:
+                    return await self._handle_final_decision(
+                        session,
+                        actor=actor,
+                        workflow=workflow,
+                        state=state,
+                        decision=decision,
+                    )
 
-        # Reached max iterations
-        return await self._terminate(
-            session,
-            actor=actor,
-            workflow=workflow,
-            state=state,
-            reason=AgentTerminationReason.MAX_ITERATIONS,
-            summary=f"Agent reached maximum iterations ({self._max_iterations}).",
-        )
+                if decision.type == AgentDecisionType.APPROVAL_REQUIRED:
+                    return await self._handle_approval_required(
+                        session,
+                        actor=actor,
+                        workflow=workflow,
+                        state=state,
+                        decision=decision,
+                    )
+
+                if decision.type == AgentDecisionType.TOOL_CALL:
+                    tool_name = (decision.tool_name or "").strip()
+                    if not tool_name:
+                        state.observations.append(
+                            ToolObservation(
+                                execution_id=str(uuid4()),
+                                tool_name="validation",
+                                status="REJECTED",
+                                error="TOOL_CALL requested without a tool_name.",
+                                iteration=state.iteration,
+                            )
+                        )
+                        state.iteration += 1
+                        continue
+
+                    # Lookup tool in ToolRegistry
+                    try:
+                        tool_def = self._registry.get(tool_name)
+                    except ToolNotFoundError:
+                        state.observations.append(
+                            ToolObservation(
+                                execution_id=str(uuid4()),
+                                tool_name=tool_name,
+                                status="REJECTED",
+                                error=(
+                                    f"Tool '{tool_name}' does not exist or is disabled. "
+                                    "Choose from available tools."
+                                ),
+                                iteration=state.iteration,
+                            )
+                        )
+                        state.iteration += 1
+                        continue
+
+                    # Execute tool via ToolExecutor (UNIVERSAL for ALL tools!)
+                    obs = await self._execute_tool(
+                        session,
+                        actor=actor,
+                        workflow=workflow,
+                        state=state,
+                        tool_name=tool_name,
+                        arguments=decision.tool_input,
+                    )
+                    state.observations.append(obs)
+                    state.tool_call_count += 1
+                    state.iteration += 1
+
+                    # Update workflow current_step in DB (short transaction)
+                    async with transactional_session(session):
+                        workflow.current_step = state.iteration
+                        workflow.updated_at = datetime.now(UTC)
+                        await session.flush()
+
+                    # If tool execution failed or was rejected, continue loop for agent feedback
+                    if obs.status != ToolExecutionStatus.SUCCESS.value:
+                        continue
+
+                    # If tool requires human approval (WRITE / DESTRUCTIVE / EXTERNAL_ACTION),
+                    # convert the validated tool execution result into an AIEditProposal
+                    # and pause at the approval gate.
+                    if requires_human_approval(tool_def.risk_level):
+                        return await self._handle_write_tool_proposal(
+                            session,
+                            actor=actor,
+                            workflow=workflow,
+                            state=state,
+                            tool_def=tool_def,
+                            decision=decision,
+                            document=document,
+                            observation=obs,
+                        )
+
+            # Reached max iterations
+            return await self._terminate(
+                session,
+                actor=actor,
+                workflow=workflow,
+                state=state,
+                reason=AgentTerminationReason.MAX_ITERATIONS,
+                summary=f"Agent reached maximum iterations ({self._max_iterations}).",
+            )
+        except Exception as exc:
+            logger.exception("Agent loop encountered unhandled error: %s", exc)
+            return await self._terminate(
+                session,
+                actor=actor,
+                workflow=workflow,
+                state=state,
+                reason=AgentTerminationReason.FAILED,
+                summary=f"Agent loop failed unexpectedly: {exc}",
+                error_detail={"error": str(exc)},
+            )
 
     def _build_model_messages(
         self,
@@ -382,7 +450,11 @@ class AgentLoop:
             steps_desc = [
                 f"{s.step_index + 1}. {s.tool_name} ({s.description})" for s in initial_plan
             ]
-            plan_guidance = "\nINITIAL PLAN GUIDANCE (Advisory):\n" + "\n".join(steps_desc)
+            plan_guidance = (
+                "\n<INITIAL_PLAN>\nINITIAL PLAN GUIDANCE (Advisory):\n"
+                + "\n".join(steps_desc)
+                + "\n</INITIAL_PLAN>\n"
+            )
 
         user_content = (
             f"<AVAILABLE_TOOLS>\n{tools_text}\n</AVAILABLE_TOOLS>\n\n"
@@ -530,10 +602,12 @@ class AgentLoop:
         )
         if existing_step:
             step_record = existing_step
-            step_record.tool_name = tool_name
-            step_record.status = StepStatus.RUNNING.value
-            step_record.input = arguments
-            step_record.started_at = datetime.now(UTC)
+            async with transactional_session(session):
+                step_record.tool_name = tool_name
+                step_record.status = StepStatus.RUNNING.value
+                step_record.input = arguments
+                step_record.started_at = datetime.now(UTC)
+                await session.flush()
         else:
             step_record = AIWorkflowStep(
                 id=uuid4(),
@@ -576,7 +650,11 @@ class AgentLoop:
                 input_summary=arguments,
                 output=tool_res.result,
                 iteration=state.iteration,
-                duration_ms=tool_res.metadata.get("duration_ms"),
+                duration_ms=(
+                    tool_res.metadata.get("duration_ms")
+                    if isinstance(tool_res.metadata.get("duration_ms"), (int, float))
+                    else None
+                ),
             )
         except (ToolExecutionError, ToolPermissionDeniedError, ResourceNotFound) as exc:
             err_msg = str(exc)
@@ -607,59 +685,74 @@ class AgentLoop:
         tool_def: ToolDefinition,
         decision: AgentDecision,
         document: ContentDocument,
+        observation: ToolObservation,
     ) -> AgentResult:
-        """Converts a WRITE tool call into an AIEditProposal, pausing at approval gate."""
-        tool_input = decision.tool_input or {}
-        target_block = str(tool_input.get("block_id") or "block_001")
-        instruction = str(
-            tool_input.get("instruction") or decision.reasoning_summary or "Optimize content"
+        """Converts a validated WRITE tool execution into an AIEditProposal,
+        pausing at the human approval gate.
+        """
+        output_data = observation.output or {}
+        target_block = str(output_data.get("block_id") or "block_001")
+        op_type = str(output_data.get("operation") or "replace_block")
+        old_text = str(output_data.get("old_content") or "")
+        reason = str(
+            output_data.get("reason")
+            or decision.reasoning_summary
+            or f"Proposed changes with tool '{tool_def.name}'"
+        )
+        diff_summary = output_data.get("diff_summary") or {}
+
+        # Formulate proposed changes based on validated tool output
+        if op_type == "insert_link" or tool_def.name == "insert_internal_link":
+            url = str(output_data.get("url") or "")
+            anchor = str(output_data.get("anchor_text") or "")
+            proposed_content = {
+                "url": url,
+                "anchor_text": anchor,
+                "operations": [
+                    {
+                        "operation": "insert_link",
+                        "block_id": target_block,
+                        "url": url,
+                        "anchor_text": anchor,
+                    }
+                ],
+            }
+            if not diff_summary:
+                diff_summary = {"url": url, "anchor": anchor}
+        else:
+            new_text = str(output_data.get("new_content") or "")
+            proposed_content = {
+                "text": new_text,
+                "operations": [
+                    {
+                        "operation": op_type,
+                        "block_id": target_block,
+                        "new_content": new_text,
+                    }
+                ],
+            }
+            if not diff_summary:
+                diff_summary = {"old": old_text, "new": new_text}
+
+        actions = [obs.tool_name for obs in state.observations]
+        obs_summaries = [f"{o.tool_name}: {o.status}" for o in state.observations]
+
+        result = AgentResult(
+            workflow_id=workflow.id,
+            status=WorkflowStatus.WAITING_FOR_APPROVAL,
+            intent=workflow.intent,
+            summary=(
+                f"Proposed changes with tool '{tool_def.name}'. "
+                "Awaiting human review before applying."
+            ),
+            actions_taken=actions,
+            proposals_created=[],  # will be populated with proposal.id below
+            observations_summary=obs_summaries,
+            approval_required=True,
+            termination_reason=AgentTerminationReason.WAITING_FOR_APPROVAL.value,
         )
 
-        blocks = document.content_blocks or []
-        current_block = next((b for b in blocks if b.get("id") == target_block), None)
-        old_text = str(current_block.get("text", "") if current_block else "")
-
-        # Formulate proposed changes based on tool type
-        if tool_def.name == "insert_internal_link":
-            op_type = "insert_link"
-            url = str(tool_input.get("url", "/recommended-guide"))
-            anchor = str(tool_input.get("anchor_text", "internal link"))
-            proposed_content = {"url": url, "anchor_text": anchor}
-            reason = decision.reasoning_summary or tool_input.get(
-                "reason", "Internal link addition"
-            )
-            diff_summary = {"url": url, "anchor": anchor}
-        elif tool_def.name == "expand_section":
-            op_type = "replace_block"
-            new_text = str(
-                tool_input.get("new_content")
-                or f"{old_text} Expanded with detailed domain context."
-            )
-            proposed_content = {"text": new_text}
-            reason = decision.reasoning_summary or "Expanded section with supporting details."
-            diff_summary = {"old": old_text, "new": new_text}
-        elif tool_def.name == "shorten_section":
-            op_type = "replace_block"
-            new_text = str(
-                tool_input.get("new_content")
-                or (f"{old_text[:120]}..." if len(old_text) > 120 else old_text)
-            )
-            proposed_content = {"text": new_text}
-            reason = decision.reasoning_summary or "Tightened phrasing for conciseness."
-            diff_summary = {"old": old_text, "new": new_text}
-        else:
-            # Default rewrite_section
-            op_type = "replace_block"
-            new_text = str(
-                tool_input.get("new_content") or f"Optimized: {old_text}"
-                if old_text
-                else f"Polished section: {instruction}"
-            )
-            proposed_content = {"text": new_text}
-            reason = decision.reasoning_summary or f"Rewrote section: {instruction}"
-            diff_summary = {"old": old_text, "new": new_text}
-
-        # Create proposal and waiting step in a short transaction
+        # Create proposal, waiting step, workflow status & result in one atomic transaction
         async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
@@ -676,61 +769,72 @@ class AgentLoop:
                 reason=reason,
                 ai_provider="orchestrator",
                 model="content-agent-loop-v1",
+                base_version=document.current_version,
                 created_at=datetime.now(UTC),
             )
             session.add(proposal)
             await session.flush()
 
-            step_stmt = select(AIWorkflowStep).where(
-                AIWorkflowStep.workflow_id == workflow.id,
-                AIWorkflowStep.step_index == state.tool_call_count,
-            )
-            step_res = await session.execute(step_stmt)
-            matched_steps = list(step_res.scalars().all())
-            existing_step = next(
-                (
-                    s
-                    for s in matched_steps
-                    if getattr(s, "step_index", None) == state.tool_call_count
-                ),
-                matched_steps[0] if matched_steps else None,
-            )
-            if existing_step:
-                step_record = existing_step
+            result.proposals_created = [proposal.id]
+
+            # Find the step record that was created and executed during _execute_tool
+            step_record = None
+            if observation.execution_id:
+                with contextlib.suppress(Exception):
+                    step_record = await session.get(AIWorkflowStep, UUID(observation.execution_id))
+            if not step_record or not isinstance(getattr(step_record, "id", None), UUID):
+                step_stmt = (
+                    select(AIWorkflowStep)
+                    .where(AIWorkflowStep.workflow_id == workflow.id)
+                    .order_by(AIWorkflowStep.step_index.desc())
+                )
+                step_res = await session.execute(step_stmt)
+                matched_steps = list(step_res.scalars().all())
+                target_idx = max(state.tool_call_count - 1, 0)
+                step_record = next(
+                    (s for s in matched_steps if getattr(s, "step_index", None) == target_idx),
+                    matched_steps[-1] if matched_steps else None,
+                )
+
+            if step_record:
                 step_record.tool_name = tool_def.name
                 step_record.status = StepStatus.WAITING_FOR_APPROVAL.value
-                step_record.input = tool_input
                 step_record.output = {
                     "proposal_id": str(proposal.id),
                     "operation_type": proposal.operation_type,
                     "target_block_ids": proposal.target_block_ids,
                     "proposed_content": proposal.proposed_content,
                     "reason": proposal.reason,
+                    "tool_output": output_data,
                 }
-                step_record.started_at = datetime.now(UTC)
             else:
                 step_record = AIWorkflowStep(
                     id=uuid4(),
                     workflow_id=workflow.id,
-                    step_index=state.tool_call_count,
+                    step_index=state.tool_call_count - 1,
                     step_type="tool_call",
                     tool_name=tool_def.name,
                     status=StepStatus.WAITING_FOR_APPROVAL.value,
-                    input=tool_input,
+                    input=decision.tool_input or {},
                     output={
                         "proposal_id": str(proposal.id),
                         "operation_type": proposal.operation_type,
                         "target_block_ids": proposal.target_block_ids,
                         "proposed_content": proposal.proposed_content,
                         "reason": proposal.reason,
+                        "tool_output": output_data,
                     },
                     started_at=datetime.now(UTC),
                 )
                 session.add(step_record)
 
             workflow.status = WorkflowStatus.WAITING_FOR_APPROVAL.value
-            workflow.current_step = state.iteration
+            raw_idx = getattr(step_record, "step_index", None)
+            workflow.current_step = (
+                raw_idx if isinstance(raw_idx, int) else max(state.iteration - 1, 0)
+            )
             workflow.updated_at = datetime.now(UTC)
+            workflow.result = result.model_dump(mode="json")
             await session.flush()
 
             await self._audit.log_event(
@@ -748,28 +852,6 @@ class AgentLoop:
                 },
             )
 
-        actions = [obs.tool_name for obs in state.observations] + [tool_def.name]
-        obs_summaries = [f"{o.tool_name}: {o.status}" for o in state.observations]
-
-        result = AgentResult(
-            workflow_id=workflow.id,
-            status=WorkflowStatus.WAITING_FOR_APPROVAL,
-            intent=workflow.intent,
-            summary=(
-                f"Proposed changes with tool '{tool_def.name}'. "
-                "Awaiting human review before applying."
-            ),
-            actions_taken=actions,
-            proposals_created=[proposal.id],
-            observations_summary=obs_summaries,
-            approval_required=True,
-            termination_reason=AgentTerminationReason.WAITING_FOR_APPROVAL.value,
-        )
-
-        async with transactional_session(session):
-            workflow.result = result.model_dump(mode="json")
-            await session.flush()
-
         return result
 
     async def _handle_approval_required(
@@ -782,12 +864,6 @@ class AgentLoop:
         decision: AgentDecision,
     ) -> AgentResult:
         """Handles explicit APPROVAL_REQUIRED decision from the model."""
-        async with transactional_session(session):
-            await set_actor_context(session, actor.user_id)
-            workflow.status = WorkflowStatus.WAITING_FOR_APPROVAL.value
-            workflow.updated_at = datetime.now(UTC)
-            await session.flush()
-
         actions = [obs.tool_name for obs in state.observations]
         obs_summaries = [f"{o.tool_name}: {o.status}" for o in state.observations]
 
@@ -804,7 +880,10 @@ class AgentLoop:
         )
 
         async with transactional_session(session):
+            await set_actor_context(session, actor.user_id)
+            workflow.status = WorkflowStatus.WAITING_FOR_APPROVAL.value
             workflow.result = result.model_dump(mode="json")
+            workflow.updated_at = datetime.now(UTC)
             await session.flush()
 
         return result
@@ -831,7 +910,10 @@ class AgentLoop:
             actions_taken=actions,
             proposals_created=[],
             observations_summary=obs_summaries,
-            verification={"verified": True, "details": "All requested operations completed."},
+            verification={
+                "status": "not_applicable",
+                "details": "No pending patch verification required for final response.",
+            },
             approval_required=False,
             termination_reason=AgentTerminationReason.COMPLETED.value,
         )
@@ -857,6 +939,59 @@ class AgentLoop:
             )
 
         return result
+
+    async def _persist_unexpected_failure(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        workflow: AIWorkflow,
+        error: BaseException,
+    ) -> AgentResult:
+        """Clear the failed request session and persist FAILED using a fresh session."""
+        workflow_id = workflow.id
+        bind = session.bind
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("Could not roll back failed AgentLoop session")
+            try:
+                await session.close()
+            except Exception:
+                logger.exception("Could not close failed AgentLoop session")
+
+        factory = (
+            async_sessionmaker(bind, expire_on_commit=False, autoflush=False)
+            if bind is not None
+            else async_session_factory()
+        )
+        async with factory() as failure_session, transactional_session(failure_session):
+            await set_actor_context(failure_session, actor.user_id)
+            persisted = await failure_session.get(AIWorkflow, workflow_id)
+            if persisted is None:
+                raise ResourceNotFound(f"Workflow {workflow_id} not found after AgentLoop failure")
+            if persisted.status in (
+                WorkflowStatus.COMPLETED.value,
+                WorkflowStatus.WAITING_FOR_APPROVAL.value,
+                WorkflowStatus.CANCELLED.value,
+            ):
+                return AgentResult.model_validate(persisted.result)
+
+            detail = f"{type(error).__name__}: {error}"
+            result = AgentResult(
+                workflow_id=persisted.id,
+                status=WorkflowStatus.FAILED,
+                intent=persisted.intent,
+                summary=f"Agent loop failed unexpectedly: {detail}",
+                termination_reason=AgentTerminationReason.FAILED.value,
+            )
+            persisted.status = WorkflowStatus.FAILED.value
+            persisted.error = {"error": detail}
+            persisted.result = result.model_dump(mode="json")
+            persisted.completed_at = datetime.now(UTC)
+            persisted.updated_at = datetime.now(UTC)
+            await failure_session.flush()
+            return result
 
     async def _terminate(
         self,

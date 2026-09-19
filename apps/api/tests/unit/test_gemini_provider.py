@@ -194,7 +194,8 @@ async def test_gemini_embed_batch() -> None:
         assert res.vectors[1] == [0.4, 0.5, 0.6]
 
 
-def test_get_ai_provider_factory() -> None:
+def test_get_ai_provider_factory(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     with patch("app.config.settings.get_settings") as mock_get_settings:
         # 1. Test environment defaults to MockAIProvider
         mock_settings = mock_get_settings.return_value

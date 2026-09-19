@@ -66,9 +66,13 @@ class AIWorkflow(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            ["document_id"],
-            ["content_documents.id"],
-            name="fk_ai_workflows_document_id_content_documents",
+            ["organization_id", "project_id", "document_id"],
+            [
+                "content_documents.organization_id",
+                "content_documents.project_id",
+                "content_documents.id",
+            ],
+            name="fk_ai_workflows_org_proj_doc_content_documents",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(

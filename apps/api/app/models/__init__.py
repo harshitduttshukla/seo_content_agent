@@ -8,6 +8,7 @@ from app.domains.auth.models import (
     Role,
     RolePermission,
 )
+from app.domains.canvas.models import Argument, Canvas, Claim
 from app.domains.content.models import (
     AIEditProposal,
     ContentBrief,
@@ -26,14 +27,17 @@ from app.domains.content.models import (
     PlannedContentPage,
     Topic,
 )
+from app.domains.content_cards.models import ContentCard
+from app.domains.content_harness.models import ContentHarnessRun
 from app.domains.content_map.models import (
     ContentArchitectureVersion,
     ContentMapEdge,
     ContentMapNode,
 )
-from app.domains.content_harness.models import ContentHarnessRun
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
+from app.domains.demand.models import DemandNode
 from app.domains.internal_linking.models import LinkOpportunity, PageRelationship
+from app.domains.job_runs.models import JobRun
 from app.domains.keywords.models import (
     ClusteringRun,
     Keyword,
@@ -58,11 +62,15 @@ __all__ = [
     "AIEditProposal",
     "AIWorkflow",
     "AIWorkflowStep",
+    "Argument",
     "AuditLog",
+    "Canvas",
+    "Claim",
     "ClusteringRun",
     "ContentArchitectureVersion",
     "ContentBrief",
     "ContentBriefVersion",
+    "ContentCard",
     "ContentChatMessage",
     "ContentChatSession",
     "ContentDocument",
@@ -77,7 +85,9 @@ __all__ = [
     "CrawlEvent",
     "CrawlJob",
     "CrawlUrl",
+    "DemandNode",
     "IdempotencyRecord",
+    "JobRun",
     "Keyword",
     "KeywordCluster",
     "KeywordClusterMember",

@@ -242,7 +242,7 @@ export function EditorSidebar({
     setWorkflowError(null);
 
     try {
-      const result = await clientApi<WorkflowDetail>("/orchestrator/execute", {
+      const result = await clientApi<WorkflowDetail>("/orchestrator/workflows", {
         method: "POST",
         body: JSON.stringify({
           message: textToSend,
@@ -268,11 +268,6 @@ export function EditorSidebar({
         { method: "POST" }
       );
       setActiveWorkflow(updated);
-      const approvedStep = activeWorkflow.steps.find((s) => s.id === stepId);
-      const proposalId = (approvedStep?.output as Record<string, unknown> | undefined)?.proposal_id;
-      if (proposalId && typeof proposalId === "string") {
-        onApplyProposal(proposalId);
-      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to approve step";
       setWorkflowError(msg);
@@ -297,12 +292,12 @@ export function EditorSidebar({
     if (!activeWorkflow) return;
     try {
       const updated = await clientApi<WorkflowDetail>(
-        `/orchestrator/workflows/${activeWorkflow.id}/retry`,
+        `/orchestrator/workflows/${activeWorkflow.id}/resume`,
         { method: "POST" }
       );
       setActiveWorkflow(updated);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to retry workflow";
+      const msg = err instanceof Error ? err.message : "Failed to resume workflow";
       setWorkflowError(msg);
     }
   };

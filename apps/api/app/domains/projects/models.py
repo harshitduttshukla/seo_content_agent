@@ -50,4 +50,12 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     default_locale: Mapped[str] = mapped_column(String(20), nullable=False, default="en")
     default_country: Mapped[str | None] = mapped_column(String(2))
     settings: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
+
+    # V3 9.2: Typed workspace configuration (scoring weights, funnel definitions,
+    # word budgets, markets, auto-approval, etc.). Separate from `settings` to keep
+    # V3 config isolated and schema-validated via WorkspaceConfig Pydantic model.
+    workspace_config: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
+
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

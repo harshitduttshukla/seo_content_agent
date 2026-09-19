@@ -197,9 +197,9 @@ class OrchestratorService:
         workflow_id: UUID,
     ) -> WorkflowDetail:
         """Resumes a paused workflow."""
+        await self._workflows.resume_workflow(session, actor=actor, workflow_id=workflow_id)
         async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
-            await self._workflows.resume_workflow(session, actor=actor, workflow_id=workflow_id)
             return await self._workflows.get_workflow_detail(
                 session, actor=actor, workflow_id=workflow_id
             )

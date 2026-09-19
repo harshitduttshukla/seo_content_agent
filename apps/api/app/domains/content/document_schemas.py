@@ -183,6 +183,7 @@ class AIProposalDetail(BaseModel):
     reviewed_by_id: UUID | None
     applied_at: datetime | None
     applied_version: int | None
+    base_version: int = 1
     created_at: datetime
 
 
