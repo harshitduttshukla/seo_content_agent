@@ -29,23 +29,10 @@ from app.domains.content.models import (
 )
 from app.domains.content_cards.models import ContentCard
 from app.domains.content_harness.models import ContentHarnessRun
-from app.domains.content_map.models import (
-    ContentArchitectureVersion,
-    ContentMapEdge,
-    ContentMapNode,
-)
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
 from app.domains.demand.models import DemandNode
 from app.domains.internal_linking.models import LinkOpportunity, PageRelationship
 from app.domains.job_runs.models import JobRun
-from app.domains.keywords.models import (
-    ClusteringRun,
-    Keyword,
-    KeywordCluster,
-    KeywordClusterMember,
-    KeywordImport,
-    KeywordImportRow,
-)
 from app.domains.orchestrator.models import (
     AIWorkflow,
     AIWorkflowStep,
@@ -53,7 +40,6 @@ from app.domains.orchestrator.models import (
 )
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
-from app.domains.seo.models import SEOGuide, SEOGuideVersion
 from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.domains.users.models import User
 from app.domains.websites.models import Website

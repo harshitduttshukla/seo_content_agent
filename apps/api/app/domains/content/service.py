@@ -58,7 +58,6 @@ from app.domains.content.schemas import (
     TopicList,
     TopicUpdate,
 )
-from app.domains.keywords.repository import KeywordRepository
 from app.domains.projects.models import Project
 from app.domains.projects.service import ProjectService
 from app.domains.websites.models import Website
@@ -70,7 +69,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class ContentService:
     def __init__(self) -> None:
         self._content = ContentRepository()
-        self._keywords = KeywordRepository()
+        self._keywords = None
         self._websites = WebsiteService()
         self._projects = ProjectService()
         self._audit = AuditWriter()

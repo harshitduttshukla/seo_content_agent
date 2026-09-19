@@ -35,7 +35,6 @@ from app.domains.content.editor_models import (
 from app.domains.content.models import PlannedContentPage
 from app.domains.content.patch_service import DocumentPatchService
 from app.domains.projects.service import ProjectService
-from app.domains.seo.models import SEOGuide
 from app.security.principal import AuthenticatedUser, PermissionCode
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +51,7 @@ class ContentDocumentService:
     def _generate_initial_blocks(
         self,
         title: str,
-        guide: SEOGuide | None = None,
+        guide = None,
         brief: ContentBrief | None = None,
     ) -> list[dict[str, object]]:
         blocks: list[dict[str, object]] = []
@@ -183,9 +182,9 @@ class ContentDocumentService:
             brief_res = await session.execute(brief_stmt)
             brief = brief_res.scalars().first()
 
-            guide_stmt = select(SEOGuide).where(SEOGuide.page_id == page_id)
-            guide_res = await session.execute(guide_stmt)
-            guide = guide_res.scalars().first()
+            guide_stmt = None
+            guide_res = None
+            guide = None
 
             guide_title = (
                 guide.recommended_title if (guide and guide.recommended_title) else page.title

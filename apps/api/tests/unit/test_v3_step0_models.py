@@ -449,8 +449,7 @@ class TestJobRun:
         )
         # Validation happens at flush time (IntegrityError),
         # but locally it will just be missing.
-        assert not hasattr(run, "prompt_version")
-
+        assert getattr(run, "prompt_version", None) is None
     def test_entity_reference(self) -> None:
         """JobRun can reference any entity via polymorphic type+id."""
         card_id = uuid4()

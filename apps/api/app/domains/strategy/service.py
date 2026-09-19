@@ -7,7 +7,6 @@ from app.db.session import set_actor_context
 from app.domains.ai.service import get_ai_provider
 from app.domains.audit.repository import AuditWriter, OutboxWriter
 from app.domains.crawling.models import CrawlJob, CrawlUrl
-from app.domains.keywords.models import Keyword
 from app.domains.projects.service import ProjectService
 from app.domains.strategy.models import StrategyStatus
 from app.domains.strategy.repository import SEOStrategyRepository
@@ -286,18 +285,8 @@ class SEOStrategyService:
             )
             crawl_urls = list((await session.execute(crawl_stmt)).scalars().all())
 
-            # 4. Existing keywords (sample up to 25)
-            kw_stmt = (
-                select(Keyword.keyword, Keyword.search_volume, Keyword.intent)
-                .where(
-                    Keyword.organization_id == project.organization_id,
-                    Keyword.project_id == project.id,
-                )
-                .order_by(Keyword.search_volume.desc())
-                .limit(25)
-            )
-            keywords = list((await session.execute(kw_stmt)).all())
-            kw_info = [{"keyword": k[0], "volume": k[1], "intent": str(k[2])} for k in keywords]
+            # 4. Existing keywords (removed legacy domain)
+            kw_info = []
 
             # 5. Existing strategy draft (if any)
             strategy = await self._repository.get_by_project_id(session, project_id=project.id)

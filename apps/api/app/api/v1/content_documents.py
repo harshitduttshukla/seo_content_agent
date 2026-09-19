@@ -19,7 +19,6 @@ from app.domains.content.document_schemas import (
 )
 from app.domains.content.document_service import ContentDocumentService
 from app.domains.content.patch_service import DocumentPatchService
-from app.domains.seo.quality_service import SEOQualityReport, SEOQualityService
 from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["content-documents"])
@@ -220,23 +219,3 @@ async def reject_patch(
     return success(request, AIProposalDetail.model_validate(prop))
 
 
-@router.get(
-    "/content-documents/{document_id}/seo-quality",
-    response_model=ApiResponse[SEOQualityReport],
-)
-@router.get(
-    "/content-documents/{document_id}/quality-check",
-    response_model=ApiResponse[SEOQualityReport],
-)
-async def evaluate_document_quality(
-    document_id: UUID,
-    request: Request,
-    session: SessionDep,
-    actor: CurrentUserDep,
-) -> ApiResponse[SEOQualityReport]:
-    report = await SEOQualityService().evaluate_document(
-        session,
-        actor=actor,
-        document_id=document_id,
-    )
-    return success(request, report)

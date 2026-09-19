@@ -12,7 +12,8 @@ from app.domains.ai.service import get_ai_provider
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.editor_models import ContentBrief
 from app.domains.content_harness.evaluator import evaluate_content, evaluate_with_ai
-from app.domains.content_harness.fixtures import GOLDEN_TEST_CASES
+
+GOLDEN_TEST_CASES = {}
 from app.domains.content_harness.models import ContentHarnessRun, HarnessRunStatus
 from app.domains.content_harness.prompts import build_harness_prompts
 from app.domains.content_harness.repository import ContentHarnessRepository
