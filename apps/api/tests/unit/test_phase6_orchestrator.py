@@ -46,6 +46,7 @@ def make_mock_session() -> MagicMock:
     context_manager.__aenter__ = AsyncMock(return_value=session)
     context_manager.__aexit__ = AsyncMock(return_value=None)
     session.begin.return_value = context_manager
+    session.in_transaction.return_value = False
     session.refresh = AsyncMock()
     session.flush = AsyncMock()
     session.execute = AsyncMock()
@@ -593,7 +594,10 @@ async def test_workflow_cancellation(test_actor: AuthenticatedUser) -> None:
     mock_steps.scalars().all.return_value = []
     session.execute.side_effect = [mock_res, mock_steps]
 
-    with patch("app.domains.audit.repository.AuditWriter.log_event", AsyncMock()):
+    with (
+        patch("app.domains.projects.service.ProjectService.get_model", return_value=None),
+        patch("app.domains.audit.repository.AuditWriter.log_event", AsyncMock()),
+    ):
         cancelled = await workflow_service.cancel_workflow(
             session,
             actor=test_actor,

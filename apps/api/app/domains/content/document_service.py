@@ -618,6 +618,7 @@ class ContentDocumentService:
                         reason=ai_response.reason,
                         ai_provider=ai_response.provider or "gemini",
                         model=ai_response.model or "gemini-flash-latest",
+                        base_version=document.current_version,
                         created_at=datetime.now(UTC),
                     )
                     session.add(proposal)

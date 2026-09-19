@@ -55,6 +55,7 @@ from app.domains.orchestrator.tool_executor import ToolExecutor
 from app.domains.seo.models import SEOGuide
 from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.security.principal import AuthenticatedUser
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 def make_mock_session(
@@ -401,6 +402,23 @@ async def test_agent_loop_golden_path_multi_step_with_approval(
                 result={"primary_keyword": "zero trust architecture", "density": 0.0},
                 metadata={"duration_ms": 30.0},
             )
+        elif tool_name == "rewrite_section":
+            return ToolExecutionResult(
+                tool_name=tool_name,
+                status=ToolExecutionStatus.SUCCESS,
+                result={
+                    "block_id": arguments.get("block_id", "b2"),
+                    "operation": "replace_block",
+                    "old_content": "Traditional perimeter security is obsolete.",
+                    "new_content": arguments.get("new_content", "Enhanced text"),
+                    "reason": arguments.get("instruction", "Rewrite"),
+                    "diff_summary": {
+                        "old": "Traditional perimeter security is obsolete.",
+                        "new": arguments.get("new_content", "Enhanced text"),
+                    },
+                },
+                metadata={"duration_ms": 25.0},
+            )
         raise ValueError(f"Unexpected tool call: {tool_name}")
 
     mock_executor.execute = AsyncMock(side_effect=mock_execute)
@@ -623,14 +641,32 @@ async def test_agent_loop_observation_driven_branching(
     mock_context_builder.build_agent_context = AsyncMock(return_value=mock_context)
 
     mock_executor = MagicMock(spec=ToolExecutor)
-    mock_executor.execute = AsyncMock(
-        return_value=ToolExecutionResult(
-            tool_name="find_link_opportunities",
-            status=ToolExecutionStatus.SUCCESS,
-            result={"found_links": ["/topic-cluster"], "count": 1},
-            metadata={"duration_ms": 20.0},
-        )
-    )
+
+    async def mock_branch_execute(session, tool_name, arguments, **kwargs):
+        if tool_name == "find_link_opportunities":
+            return ToolExecutionResult(
+                tool_name="find_link_opportunities",
+                status=ToolExecutionStatus.SUCCESS,
+                result={"found_links": ["/topic-cluster"], "count": 1},
+                metadata={"duration_ms": 20.0},
+            )
+        elif tool_name == "insert_internal_link":
+            return ToolExecutionResult(
+                tool_name="insert_internal_link",
+                status=ToolExecutionStatus.SUCCESS,
+                result={
+                    "operation": "insert_link",
+                    "block_id": arguments.get("block_id", "b2"),
+                    "url": arguments.get("url", "/topic-cluster"),
+                    "anchor_text": arguments.get("anchor_text", "topic cluster"),
+                    "reason": "Internal link opportunity",
+                    "diff_summary": {"url": "/topic-cluster", "anchor": "topic cluster"},
+                },
+                metadata={"duration_ms": 15.0},
+            )
+        raise ValueError(f"Unexpected tool call: {tool_name}")
+
+    mock_executor.execute = AsyncMock(side_effect=mock_branch_execute)
 
     session = make_mock_session(base_doc, workflow)
 
@@ -1106,16 +1142,11 @@ async def test_agent_loop_prompt_injection_safety(
 
 @pytest.mark.asyncio
 async def test_transaction_safety_no_nested_session_begin(test_actor: AuthenticatedUser) -> None:
-    """Regression test ensuring transactional_session avoids InvalidRequestError
-    when called in a nested session context.
-    """
-    session = make_mock_session()
-
-    session.in_transaction.return_value = True
-
-    async with transactional_session(session):
-        session.add(MagicMock())
-        await session.flush()
-
-    session.begin.assert_not_called()
-    assert session.flush.called
+    """An explicit parent transaction remains active after a nested helper exits."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    factory = async_sessionmaker(engine)
+    async with factory() as session, session.begin():
+        async with transactional_session(session):
+            assert session.in_transaction()
+        assert session.in_transaction()
+    await engine.dispose()

@@ -12,11 +12,13 @@ Enforces:
 """
 
 import asyncio
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from app.core.errors import PermissionDenied, ResourceNotFound
+from app.db.session import transactional_session
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.editor_models import ContentDocument
 from app.domains.orchestrator.exceptions import (
@@ -139,15 +141,26 @@ class ToolExecutor:
 
         # 4. Input Schema Validation
         try:
-            # Auto-inject document_id and project_id if missing from arguments
+            # Server-authoritative scope: always override from trusted execution
+            # context.  Model-supplied values for these fields are untrusted
+            # and MUST be discarded to prevent cross-tenant scope escape.
             clean_args = dict(arguments)
-            if "document_id" not in clean_args:
+            for unsafe_key in ("organization_id", "workflow_id"):
+                clean_args.pop(unsafe_key, None)
+
+            schema_fields = tool.input_schema.model_fields
+            if "document_id" in schema_fields:
                 clean_args["document_id"] = document_id
-            if "project_id" not in clean_args:
+            else:
+                clean_args.pop("document_id", None)
+
+            if "project_id" in schema_fields:
                 clean_args["project_id"] = project_id
+            else:
+                clean_args.pop("project_id", None)
 
             validated_input = tool.input_schema.model_validate(clean_args)
-            input_dict = validated_input.model_dump()
+            input_dict = validated_input.model_dump(mode="json")
         except ValidationError as exc:
             await self._record_execution(
                 session,
@@ -220,7 +233,7 @@ class ToolExecutor:
         # 6. Output Schema Validation
         try:
             validated_output = tool.output_schema.model_validate(raw_output)
-            output_dict = validated_output.model_dump()
+            output_dict = validated_output.model_dump(mode="json")
         except ValidationError as exc:
             await self._record_execution(
                 session,
@@ -239,36 +252,35 @@ class ToolExecutor:
                 reason=f"Output validation failed: {exc.errors()}",
             ) from exc
 
-        # 7. Record Tool Execution
-        await self._record_execution(
-            session,
-            workflow_id=workflow_id,
-            step_id=step_id,
-            tool_name=tool_name,
-            status=ToolExecutionStatus.SUCCESS,
-            input_data=input_dict,
-            output_data=output_dict,
-            error_data=None,
-            retry_count=retry_count,
-            started_at=started_at,
-        )
-
-        # 8. Record Audit Log
-        await self._audit.log_event(
-            session=session,
-            actor_user_id=actor.user_id,
-            action="tool.executed",
-            resource_type="tool_execution",
-            resource_id=workflow_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            outcome="success",
-            metadata={
-                "tool_name": tool_name,
-                "step_id": str(step_id),
-                "risk_level": tool.risk_level.value,
-            },
-        )
+        # 7 & 8. Record Tool Execution and Audit Log in a short durable transaction
+        async with transactional_session(session):
+            await self._record_execution(
+                session,
+                workflow_id=workflow_id,
+                step_id=step_id,
+                tool_name=tool_name,
+                status=ToolExecutionStatus.SUCCESS,
+                input_data=input_dict,
+                output_data=output_dict,
+                error_data=None,
+                retry_count=retry_count,
+                started_at=started_at,
+            )
+            await self._audit.log_event(
+                session=session,
+                actor_user_id=actor.user_id,
+                action="tool.executed",
+                resource_type="tool_execution",
+                resource_id=workflow_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                outcome="success",
+                metadata={
+                    "tool_name": tool_name,
+                    "step_id": str(step_id),
+                    "risk_level": tool.risk_level.value,
+                },
+            )
 
         return ToolExecutionResult(
             tool_name=tool_name,
@@ -296,17 +308,26 @@ class ToolExecutor:
         retry_count: int,
         started_at: datetime,
     ) -> None:
-        rec = ToolExecutionRecord(
-            workflow_id=workflow_id,
-            step_id=step_id,
-            tool_name=tool_name,
-            status=status.value,
-            input=input_data,
-            output=output_data,
-            error=error_data,
-            retry_count=retry_count,
-            started_at=started_at,
-            completed_at=datetime.now(UTC),
-        )
-        session.add(rec)
-        await session.flush()
+        def _safe_payload(val: Any) -> Any:
+            if val is None:
+                return None
+            try:
+                return json.loads(json.dumps(val, default=str))
+            except Exception:
+                return str(val)
+
+        async with transactional_session(session):
+            rec = ToolExecutionRecord(
+                workflow_id=workflow_id,
+                step_id=step_id,
+                tool_name=tool_name,
+                status=status.value,
+                input=_safe_payload(input_data),
+                output=_safe_payload(output_data),
+                error=_safe_payload(error_data),
+                retry_count=retry_count,
+                started_at=started_at,
+                completed_at=datetime.now(UTC),
+            )
+            session.add(rec)
+            await session.flush()

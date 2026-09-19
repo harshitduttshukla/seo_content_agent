@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -222,6 +223,12 @@ class ContentDocument(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             "status IN ('DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED')",
             name="ck_content_documents_status_allowed",
         ),
+        UniqueConstraint(
+            "organization_id",
+            "project_id",
+            "id",
+            name="uq_content_documents_org_proj_id",
+        ),
         Index("uq_content_documents_page_id", "page_id", unique=True),
         Index("ix_content_documents_proj_status", "project_id", "status"),
     )
@@ -408,6 +415,9 @@ class AIEditProposal(UUIDPrimaryKeyMixin, Base):
     reviewed_by_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    base_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1", default=1
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )

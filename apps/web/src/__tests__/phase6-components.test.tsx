@@ -294,7 +294,7 @@ describe("Phase 6 — EditorSidebar Agent Tab Integration", () => {
 
   it("executes workflow via quick recipe button", async () => {
     (clientApi as any).mockImplementation((endpoint: string, options?: any) => {
-      if (endpoint === "/orchestrator/execute") {
+      if (endpoint === "/orchestrator/workflows") {
         return Promise.resolve(mockRunningWorkflow);
       }
       return Promise.resolve({});
@@ -317,7 +317,7 @@ describe("Phase 6 — EditorSidebar Agent Tab Integration", () => {
 
     await waitFor(() => {
       expect(clientApi).toHaveBeenCalledWith(
-        "/orchestrator/execute",
+        "/orchestrator/workflows",
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining("Perform a comprehensive content and SEO optimization"),
@@ -330,10 +330,10 @@ describe("Phase 6 — EditorSidebar Agent Tab Integration", () => {
     expect(screen.getByTestId("approve-step-btn")).toBeInTheDocument();
   });
 
-  it("approves step via workflow and triggers onApplyProposal", async () => {
+  it("approves step via workflow without duplicate proposal apply", async () => {
     const onApplyMock = vi.fn();
     (clientApi as any).mockImplementation((endpoint: string) => {
-      if (endpoint === "/orchestrator/execute") {
+      if (endpoint === "/orchestrator/workflows") {
         return Promise.resolve(mockRunningWorkflow);
       }
       if (endpoint.includes("/steps/step-3/approve")) {
@@ -372,7 +372,8 @@ describe("Phase 6 — EditorSidebar Agent Tab Integration", () => {
         "/orchestrator/workflows/wf-100/steps/step-3/approve",
         { method: "POST" }
       );
-      expect(onApplyMock).toHaveBeenCalledWith("prop-999");
+      // Verify double apply is eliminated: onApplyProposal is not called
+      expect(onApplyMock).not.toHaveBeenCalled();
     });
   });
 });

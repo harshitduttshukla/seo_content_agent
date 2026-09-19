@@ -195,6 +195,7 @@ async def apply_patch(
         session,
         actor=actor,
         proposal_id=patch_id,
+        document_id=document_id,
     )
     return success(request, doc)
 
@@ -214,6 +215,7 @@ async def reject_patch(
         session,
         actor=actor,
         proposal_id=patch_id,
+        document_id=document_id,
     )
     return success(request, AIProposalDetail.model_validate(prop))
 

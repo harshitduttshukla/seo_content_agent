@@ -33,6 +33,7 @@ def make_mock_session() -> MagicMock:
     context_manager.__aenter__ = AsyncMock(return_value=session)
     context_manager.__aexit__ = AsyncMock(return_value=None)
     session.begin.return_value = context_manager
+    session.in_transaction.return_value = False
     session.refresh = AsyncMock()
     session.flush = AsyncMock()
     session.execute = AsyncMock()

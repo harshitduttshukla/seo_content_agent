@@ -1,6 +1,7 @@
 """Document Patch Engine for validating, previewing, and atomically applying AI proposals."""
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from app.core.errors import BadRequestError, ConflictError, ResourceNotFound
@@ -107,7 +108,8 @@ class DocumentPatchService:
                 target_id = op.block_id or op.target_block_id
                 for b in blocks:
                     if b.get("id") == target_id:
-                        data = dict(b.get("data") or {})
+                        raw_data = b.get("data")
+                        data = dict(raw_data) if isinstance(raw_data, dict) else {}
                         data["link_url"] = op.url or ""
                         data["link_anchor"] = op.anchor_text or ""
                         b["data"] = data
@@ -127,17 +129,28 @@ class DocumentPatchService:
         *,
         actor: AuthenticatedUser,
         proposal_id: UUID,
+        document_id: UUID | None = None,
     ) -> ContentDocumentDetail:
-        """Atomically validates, applies patch, bumps version, and records audit history."""
+        """Atomically validates, applies patch, bumps version, and records audit history.
+
+        When *document_id* is provided (e.g. from the URL path), the service
+        verifies that the proposal belongs to that document before any mutation.
+        """
         async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
-            # 1. Fetch proposal
-            prop_stmt = select(AIEditProposal).where(AIEditProposal.id == proposal_id)
+            # 1. Fetch proposal with row lock
+            prop_stmt = (
+                select(AIEditProposal).where(AIEditProposal.id == proposal_id).with_for_update()
+            )
             prop_res = await session.execute(prop_stmt)
             proposal = prop_res.scalars().first()
             if not proposal:
-                raise ResourceNotFound(f"Proposal {proposal_id} not found")
+                raise ResourceNotFound("proposal")
+
+            # 1b. Validate document ownership when document_id supplied
+            if document_id is not None and proposal.document_id != document_id:
+                raise ResourceNotFound("proposal")
 
             # 2. Check idempotency
             if proposal.status == ProposalStatus.APPLIED:
@@ -153,12 +166,26 @@ class DocumentPatchService:
             ):
                 raise ConflictError(f"Cannot apply proposal in status '{proposal.status}'")
 
-            # 3. Fetch target document
-            doc_stmt = select(ContentDocument).where(ContentDocument.id == proposal.document_id)
+            # 3. Fetch target document with row lock
+            doc_stmt = (
+                select(ContentDocument)
+                .where(ContentDocument.id == proposal.document_id)
+                .with_for_update()
+            )
             doc_res = await session.execute(doc_stmt)
             document = doc_res.scalars().first()
             if not document:
                 raise ResourceNotFound(f"Document {proposal.document_id} not found")
+
+            # 3b. Optimistic concurrency check against proposal base_version
+            if (
+                getattr(proposal, "base_version", None) is not None
+                and document.current_version != proposal.base_version
+            ):
+                raise ConflictError(
+                    f"Document has been modified (current version: {document.current_version}) "
+                    f"since proposal creation (base version: {proposal.base_version})."
+                )
 
             # 4. Check project write permission
             await self._projects.get_model(
@@ -171,8 +198,9 @@ class DocumentPatchService:
             # 5. Parse operations from proposal
             ops_data = proposal.proposed_content
             operations: list[AIOperation] = []
-            if isinstance(ops_data, dict) and "operations" in ops_data:
-                operations = [AIOperation.model_validate(o) for o in ops_data["operations"]]
+            if isinstance(ops_data, dict) and isinstance(ops_data.get("operations"), list):
+                raw_ops = cast(list[object], ops_data["operations"])
+                operations = [AIOperation.model_validate(o) for o in raw_ops]
             elif isinstance(ops_data, list):
                 operations = [AIOperation.model_validate(o) for o in ops_data]
             else:
@@ -258,18 +286,37 @@ class DocumentPatchService:
         *,
         actor: AuthenticatedUser,
         proposal_id: UUID,
+        document_id: UUID | None = None,
     ) -> AIEditProposal:
-        """Marks a proposed patch as rejected."""
+        """Marks a proposed patch as rejected.
+
+        When *document_id* is provided, verifies proposal ownership first.
+        """
         async with transactional_session(session):
             await set_actor_context(session, actor.user_id)
 
-            prop_stmt = select(AIEditProposal).where(AIEditProposal.id == proposal_id)
+            prop_stmt = (
+                select(AIEditProposal).where(AIEditProposal.id == proposal_id).with_for_update()
+            )
             prop_res = await session.execute(prop_stmt)
             proposal = prop_res.scalars().first()
             if not proposal:
-                raise ResourceNotFound(f"Proposal {proposal_id} not found")
+                raise ResourceNotFound("proposal")
 
-            doc_stmt = select(ContentDocument).where(ContentDocument.id == proposal.document_id)
+            # Validate document ownership when document_id supplied
+            if document_id is not None and proposal.document_id != document_id:
+                raise ResourceNotFound("proposal")
+
+            if proposal.status == ProposalStatus.APPLIED:
+                raise ConflictError("Cannot reject an already applied proposal.")
+            if proposal.status == ProposalStatus.REJECTED:
+                return proposal
+
+            doc_stmt = (
+                select(ContentDocument)
+                .where(ContentDocument.id == proposal.document_id)
+                .with_for_update()
+            )
             doc_res = await session.execute(doc_stmt)
             document = doc_res.scalars().first()
             if not document:

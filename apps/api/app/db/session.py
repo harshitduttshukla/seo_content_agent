@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import SessionTransaction, SessionTransactionOrigin
 
 from app.config.settings import Settings
 
@@ -65,12 +66,56 @@ async def background_session_scope() -> AsyncIterator[AsyncSession]:
 
 @asynccontextmanager
 async def transactional_session(session: AsyncSession) -> AsyncIterator[AsyncSession]:
-    """Execute safely within an existing transaction or begin a new one."""
-    if session.in_transaction():
-        yield session
-    else:
-        async with session.begin():
+    """Own a short transaction, or participate in an explicit caller transaction.
+
+    SQLAlchemy records whether the current root transaction came from autobegin
+    or an explicit begin. Helper nesting is tracked separately; depth alone never
+    grants ownership of a caller's transaction.
+    """
+    info = session.info
+
+    depth = info.get("_tx_depth", 0)
+    info["_tx_depth"] = depth + 1
+    try:
+        if depth:
             yield session
+            return
+
+        transaction = session.sync_session.get_transaction()
+        nested_transaction = session.sync_session.get_nested_transaction()
+        if not isinstance(transaction, SessionTransaction):
+            async with session.begin():
+                yield session
+            return
+
+        if transaction.origin is not SessionTransactionOrigin.AUTOBEGIN or isinstance(
+            nested_transaction, SessionTransaction
+        ):
+            # The caller's explicit begin context owns commit and rollback.
+            yield session
+            return
+
+        try:
+            yield session
+            if session.sync_session.get_transaction() is not transaction:
+                raise RuntimeError("transactional_session transaction changed before commit")
+            await session.commit()
+        except BaseException:
+            if session.sync_session.get_transaction() is transaction:
+                await session.rollback()
+            raise
+    finally:
+        info["_tx_depth"] = depth
+
+
+def has_explicit_transaction(session: AsyncSession) -> bool:
+    """Identify a caller-managed transaction before starting a long-running agent."""
+    transaction = session.sync_session.get_transaction()
+    nested_transaction = session.sync_session.get_nested_transaction()
+    return isinstance(nested_transaction, SessionTransaction) or (
+        isinstance(transaction, SessionTransaction)
+        and transaction.origin is not SessionTransactionOrigin.AUTOBEGIN
+    )
 
 
 async def set_actor_context(session: AsyncSession, user_id: UUID) -> None:
