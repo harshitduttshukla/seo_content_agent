@@ -51,7 +51,7 @@ class ContentDocumentService:
     def _generate_initial_blocks(
         self,
         title: str,
-        guide = None,
+        guide=None,
         brief: ContentBrief | None = None,
     ) -> list[dict[str, object]]:
         blocks: list[dict[str, object]] = []

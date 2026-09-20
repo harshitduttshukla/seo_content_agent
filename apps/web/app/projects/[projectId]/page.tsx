@@ -133,6 +133,25 @@ export default async function ProjectDashboard({
           <h2 className="mb-0 mt-2 text-2xl font-bold">Content Operating System Modules</h2>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Link href={`/projects/${projectId}/v3/canvas`} className="group sm:col-span-2 lg:col-span-3">
+            <Card className="p-5 flex flex-col hover:border-[var(--accent)] hover:shadow-md transition bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200">
+              <div className="flex items-center justify-between">
+                <Target className="text-indigo-600" size={22} />
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded text-indigo-700 bg-indigo-100 border border-indigo-300">
+                  V3 Preview
+                </span>
+              </div>
+              <h3 className="mb-1 mt-4 font-bold text-base text-indigo-900 group-hover:text-indigo-700 transition">
+                V3 Strategy & Workspace (Preview)
+              </h3>
+              <p className="m-0 text-sm text-indigo-800/80 leading-relaxed max-w-3xl">
+                The next-generation Content OS. Includes the new Strategy Canvas, Demand graph, and Site Import pipeline. Completely isolated from the legacy application.
+              </p>
+              <span className="mt-4 inline-flex items-center text-xs font-bold text-indigo-700">
+                Enter V3 Preview →
+              </span>
+            </Card>
+          </Link>
           {activeModules.map(({ label, href, icon: Icon, desc, tag }) => (
             <Link key={label} href={href} className="group">
               <Card className="p-5 h-full flex flex-col justify-between hover:border-[var(--accent)] hover:shadow-md transition">

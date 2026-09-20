@@ -75,12 +75,6 @@ class ContentBrief(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            ["seo_guide_id"],
-            ["seo_guides.id"],
-            name="fk_content_briefs_seo_guide_id_seo_guides",
-            ondelete="SET NULL",
-        ),
-        ForeignKeyConstraint(
             ["created_by_id"],
             ["users.id"],
             name="fk_content_briefs_created_by_id_users",
@@ -104,7 +98,7 @@ class ContentBrief(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     website_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     page_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    seo_guide_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=BriefStatus.DRAFT)
     primary_keyword: Mapped[str] = mapped_column(String(500), nullable=False, default="")

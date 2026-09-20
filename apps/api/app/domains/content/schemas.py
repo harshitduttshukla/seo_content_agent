@@ -358,7 +358,7 @@ class PlannedContentPageCreate(BaseModel):
     page_type: PageType = PageType.PLANNED
     content_type: PageContentType = PageContentType.GUIDE
     status: PlannedPageStatus = PlannedPageStatus.PLANNED
-    intent: str = 'INFORMATIONAL'
+    intent: str = "INFORMATIONAL"
     primary_keyword: str = ""
     primary_keyword_id: UUID | None = None
     cluster_id: UUID | None = None

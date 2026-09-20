@@ -247,8 +247,7 @@ class GeminiAIProvider(AIProvider):
         data = resp.json()
         raw_embeddings = data.get("embeddings", [])
         vectors: list[list[float]] = [
-            [float(val) for val in item.get("values", [])]
-            for item in raw_embeddings
+            [float(val) for val in item.get("values", [])] for item in raw_embeddings
         ]
 
         total_input_chars = sum(len(t) for t in texts)

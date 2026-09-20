@@ -326,3 +326,138 @@ export interface WorkflowDetail {
   steps: WorkflowStepDetail[];
   executions: ToolExecutionRecordDTO[];
 }
+
+// Phase 7: V3 Foundation
+export interface ClaimBase {
+  id: string;
+  row: string;
+  text: string;
+  evidence: string;
+  approved: boolean;
+  approved_by: string | null;
+  version: number;
+  superseded_by: string | null;
+  clm_number: string;
+}
+
+export interface ClaimEditConfirm {
+  text: string;
+  evidence: string;
+}
+
+export interface ClaimEditCheckResponse {
+  citation_count: number;
+  claim_text: string;
+  claim_id: string;
+}
+
+export interface ClaimEditConfirmResponse {
+  old_claim_id: string;
+  new_claim_id: string;
+  new_version: number;
+  job_run_id: string;
+}
+
+export interface CanvasListItem {
+  id: string;
+  product_line: string | null;
+  name: string;
+  argument_count: number;
+}
+
+export interface CanvasListResponse {
+  company_canvas: CanvasListItem | null;
+  product_lines: CanvasListItem[];
+}
+
+export interface CanvasArgument {
+  id: string;
+  order: number;
+  sub_problem: string | null;
+  differentiation_pillar: string | null;
+  capability: string | null;
+  features: string[];
+  benefit: string | null;
+  claims: ClaimBase[];
+  inherited: boolean;
+  override: boolean;
+}
+
+export interface CanvasDetail {
+  id: string;
+  product_line: string | null;
+  name: string;
+  anchors: Array<{ text: string; primary: boolean }>;
+  problem_summary: string | null;
+  differentiation_summary: string | null;
+  version: number;
+  arguments: CanvasArgument[];
+  pitch_claim: ClaimBase | null;
+}
+
+export interface ClaimDrilldown {
+  argument_chain: ClaimBase[];
+  demand_nodes: DemandNode[];
+  content_cards: Array<{ id: string; title: string; kind: string; state: string }>;
+}
+
+export interface DemandNode {
+  id: string;
+  text: string;
+  type: "keyword" | "prompt";
+  origin: string;
+  volume: number | null;
+  country: string | null;
+  area_id: string | null;
+  argument_id: string | null;
+  funnel: string | null;
+  intent: string | null;
+  status: "pending" | "kept" | "discarded" | "pending_classify";
+  score: number | null;
+  discard_reason: string | null;
+  citation_gap: number | null;
+  platforms: string[];
+}
+
+export interface DemandListResponse {
+  items: DemandNode[];
+  summary: {
+    total_discarded: number;
+    below_065_confidence: number;
+    total_kept: number;
+    gsc_striking_distance_count: number;
+  };
+  meta: { total_count: number; page: number; page_size: number };
+}
+
+export interface SiteImportResponse {
+  job_run_id: string;
+  status: string;
+  created_count: number;
+  existing_count: number;
+}
+
+export interface SiteImportStatusResponse extends SiteImportResponse {
+  created_at: string;
+  completed_at: string | null;
+  unmapped_count: number;
+}
+
+export interface BulkUpdateResponse {
+  updated_count: number;
+  job_run_id: string;
+}
+
+export interface DemandImportItem {
+  text: string;
+  type: "keyword" | "prompt";
+  volume?: number | null;
+  country?: string | null;
+  funnel?: "tofu" | "mofu" | "bofu" | null;
+}
+
+export interface DemandImportResponse {
+  created_count: number;
+  existing_count: number;
+  job_run_id: string;
+}

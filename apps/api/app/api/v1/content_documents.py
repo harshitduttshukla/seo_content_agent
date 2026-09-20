@@ -217,5 +217,3 @@ async def reject_patch(
         document_id=document_id,
     )
     return success(request, AIProposalDetail.model_validate(prop))
-
-

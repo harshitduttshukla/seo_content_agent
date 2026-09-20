@@ -6,12 +6,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class BrandRequirements(BaseModel):
     tone: str | None = None
     voice: str | None = None
     style: str | None = None
     words_to_avoid: list[str] = Field(default_factory=list)
     formatting_rules: list[str] = Field(default_factory=list)
+
 
 class InternalLinkTarget(BaseModel):
     url: str

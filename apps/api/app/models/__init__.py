@@ -27,7 +27,7 @@ from app.domains.content.models import (
     PlannedContentPage,
     Topic,
 )
-from app.domains.content_cards.models import ContentCard
+from app.domains.content_cards.models import ContentCard, ContentCardClaim
 from app.domains.content_harness.models import ContentHarnessRun
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
 from app.domains.demand.models import DemandNode
@@ -57,6 +57,7 @@ __all__ = [
     "ContentBrief",
     "ContentBriefVersion",
     "ContentCard",
+    "ContentCardClaim",
     "ContentChatMessage",
     "ContentChatSession",
     "ContentDocument",

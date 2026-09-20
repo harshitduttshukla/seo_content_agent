@@ -2,7 +2,6 @@
 
 import json
 from datetime import UTC, datetime
-from uuid import UUID
 
 from app.ai.provider import AIMessage
 from app.domains.ai.context import (
@@ -13,15 +12,11 @@ from app.domains.ai.context import (
     ContextBudget,
     ContextProvenance,
     ConversationContext,
-    ConversationMessageContext,
-    CrawledPageEvidence,
     CurrentDocumentBlock,
     CurrentDocumentContext,
-    ExistingPageEvidence,
     ExistingPagesContext,
     InternalLinkingContext,
     KeywordContext,
-    KeywordItemContext,
     ProjectContext,
     RequestContext,
     SelectionContext,
@@ -34,12 +29,8 @@ from app.domains.content.editor_models import (
     ContentChatMessage,
     ContentDocument,
 )
-
 from app.domains.projects.service import ProjectService
-from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
-from app.domains.websites.models import Website
-from app.security.principal import AuthenticatedUser, PermissionCode
-from sqlalchemy import or_, select
+from app.security.principal import AuthenticatedUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -113,7 +104,9 @@ class ContentAgentContextBuilder:
             full_document_request=self.is_full_document_request(user_message),
             requested_at=now,
         )
-        project_ctx = ProjectContext(project_id=document.project_id, organization_id=document.organization_id)
+        project_ctx = ProjectContext(
+            project_id=document.project_id, organization_id=document.organization_id
+        )
         current_doc_ctx = CurrentDocumentContext(
             document_id=document.id,
             title=document.title or "",
@@ -128,7 +121,8 @@ class ContentAgentContextBuilder:
                     type=str(b.get("type", "paragraph")),
                     text=str(b.get("text", "")),
                     level=b.get("level") if isinstance(b.get("level"), int) else None,
-                ) for b in (document.content_blocks or [])
+                )
+                for b in (document.content_blocks or [])
             ],
             total_block_count=len(document.content_blocks or []),
         )
@@ -146,11 +140,14 @@ class ContentAgentContextBuilder:
             website_context=WebsiteCrawlContext(),
             existing_pages=ExistingPagesContext(),
             current_document=current_doc_ctx,
-            selection=SelectionContext(selected_block_id=selected_block_id, selected_text=selected_text),
+            selection=SelectionContext(
+                selected_block_id=selected_block_id, selected_text=selected_text
+            ),
             conversation=ConversationContext(),
             provenance=ContextProvenance(document_id=document.id, collected_at=now),
             budget=ContextBudget(),
         )
+
 
 class ContextBuilderService:
     """Service interfacing between Content Agent Context and consumers.

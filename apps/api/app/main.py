@@ -19,6 +19,7 @@ from app.api.errors import (
 from app.api.middleware import RequestContextMiddleware
 from app.api.responses import success
 from app.api.v1 import router as v1_router
+from app.api.v3 import router as v3_router
 from app.config.settings import Settings, get_settings
 from app.core.errors import AppError
 from app.db.session import build_engine, build_session_factory
@@ -76,6 +77,7 @@ def create_app(
     application.add_exception_handler(Exception, handle_unexpected_error)
 
     application.include_router(v1_router, prefix=runtime_settings.API_PREFIX)
+    application.include_router(v3_router, prefix="/api")
 
     @application.get("/health/live", response_model=ApiResponse[dict[str, str]], tags=["health"])
     async def liveness(request: Request) -> ApiResponse[dict[str, str]]:

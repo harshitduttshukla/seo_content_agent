@@ -266,9 +266,7 @@ def upgrade() -> None:
             name="ck_claims_row_allowed",
         ),
     )
-    op.create_index(
-        "ix_claims_canvas_argument_row", "claims", ["canvas_id", "argument_id", "row"]
-    )
+    op.create_index("ix_claims_canvas_argument_row", "claims", ["canvas_id", "argument_id", "row"])
     op.create_index("ix_claims_project_approved", "claims", ["project_id", "approved"])
     op.create_index("ix_claims_superseded_by", "claims", ["superseded_by"])
     op.create_index("ix_claims_org_proj", "claims", ["organization_id", "project_id"])
@@ -364,16 +362,12 @@ def upgrade() -> None:
         ["project_id", "type", "text", "country"],
         unique=True,
     )
-    op.create_index(
-        "ix_demand_nodes_project_status", "demand_nodes", ["project_id", "status"]
-    )
+    op.create_index("ix_demand_nodes_project_status", "demand_nodes", ["project_id", "status"])
     op.create_index(
         "ix_demand_nodes_project_type_score", "demand_nodes", ["project_id", "type", "score"]
     )
     op.create_index("ix_demand_nodes_argument", "demand_nodes", ["argument_id"])
-    op.create_index(
-        "ix_demand_nodes_org_proj", "demand_nodes", ["organization_id", "project_id"]
-    )
+    op.create_index("ix_demand_nodes_org_proj", "demand_nodes", ["organization_id", "project_id"])
 
     # ── 6. Create content_cards table ───────────────────────────
     op.create_table(
@@ -483,16 +477,10 @@ def upgrade() -> None:
             name="ck_content_cards_origin_allowed",
         ),
     )
-    op.create_index(
-        "ix_content_cards_project_state", "content_cards", ["project_id", "state"]
-    )
-    op.create_index(
-        "ix_content_cards_project_kind", "content_cards", ["project_id", "kind"]
-    )
+    op.create_index("ix_content_cards_project_state", "content_cards", ["project_id", "state"])
+    op.create_index("ix_content_cards_project_kind", "content_cards", ["project_id", "kind"])
     op.create_index("ix_content_cards_variant_of", "content_cards", ["variant_of"])
-    op.create_index(
-        "ix_content_cards_primary_demand", "content_cards", ["primary_demand_id"]
-    )
+    op.create_index("ix_content_cards_primary_demand", "content_cards", ["primary_demand_id"])
     op.create_index(
         "uq_content_cards_project_slug",
         "content_cards",
@@ -500,9 +488,7 @@ def upgrade() -> None:
         unique=True,
         postgresql_where=sa.text("slug != ''"),
     )
-    op.create_index(
-        "ix_content_cards_org_proj", "content_cards", ["organization_id", "project_id"]
-    )
+    op.create_index("ix_content_cards_org_proj", "content_cards", ["organization_id", "project_id"])
 
     # ── 7. Create job_runs table ────────────────────────────────
     op.create_table(
@@ -557,9 +543,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_job_runs_project_status", "job_runs", ["project_id", "status"])
     op.create_index("ix_job_runs_entity", "job_runs", ["entity_type", "entity_id"])
-    op.create_index(
-        "ix_job_runs_org_proj", "job_runs", ["organization_id", "project_id"]
-    )
+    op.create_index("ix_job_runs_org_proj", "job_runs", ["organization_id", "project_id"])
 
     # ── 8. Enable RLS on all new V3 tables ──────────────────────
     for table in _PROJECT_SCOPED_TABLES:
