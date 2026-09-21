@@ -82,11 +82,13 @@ class DemandNodeResponse(BaseModel):
     intent: str | None
     status: DemandNodeStatus
     score: float | None
+    confidence: float | None
     score_breakdown: KeywordScoreBreakdown | PromptScoreBreakdown | None
     discard_reason: str | None
     citation_gap: float | None
     platforms: list[str]
     competitor_ids: list[UUID]
+    competitor_names: list[str]
     variants: list[str]
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -143,6 +145,9 @@ class DemandImportItem(BaseModel):
     volume: int | None = Field(default=None, ge=0)
     country: str | None = Field(default=None, min_length=2, max_length=2)
     funnel: DemandNodeFunnel | None = None
+    origin: DemandNodeOrigin = DemandNodeOrigin.UPLOAD
+    competitor: str | None = Field(default=None, max_length=500)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class DemandImportRequest(BaseModel):

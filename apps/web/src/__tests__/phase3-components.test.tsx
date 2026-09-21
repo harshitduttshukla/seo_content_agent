@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { StrategyManager } from "@/features/strategy/strategy-manager";
 import { KeywordsDashboard } from "@/features/keywords/keywords-dashboard";
 import { ArchitectureDashboard } from "@/features/content/architecture-dashboard";
 import type {
@@ -11,7 +10,6 @@ import type {
   Keyword,
   KeywordCluster,
   KeywordPageMapping,
-  SEOStrategy,
   Topic,
 } from "@/lib/api-types";
 import { clientApi } from "@/lib/client-api";
@@ -26,33 +24,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/client-api", () => ({
   clientApi: vi.fn(),
 }));
-
-const mockStrategy: SEOStrategy = {
-  id: "strat-1",
-  organization_id: "org-1",
-  project_id: "proj-1",
-  current_version: 1,
-  status: "active",
-  strategy_data: {
-    business_context: {
-      business_name: "Acme SEO",
-      description: "AI-powered Content OS",
-      industry: "B2B SaaS",
-    },
-    products: [
-      {
-        name: "Content Engine",
-        description: "Deterministic keyword clustering",
-        category: "Software",
-        priority: 1,
-        url: null,
-      },
-    ],
-  },
-  change_summary: "Initial setup",
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
 
 const mockKeywords: Keyword[] = [
   {
@@ -207,203 +178,9 @@ const mockGraph: ContentArchitectureGraph = {
   edges: [],
 };
 
-describe("Phase 3 Strategy, Keywords & Content Architecture Components", () => {
+describe("Phase 3 Keywords & Content Architecture Components", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("renders StrategyManager with versioning and products", () => {
-    render(
-      <StrategyManager
-        projectId="proj-1"
-        initialStrategy={mockStrategy}
-        versions={[]}
-      />
-    );
-    expect(screen.getByText("Version 1")).toBeInTheDocument();
-    expect(screen.getByText("1. Business Context & Positioning")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Content Engine")).toBeInTheDocument();
-  });
-
-  it("saves a new strategy version and updates state immediately", async () => {
-    const updatedStrategy: SEOStrategy = {
-      ...mockStrategy,
-      current_version: 2,
-      updated_at: new Date().toISOString(),
-    };
-    const updatedVersions = [
-      {
-        id: "ver-2",
-        strategy_id: "strat-1",
-        organization_id: "org-1",
-        project_id: "proj-1",
-        version: 2,
-        change_summary: "Added enterprise competitors and SEO objectives",
-        strategy_data: mockStrategy.strategy_data,
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "ver-1",
-        strategy_id: "strat-1",
-        organization_id: "org-1",
-        project_id: "proj-1",
-        version: 1,
-        change_summary: "Initial setup",
-        strategy_data: mockStrategy.strategy_data,
-        created_at: new Date().toISOString(),
-      },
-    ];
-
-    vi.mocked(clientApi).mockImplementation(async (path: string) => {
-      if (path === "/projects/proj-1/strategy") {
-        return updatedStrategy as any;
-      }
-      if (path === "/projects/proj-1/strategy/versions") {
-        return { items: updatedVersions } as any;
-      }
-      return {} as any;
-    });
-
-    render(
-      <StrategyManager
-        projectId="proj-1"
-        initialStrategy={mockStrategy}
-        versions={[updatedVersions[1]]}
-      />
-    );
-
-    // Initial version is 1
-    expect(screen.getByText("Version 1")).toBeInTheDocument();
-    expect(screen.getByText(/Version History \(1\)/)).toBeInTheDocument();
-
-    // Fill in Version Change Summary
-    const summaryInput = screen.getByPlaceholderText(
-      /Explain what was changed in this version/i
-    );
-    fireEvent.change(summaryInput, {
-      target: { value: "Added enterprise competitors and SEO objectives" },
-    });
-
-    // Click "Save New Version"
-    const saveButton = screen.getByRole("button", { name: /Save New Version/i });
-    fireEvent.click(saveButton);
-
-    // Verify PUT request payload was sent with explicit mapping
-    await waitFor(() => {
-      expect(clientApi).toHaveBeenCalledWith(
-        "/projects/proj-1/strategy",
-        expect.objectContaining({
-          method: "PUT",
-          body: expect.stringContaining("Added enterprise competitors and SEO objectives"),
-        })
-      );
-    });
-
-    // Verify UI updated to reflect Version 2 and Version History (2)
-    await waitFor(() => {
-      expect(screen.getByText("Version 2")).toBeInTheDocument();
-      expect(screen.getByText(/Version History \(2\)/)).toBeInTheDocument();
-      expect(screen.getByText(/Strategy successfully updated and immutable version recorded/i)).toBeInTheDocument();
-    });
-
-    // Verify change summary was cleared
-    expect((summaryInput as HTMLInputElement).value).toBe("");
-  });
-
-  it("prevents duplicate submissions on rapid multiple clicks", async () => {
-    let resolveSave: ((val: any) => void) | null = null;
-    const savePromise = new Promise((resolve) => {
-      resolveSave = resolve;
-    });
-
-    vi.mocked(clientApi).mockImplementation(async (path: string) => {
-      if (path === "/projects/proj-1/strategy") {
-        await savePromise;
-        return { ...mockStrategy, current_version: 2 } as any;
-      }
-      return { items: [] } as any;
-    });
-
-    render(
-      <StrategyManager
-        projectId="proj-1"
-        initialStrategy={mockStrategy}
-        versions={[{
-          id: "ver-1",
-          strategy_id: "strat-1",
-          organization_id: "org-1",
-          project_id: "proj-1",
-          version: 1,
-          change_summary: "Initial",
-          strategy_data: mockStrategy.strategy_data,
-          created_at: new Date().toISOString(),
-        }]}
-      />
-    );
-
-    const saveButton = screen.getByRole("button", { name: /Save New Version/i });
-
-    // Rapid clicks
-    fireEvent.click(saveButton);
-    fireEvent.click(saveButton);
-    fireEvent.click(saveButton);
-
-    // Only 1 PUT request should be initiated
-    const putCalls = vi.mocked(clientApi).mock.calls.filter(
-      (c) => c[0] === "/projects/proj-1/strategy"
-    );
-    expect(putCalls.length).toBe(1);
-
-    // Button should be disabled during saving
-    expect(saveButton).toBeDisabled();
-
-    // Resolve the promise
-    resolveSave!({ ...mockStrategy, current_version: 2 });
-    await waitFor(() => {
-      expect(screen.getByText("Version 2")).toBeInTheDocument();
-    });
-  });
-
-  it("displays error message and preserves form values on save failure", async () => {
-    vi.mocked(clientApi).mockRejectedValueOnce(new Error("Database connection timed out"));
-
-    render(
-      <StrategyManager
-        projectId="proj-1"
-        initialStrategy={mockStrategy}
-        versions={[{
-          id: "ver-1",
-          strategy_id: "strat-1",
-          organization_id: "org-1",
-          project_id: "proj-1",
-          version: 1,
-          change_summary: "Initial",
-          strategy_data: mockStrategy.strategy_data,
-          created_at: new Date().toISOString(),
-        }]}
-      />
-    );
-
-    const summaryInput = screen.getByPlaceholderText(
-      /Explain what was changed in this version/i
-    );
-    fireEvent.change(summaryInput, {
-      target: { value: "My unsaved edits" },
-    });
-
-    const saveButton = screen.getByRole("button", { name: /Save New Version/i });
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Database connection timed out")).toBeInTheDocument();
-    });
-
-    // Form value remains intact
-    expect((summaryInput as HTMLInputElement).value).toBe("My unsaved edits");
-    // Button is re-enabled for retry
-    expect(saveButton).not.toBeDisabled();
-    // Version is NOT updated
-    expect(screen.getByText("Version 1")).toBeInTheDocument();
   });
 
   it("renders KeywordsDashboard with keyword table and cannibalization warning banner", () => {

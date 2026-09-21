@@ -338,6 +338,36 @@ export interface ClaimBase {
   version: number;
   superseded_by: string | null;
   clm_number: string;
+  citation_count?: number;
+}
+
+export type CanvasAnchorType = "company" | "persona" | "use_case" | "alternative" | "category";
+
+export interface CanvasAnchor {
+  anchor_type: CanvasAnchorType | null;
+  text: string;
+  primary: boolean;
+}
+
+export interface CanvasAnchorInput {
+  anchor_type: CanvasAnchorType;
+  text: string;
+  primary: boolean;
+}
+
+export interface CanvasArgumentInput {
+  sub_problem: string;
+  differentiation_pillar: string;
+  capability: string;
+  features: string[];
+  benefit: string;
+}
+
+export interface CanvasClaimInput {
+  row: string;
+  text: string;
+  evidence: string;
+  argument_id?: string | null;
 }
 
 export interface ClaimEditConfirm {
@@ -356,6 +386,20 @@ export interface ClaimEditConfirmResponse {
   new_claim_id: string;
   new_version: number;
   job_run_id: string;
+}
+
+export interface ContentCardStub {
+  id: string;
+  title: string;
+  kind: string;
+  state: string;
+  url?: string | null;
+}
+
+export interface ClaimCitationInput {
+  content_card_id?: string | null;
+  title?: string;
+  url?: string;
 }
 
 export interface CanvasListItem {
@@ -387,18 +431,28 @@ export interface CanvasDetail {
   id: string;
   product_line: string | null;
   name: string;
-  anchors: Array<{ text: string; primary: boolean }>;
+  anchors: CanvasAnchor[];
   problem_summary: string | null;
   differentiation_summary: string | null;
   version: number;
   arguments: CanvasArgument[];
+  problem_summary_claim: ClaimBase | null;
+  differentiation_summary_claim: ClaimBase | null;
   pitch_claim: ClaimBase | null;
+}
+
+export interface Area {
+  id: string;
+  canvas_id: string;
+  parent_id: string | null;
+  name: string;
+  default_argument_id: string | null;
 }
 
 export interface ClaimDrilldown {
   argument_chain: ClaimBase[];
   demand_nodes: DemandNode[];
-  content_cards: Array<{ id: string; title: string; kind: string; state: string }>;
+  content_cards: ContentCardStub[];
 }
 
 export interface DemandNode {
@@ -414,9 +468,11 @@ export interface DemandNode {
   intent: string | null;
   status: "pending" | "kept" | "discarded" | "pending_classify";
   score: number | null;
+  confidence: number | null;
   discard_reason: string | null;
   citation_gap: number | null;
   platforms: string[];
+  competitor_names: string[];
 }
 
 export interface DemandListResponse {
@@ -454,6 +510,9 @@ export interface DemandImportItem {
   volume?: number | null;
   country?: string | null;
   funnel?: "tofu" | "mofu" | "bofu" | null;
+  origin?: "upload" | "gsc_striking_distance" | "insight";
+  competitor?: string | null;
+  confidence?: number | null;
 }
 
 export interface DemandImportResponse {

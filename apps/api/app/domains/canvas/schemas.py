@@ -14,7 +14,7 @@ from __future__ import annotations
 from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ClaimRow(StrEnum):
@@ -30,12 +30,21 @@ class ClaimRow(StrEnum):
     PITCH = "pitch"
 
 
+class CanvasAnchorType(StrEnum):
+    COMPANY = "company"
+    PERSONA = "persona"
+    USE_CASE = "use_case"
+    ALTERNATIVE = "alternative"
+    CATEGORY = "category"
+
+
 class CanvasAnchor(BaseModel):
     """V3 §3.1: Canvas anchor — {text, primary}.
 
     Anchors marked primary must each pass the stands-on-its-own rule.
     """
 
+    anchor_type: CanvasAnchorType | None = None
     text: str = ""
     primary: bool = False
 
@@ -203,6 +212,27 @@ class CanvasListResponse(BaseModel):
     product_lines: list[CanvasListItem]
 
 
+class CanvasAnchorUpsertRequest(BaseModel):
+    anchor_type: CanvasAnchorType
+    text: str = Field(min_length=1, max_length=10_000)
+    primary: bool = False
+
+
+class ArgumentCreateRequest(BaseModel):
+    sub_problem: str = Field(default="", max_length=10_000)
+    differentiation_pillar: str = Field(default="", max_length=10_000)
+    capability: str = Field(default="", max_length=10_000)
+    features: list[str] = Field(default_factory=list, max_length=100)
+    benefit: str = Field(default="", max_length=10_000)
+
+
+class CanvasClaimCreateRequest(BaseModel):
+    row: ClaimRow
+    text: str = Field(min_length=1, max_length=10_000)
+    evidence: str = Field(default="", max_length=10_000)
+    argument_id: UUID | None = None
+
+
 class ClaimResponse(BaseModel):
     id: UUID
     row: str
@@ -212,10 +242,16 @@ class ClaimResponse(BaseModel):
     approved_by: UUID | None
     version: int
     superseded_by: UUID | None
-    market_overrides: dict[str, ClaimMarketOverride]
+    market_overrides: dict[str, ClaimMarketOverride] = Field(default_factory=dict)
     inherited: bool = False
     clm_number: str = ""
+    citation_count: int = 0
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("market_overrides", mode="before")
+    @classmethod
+    def default_market_overrides(cls, v: object) -> object:
+        return v if v is not None else {}
 
 
 class ArgumentResponse(BaseModel):
@@ -232,6 +268,15 @@ class ArgumentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AreaResponse(BaseModel):
+    id: UUID
+    canvas_id: UUID
+    parent_id: UUID | None
+    name: str
+    default_argument_id: UUID | None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CanvasFullResponse(BaseModel):
     id: UUID
     product_line: str | None
@@ -241,6 +286,8 @@ class CanvasFullResponse(BaseModel):
     differentiation_summary: str | None
     version: int
     arguments: list[ArgumentResponse]
+    problem_summary_claim: ClaimResponse | None = None
+    differentiation_summary_claim: ClaimResponse | None = None
     pitch_claim: ClaimResponse | None
     model_config = ConfigDict(from_attributes=True)
 
@@ -290,6 +337,14 @@ class ContentCardStub(BaseModel):
     title: str
     kind: str
     state: str
+    url: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClaimCitationCreateRequest(BaseModel):
+    content_card_id: UUID | None = None
+    title: str | None = Field(default=None, max_length=500)
+    url: str | None = Field(default=None, max_length=2048)
 
 
 class DrilldownResponse(BaseModel):

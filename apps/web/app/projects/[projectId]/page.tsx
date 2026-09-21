@@ -2,9 +2,9 @@ import {
   FileText,
   GitBranch,
   KeyRound,
+  LayoutDashboard,
   Link2,
   Network,
-  Settings,
   Target,
   Layers,
 } from "lucide-react";
@@ -15,16 +15,73 @@ import { ProjectShell } from "@/components/project-shell";
 import type { Project, Website } from "@/lib/api-types";
 import { serverApi } from "@/lib/server-api";
 
-export default async function ProjectDashboard({
+export default async function ProjectEntryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { projectId } = await params;
-  const [project, websites] = await Promise.all([
-    serverApi<Project>(`/projects/${projectId}`),
-    serverApi<{ items: Website[] }>(`/projects/${projectId}/websites`).catch(() => ({ items: [] })),
-  ]);
+  const { view } = await searchParams;
+  const project = await serverApi<Project>(`/projects/${projectId}`);
+
+  if (view === "classic") {
+    const websites = await serverApi<{ items: Website[] }>(`/projects/${projectId}/websites`).catch(() => ({ items: [] }));
+    return <ClassicDashboard project={project} projectId={projectId} websites={websites} />;
+  }
+
+  return (
+    <main className="min-h-screen">
+      <div className="border-b border-[var(--border)] bg-white px-5 py-4 sm:px-8">
+        <Link className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--ink)]" href={`/projects?organization_id=${project.organization_id}`}>
+          ← All projects
+        </Link>
+      </div>
+      <section className="mx-auto grid min-h-[calc(100vh-4.25rem)] max-w-5xl content-center gap-6 px-5 py-12 sm:px-8">
+        <div className="max-w-2xl">
+          <p className="eyebrow">Choose workspace</p>
+          <h1 className="page-title mt-3">Open {project.name}</h1>
+          <p className="mt-4 text-lg leading-7 text-[var(--muted)]">
+            Choose the V3 workspace or continue with the classic project dashboard.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link className="group" href={`/projects/${projectId}/v3/canvas`}>
+            <Card className="h-full border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 transition group-hover:border-indigo-400 group-hover:shadow-md">
+              <Target className="text-indigo-600" size={24} />
+              <h2 className="mb-2 mt-5 text-xl font-bold text-indigo-950">Open in V3 (new)</h2>
+              <p className="m-0 text-sm leading-6 text-indigo-900/80">
+                Enter the new Strategy Canvas and Demand workspace.
+              </p>
+              <span className="mt-6 inline-flex text-sm font-bold text-indigo-700">Open V3 Canvas →</span>
+            </Card>
+          </Link>
+          <Link className="group" href={`/projects/${projectId}?view=classic`}>
+            <Card className="h-full p-6 transition group-hover:border-[var(--accent)] group-hover:shadow-md">
+              <LayoutDashboard className="text-[var(--accent)]" size={24} />
+              <h2 className="mb-2 mt-5 text-xl font-bold">Open classic dashboard</h2>
+              <p className="m-0 text-sm leading-6 text-[var(--muted)]">
+                Continue to the established project overview and its existing modules.
+              </p>
+              <span className="mt-6 inline-flex text-sm font-bold text-[var(--accent)]">Open dashboard →</span>
+            </Card>
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ClassicDashboard({
+  project,
+  projectId,
+  websites,
+}: {
+  project: Project;
+  projectId: string;
+  websites: { items: Website[] };
+}) {
 
   const activeModules = [
     {
@@ -47,13 +104,6 @@ export default async function ProjectDashboard({
       icon: Link2,
       tag: "Phase 4",
       desc: "Governed link opportunities pipeline, parent-child relationships, and orphan pages detection.",
-    },
-    {
-      label: "SEO Strategy",
-      href: `/projects/${projectId}/strategy`,
-      icon: Target,
-      tag: "Phase 3",
-      desc: "Business context, target market, product offerings, and immutable versions.",
     },
     {
       label: "Keyword Intelligence",

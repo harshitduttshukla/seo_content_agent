@@ -49,5 +49,7 @@ async def get_site_import_status(
     session: SessionDep,
     actor: CurrentUserDep,
 ) -> ApiResponse[SiteImportStatusResponse]:
-    result = await SiteImportService(session).get_import_status(organization_id, project_id, job_id, actor=actor)
+    result = await SiteImportService(session).get_import_status(
+        organization_id, project_id, job_id, actor=actor
+    )
     return success(request, result)

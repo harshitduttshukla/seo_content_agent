@@ -11,7 +11,7 @@ from uuid import uuid4
 # ──────────────────────────────────────────────────────────────────
 # Canvas domain
 # ──────────────────────────────────────────────────────────────────
-from app.domains.canvas.models import Argument, Canvas, Claim, ClaimRow
+from app.domains.canvas.models import Area, Argument, Canvas, Claim, ClaimRow
 
 
 class TestCanvas:
@@ -105,6 +105,25 @@ class TestArgument:
         )
         assert arg.inherited_from == parent_arg_id
         assert arg.override is True
+
+
+class TestArea:
+    """Area model instantiation and Canvas-tree fields."""
+
+    def test_create_child_area_with_default_argument(self) -> None:
+        parent_id = uuid4()
+        default_argument_id = uuid4()
+        area = Area(
+            organization_id=uuid4(),
+            project_id=uuid4(),
+            canvas_id=uuid4(),
+            parent_id=parent_id,
+            name="International sales",
+            default_argument_id=default_argument_id,
+        )
+        assert area.parent_id == parent_id
+        assert area.name == "International sales"
+        assert area.default_argument_id == default_argument_id
 
 
 class TestClaim:
@@ -264,7 +283,7 @@ class TestDemandNode:
         assert {o.value for o in DemandNodeOrigin} == expected
 
     def test_all_statuses(self) -> None:
-        expected = {"pending", "kept", "discarded"}
+        expected = {"pending", "kept", "discarded", "pending_classify"}
         assert {s.value for s in DemandNodeStatus} == expected
 
 

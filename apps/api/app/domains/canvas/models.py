@@ -1,4 +1,4 @@
-"""V3 Canvas domain ORM models: Canvas, Argument, Claim.
+"""V3 Canvas domain ORM models: Canvas, Argument, Area, Claim.
 
 V3 Reference: seo-geo-system-handoff-v3.md §3.1, §4.1
 
@@ -171,6 +171,48 @@ class Argument(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     # Inheritance tracking
     inherited_from: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     override: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class Area(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
+    """V3 §3.1: A named node in a Canvas-scoped product tree."""
+
+    __tablename__ = "areas"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_areas_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["canvas_id"],
+            ["canvases.id"],
+            name="fk_areas_canvas_id_canvases",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["parent_id"],
+            ["areas.id"],
+            name="fk_areas_parent_id_areas",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["default_argument_id"],
+            ["arguments.id"],
+            name="fk_areas_default_argument_id_arguments",
+            ondelete="SET NULL",
+        ),
+        Index("ix_areas_org_proj", "organization_id", "project_id"),
+        Index("ix_areas_canvas", "canvas_id"),
+        Index("ix_areas_parent", "parent_id"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    canvas_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    parent_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    default_argument_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
 
 class Claim(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):

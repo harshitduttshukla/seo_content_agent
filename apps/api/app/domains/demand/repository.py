@@ -19,6 +19,11 @@ class DemandRepository:
         project_id: UUID,
         *,
         status: str | None = None,
+        origin: str | None = None,
+        area_id: UUID | None = None,
+        argument_id: UUID | None = None,
+        node_type: str | None = None,
+        funnel: str | None = None,
         page: int = 1,
         page_size: int = 100,
     ) -> Sequence[DemandNode]:
@@ -28,8 +33,17 @@ class DemandRepository:
         )
         if status is not None:
             query = query.where(DemandNode.status == status)
+        for column, value in (
+            (DemandNode.origin, origin),
+            (DemandNode.area_id, area_id),
+            (DemandNode.argument_id, argument_id),
+            (DemandNode.type, node_type),
+            (DemandNode.funnel, funnel),
+        ):
+            if value is not None:
+                query = query.where(column == value)
         result = await self._session.execute(
-            query.order_by(DemandNode.score.desc().nulls_last(), DemandNode.text)
+            query.order_by(DemandNode.confidence.asc().nulls_last(), DemandNode.text)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -105,6 +119,20 @@ class DemandRepository:
                 DemandNode.id.in_(node_ids),
             )
             .values(area_id=area_id)
+        )
+        return int(result.rowcount or 0)
+
+    async def bulk_set_argument(
+        self, organization_id: UUID, project_id: UUID, node_ids: list[UUID], argument_id: UUID
+    ) -> int:
+        result = await self._session.execute(
+            update(DemandNode)
+            .where(
+                DemandNode.organization_id == organization_id,
+                DemandNode.project_id == project_id,
+                DemandNode.id.in_(node_ids),
+            )
+            .values(argument_id=argument_id)
         )
         return int(result.rowcount or 0)
 

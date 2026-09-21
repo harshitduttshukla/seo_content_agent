@@ -9,9 +9,9 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function Button({ className = "", tone = "primary", variant, size, ...props }: ButtonProps) {
   const effectiveTone = (variant === "secondary" || variant === "outline" || variant === "ghost") ? "secondary" : (variant === "danger" ? "danger" : tone);
   const tones = {
-    primary: "bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)]",
+    primary: "bg-[var(--accent-strong)] text-white hover:bg-[var(--accent-strong)]",
     secondary:
-      "border border-[var(--border)] bg-white text-[var(--ink)] hover:bg-[var(--surface-soft)]",
+      "border border-[var(--border)] bg-[var(--surface-soft)] text-[var(--ink)] hover:bg-[var(--surface-soft)]",
     danger: "bg-[var(--danger)] text-white hover:opacity-90",
   };
   const sizeClasses = size === "sm" ? "min-h-8 px-2.5 py-1 text-xs" : size === "lg" ? "min-h-12 px-5 py-3 text-base" : "min-h-10 px-4 py-2 text-sm";

@@ -8,7 +8,7 @@ from app.domains.auth.models import (
     Role,
     RolePermission,
 )
-from app.domains.canvas.models import Argument, Canvas, Claim
+from app.domains.canvas.models import Area, Argument, Canvas, Claim
 from app.domains.content.models import (
     AIEditProposal,
     ContentBrief,
@@ -48,6 +48,7 @@ __all__ = [
     "AIEditProposal",
     "AIWorkflow",
     "AIWorkflowStep",
+    "Area",
     "Argument",
     "AuditLog",
     "Canvas",

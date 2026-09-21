@@ -11,7 +11,6 @@ import {
   SearchCheck,
   Settings,
   Sparkles,
-  Target,
 } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
@@ -24,9 +23,8 @@ type NavigationItem = {
 
 export function Sidebar({ projectId, active }: { projectId: string; active: string }) {
   const items: NavigationItem[] = [
-    { label: "Overview", href: `/projects/${projectId}`, icon: LayoutDashboard },
+    { label: "Overview", href: `/projects/${projectId}?view=classic`, icon: LayoutDashboard },
     { label: "Website", href: `/projects/${projectId}/website`, icon: Network },
-    { label: "Strategy", href: `/projects/${projectId}/strategy`, icon: Target },
     { label: "Keywords", href: `/projects/${projectId}/keywords`, icon: KeyRound },
     { label: "Content Map", href: `/projects/${projectId}/content-map`, icon: GitBranch },
     { label: "Content", href: `/projects/${projectId}/content`, icon: FileText },

@@ -3,9 +3,10 @@
 from uuid import UUID, uuid4
 
 from app.db.session import set_actor_context, transactional_session
-from app.domains.demand.models import DemandNode, DemandNodeOrigin, DemandNodeStatus
+from app.domains.demand.models import DemandNode, DemandNodeStatus
 from app.domains.demand.repository import DemandRepository
 from app.domains.demand.schemas import (
+    BulkActionRequest,
     BulkUpdateResponse,
     DemandImportRequest,
     DemandImportResponse,
@@ -25,6 +26,7 @@ class DemandService:
         self.repository = DemandRepository(session)
         self._session = session
         from app.domains.auth.repository import AuthorizationRepository
+
         self._authorization = AuthorizationService(AuthorizationRepository())
 
     async def list_nodes(
@@ -33,6 +35,11 @@ class DemandService:
         project_id: UUID,
         *,
         status: str | None,
+        origin: str | None = None,
+        area_id: UUID | None = None,
+        argument_id: UUID | None = None,
+        node_type: str | None = None,
+        funnel: str | None = None,
         page: int,
         page_size: int,
         actor: AuthenticatedUser,
@@ -50,10 +57,17 @@ class DemandService:
                 organization_id,
                 project_id,
                 status=status,
+                origin=origin,
+                area_id=area_id,
+                argument_id=argument_id,
+                node_type=node_type,
+                funnel=funnel,
                 page=page,
                 page_size=page_size,
             )
-            total, discarded, kept, gsc = await self.repository.get_summary(organization_id, project_id)
+            total, discarded, kept, gsc = await self.repository.get_summary(
+                organization_id, project_id
+            )
         return DemandNodeListResponse(
             items=[DemandNodeResponse.model_validate(node) for node in nodes],
             summary=DemandSummaryCounts(
@@ -134,8 +148,10 @@ class DemandService:
                         volume=item.volume,
                         country=item.country,
                         funnel=item.funnel,
-                        origin=DemandNodeOrigin.UPLOAD,
+                        origin=item.origin,
                         status=DemandNodeStatus.PENDING_CLASSIFY,
+                        confidence=item.confidence,
+                        competitor_names=[item.competitor] if item.competitor else [],
                     )
                 )
                 created_count += 1
@@ -192,6 +208,54 @@ class DemandService:
                 "demand_reassign_area",
                 node_ids,
                 area_id=area_id,
+            )
+            self.repository.add_job_run(job_run)
+            await self._session.flush()
+        return BulkUpdateResponse(updated_count=updated, job_run_id=job_run.id)
+
+    async def bulk_action(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        payload: BulkActionRequest,
+        actor: AuthenticatedUser,
+    ) -> BulkUpdateResponse:
+        async with transactional_session(self._session):
+            await set_actor_context(self._session, actor.user_id)
+            await self._authorization.require_project(
+                self._session,
+                user_id=actor.user_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                permission=PermissionCode.KEYWORD_WRITE,
+            )
+            if payload.action == "keep":
+                updated = await self.repository.bulk_update_status(
+                    organization_id, project_id, payload.ids, DemandNodeStatus.KEPT
+                )
+            elif payload.action == "discard":
+                updated = await self.repository.bulk_update_status(
+                    organization_id, project_id, payload.ids, DemandNodeStatus.DISCARDED
+                )
+            elif payload.action == "reassign_area" and payload.area_id is not None:
+                updated = await self.repository.bulk_reassign_area(
+                    organization_id, project_id, payload.ids, payload.area_id
+                )
+            elif payload.action == "set_argument" and payload.argument_id is not None:
+                updated = await self.repository.bulk_set_argument(
+                    organization_id, project_id, payload.ids, payload.argument_id
+                )
+            else:
+                from app.core.errors import BadRequestError
+
+                raise BadRequestError("A destination ID is required for this bulk action.")
+            job_run = self._job_run(
+                organization_id,
+                project_id,
+                actor.user_id,
+                f"demand_{payload.action}",
+                payload.ids,
+                area_id=payload.area_id,
             )
             self.repository.add_job_run(job_run)
             await self._session.flush()

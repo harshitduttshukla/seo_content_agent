@@ -75,6 +75,12 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
+            ["area_id"],
+            ["areas.id"],
+            name="fk_demand_nodes_area_id_areas",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
             ["argument_id"],
             ["arguments.id"],
             name="fk_demand_nodes_argument_id_arguments",
@@ -130,7 +136,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
 
-    # Area reference — nullable until Area entity is created in a later step.
+    # Area reference — nullable until classified or manually reassigned.
     area_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
     # Canvas linkage
@@ -141,6 +147,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
 
     # Competitor linkage — array of competitor UUIDs (future entity)
     competitor_ids: Mapped[list[object]] = mapped_column(JSONB, nullable=False, server_default="[]")
+    competitor_names: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
 
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=DemandNodeStatus.PENDING
@@ -149,6 +156,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
 
     # Scoring
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     score_breakdown: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
 
     origin: Mapped[str] = mapped_column(String(32), nullable=False)

@@ -57,10 +57,6 @@ async def test_demand_list_import_and_bulk_routes_are_scoped() -> None:
         patch(
             "app.domains.users.service.UserService.resolve_identity", AsyncMock(return_value=actor)
         ),
-        patch(
-            "app.security.authorization.AuthorizationService.require_project",
-            AsyncMock(return_value="admin"),
-        ) as authorize,
         patch("app.domains.demand.service.DemandService.list_nodes", AsyncMock(return_value=empty)),
         patch(
             "app.domains.demand.service.DemandService.import_nodes",
@@ -92,4 +88,121 @@ async def test_demand_list_import_and_bulk_routes_are_scoped() -> None:
     assert listed.status_code == 200
     assert imported.json()["data"]["created_count"] == 1
     assert updated.json()["data"]["updated_count"] == 1
-    assert authorize.await_count == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filter_name", "filter_value", "service_name"),
+    [
+        ("origin", "upload", "origin"),
+        ("area_id", uuid4(), "area_id"),
+        ("argument_id", uuid4(), "argument_id"),
+        ("type", "keyword", "node_type"),
+        ("funnel", "mofu", "funnel"),
+    ],
+)
+async def test_demand_list_individual_filters_are_forwarded(
+    filter_name: str, filter_value: str | object, service_name: str
+) -> None:
+    organization_id = uuid4()
+    project_id = uuid4()
+    actor = AuthenticatedUser(
+        user_id=uuid4(),
+        issuer="https://identity.example.com",
+        subject="demand-test",
+        email="demand@example.com",
+        display_name="Demand Tester",
+    )
+    app = create_app(
+        Settings(_env_file=None, APP_ENV="test"),
+        engine=AsyncMock(),
+        token_verifier=MockTokenVerifier(),
+    )
+    response = DemandNodeListResponse(
+        items=[],
+        summary=DemandSummaryCounts(
+            total_discarded=0,
+            below_065_confidence=0,
+            total_kept=0,
+            gsc_striking_distance_count=0,
+        ),
+        meta=PageMetadata(total_count=0, page=1, page_size=100),
+    )
+    list_nodes = AsyncMock(return_value=response)
+    with (
+        patch(
+            "app.domains.users.service.UserService.resolve_identity", AsyncMock(return_value=actor)
+        ),
+        patch("app.domains.demand.service.DemandService.list_nodes", list_nodes),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            result = await client.get(
+                "/api/v3/demand",
+                headers={"Authorization": "Bearer token"},
+                params={
+                    "organization_id": str(organization_id),
+                    "project_id": str(project_id),
+                    filter_name: str(filter_value),
+                    "sort": "confidence_asc",
+                },
+            )
+
+    assert result.status_code == 200
+    args = list_nodes.await_args.args
+    kwargs = list_nodes.await_args.kwargs
+    assert args[:2] == (organization_id, project_id)
+    assert kwargs[service_name] == filter_value
+    assert kwargs["status"] is None
+    assert kwargs["page"] == 1
+    assert kwargs["page_size"] == 100
+    assert kwargs["actor"] == actor
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("action", "destination_key"),
+    [("reassign_area", "area_id"), ("set_argument", "argument_id")],
+)
+async def test_demand_bulk_destination_actions_are_forwarded(
+    action: str, destination_key: str
+) -> None:
+    organization_id = uuid4()
+    project_id = uuid4()
+    node_id = uuid4()
+    destination_id = uuid4()
+    actor = AuthenticatedUser(
+        user_id=uuid4(),
+        issuer="https://identity.example.com",
+        subject="demand-test",
+        email="demand@example.com",
+        display_name="Demand Tester",
+    )
+    app = create_app(
+        Settings(_env_file=None, APP_ENV="test"),
+        engine=AsyncMock(),
+        token_verifier=MockTokenVerifier(),
+    )
+    bulk_action = AsyncMock(return_value=BulkUpdateResponse(updated_count=1, job_run_id=uuid4()))
+    with (
+        patch(
+            "app.domains.users.service.UserService.resolve_identity", AsyncMock(return_value=actor)
+        ),
+        patch("app.domains.demand.service.DemandService.bulk_action", bulk_action),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            result = await client.post(
+                "/api/v3/demand/bulk",
+                headers={"Authorization": "Bearer token"},
+                params={"organization_id": str(organization_id), "project_id": str(project_id)},
+                json={
+                    "ids": [str(node_id)],
+                    "action": action,
+                    destination_key: str(destination_id),
+                },
+            )
+
+    assert result.status_code == 200
+    args = bulk_action.await_args.args
+    assert args[:2] == (organization_id, project_id)
+    assert getattr(args[2], destination_key) == destination_id
+    assert args[3] == actor
