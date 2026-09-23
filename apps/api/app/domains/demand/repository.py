@@ -84,6 +84,31 @@ class DemandRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_nodes_by_ids(
+        self, organization_id: UUID, project_id: UUID, node_ids: Sequence[UUID]
+    ) -> Sequence[DemandNode]:
+        """Load the selected nodes; ids from another project simply do not match."""
+        result = await self._session.execute(
+            select(DemandNode).where(
+                DemandNode.organization_id == organization_id,
+                DemandNode.project_id == project_id,
+                DemandNode.id.in_(node_ids),
+            )
+        )
+        return result.scalars().all()
+
+    async def get_areas_by_ids(
+        self, organization_id: UUID, project_id: UUID, area_ids: Sequence[UUID]
+    ) -> Sequence[Area]:
+        result = await self._session.execute(
+            select(Area).where(
+                Area.organization_id == organization_id,
+                Area.project_id == project_id,
+                Area.id.in_(area_ids),
+            )
+        )
+        return result.scalars().all()
+
     async def get_areas_by_name(
         self, organization_id: UUID, project_id: UUID, name: str
     ) -> Sequence[Area]:

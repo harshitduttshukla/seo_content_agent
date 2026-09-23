@@ -26,6 +26,7 @@ import type { Area, DemandListResponse } from "@/lib/api-types";
 import { V3API, type V3Scope } from "@/lib/v3-api";
 
 import { CsvUploadDialog } from "./csv-upload-dialog";
+import { PlanDialog } from "./plan-dialog";
 
 export function DemandTab({
   scope,
@@ -47,6 +48,10 @@ export function DemandTab({
   const [areas, setAreas] = useState<Area[]>([]);
   const [argumentsById, setArgumentsById] = useState<Array<{ id: string; label: string }>>([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
+  // Snapshot of the selection when Plan opened, so clearing it after a
+  // successful plan does not re-run the preview under the result.
+  const [planIds, setPlanIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -213,6 +218,9 @@ export function DemandTab({
               </Button>
             </PopoverContent>
           </Popover>
+          <Button variant="outline" size="sm" className="bg-white" disabled={busy} onClick={() => { setPlanIds([...selectedIds]); setShowPlan(true); }}>
+            Plan
+          </Button>
           <Button variant="outline" size="sm" className="ml-auto bg-white" onClick={() => setSelectedIds(new Set())}>
             Clear
           </Button>
@@ -273,6 +281,18 @@ export function DemandTab({
         onOpenChange={setShowUpload}
         onImported={load}
       />
+      {showPlan ? (
+        <PlanDialog
+          scope={scope}
+          nodeIds={planIds}
+          isOpen
+          onOpenChange={setShowPlan}
+          onPlanned={async () => {
+            setSelectedIds(new Set());
+            await load();
+          }}
+        />
+      ) : null}
     </>
   );
 }

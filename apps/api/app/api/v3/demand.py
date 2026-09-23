@@ -15,6 +15,9 @@ from app.domains.demand.schemas import (
     DemandNodeListResponse,
     DemandReassignRequest,
     PendingClassifyRequest,
+    PlanPreviewResponse,
+    PlanRequest,
+    PlanResultResponse,
 )
 from app.domains.demand.service import DemandService
 from app.schemas.common import ApiResponse
@@ -125,5 +128,37 @@ async def bulk_reassign(
         payload.node_ids,
         payload.area_id,
         actor=actor,
+    )
+    return success(request, result)
+
+
+@router.post("/demand/plan/preview", response_model=ApiResponse[PlanPreviewResponse])
+async def preview_plan(
+    payload: PlanRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[PlanPreviewResponse]:
+    """What Plan would create from the selected nodes. Writes nothing."""
+    result = await DemandService(session).preview_plan(
+        organization_id, project_id, payload.node_ids, actor=actor
+    )
+    return success(request, result)
+
+
+@router.post("/demand/plan", response_model=ApiResponse[PlanResultResponse])
+async def confirm_plan(
+    payload: PlanRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[PlanResultResponse]:
+    """Create the planned cards atomically, after a human confirmed the preview."""
+    result = await DemandService(session).confirm_plan(
+        organization_id, project_id, payload.node_ids, actor=actor
     )
     return success(request, result)

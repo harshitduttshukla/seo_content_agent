@@ -162,3 +162,70 @@ class DemandImportResponse(BaseModel):
     created_count: int
     existing_count: int
     job_run_id: UUID
+
+
+# ── Plan (V3 §4.5) ────────────────────────────────────────────────────
+
+
+class PlanRequest(BaseModel):
+    """The selected demand nodes. Preview and confirm take the same body."""
+
+    node_ids: list[UUID] = Field(min_length=1, max_length=500)
+
+
+class PlanSkippedNode(BaseModel):
+    node_id: UUID
+    text: str | None
+    reason: str
+
+
+class PlanSecondaryDemand(BaseModel):
+    node_id: UUID
+    text: str
+
+
+class PlanCardPreview(BaseModel):
+    kind: Literal["pillar", "cluster", "compare", "refresh"]
+    primary_node_id: UUID
+    primary_text: str
+    primary_type: Literal["keyword", "prompt"]
+    score: float | None
+    volume: int | None
+    word_budget: int
+    secondary_demands: list[PlanSecondaryDemand] = Field(default_factory=list)
+
+
+class PlanKindCounts(BaseModel):
+    pillar: int = 0
+    cluster: int = 0
+    compare: int = 0
+    refresh: int = 0
+    secondary_demands: int = 0
+
+
+class PlanGroupPreview(BaseModel):
+    """One area x market planning group."""
+
+    area_id: UUID
+    area_name: str
+    market_country: str | None
+    counts: PlanKindCounts
+    cards: list[PlanCardPreview]
+
+
+class PlanPreviewResponse(BaseModel):
+    selected_count: int
+    eligible_count: int
+    skipped_count: int
+    totals: PlanKindCounts
+    groups: list[PlanGroupPreview]
+    skipped: list[PlanSkippedNode]
+    deferred: list[str]
+
+
+class PlanResultResponse(PlanPreviewResponse):
+    """What confirm wrote: the same shape as the preview plus the new rows."""
+
+    created_count: int
+    created_card_ids: list[UUID]
+    job_run_id: UUID

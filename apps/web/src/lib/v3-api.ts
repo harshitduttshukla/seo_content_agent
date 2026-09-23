@@ -22,6 +22,8 @@ import type {
   SiteImportResponse,
   SiteImportStatusResponse,
   SocialProof,
+  PlanPreview,
+  PlanResult,
   StrategyMap,
   SocialProofInput,
   VoiceSnippet,
@@ -116,6 +118,18 @@ export const V3API = {
       clientApi(scopedPath(scope, "/demand/bulk"), {
         method: "POST",
         body: JSON.stringify({ ids, action, ...(action === "reassign_area" ? { area_id: destinationId } : action === "set_argument" ? { argument_id: destinationId } : {}) }),
+      }),
+    /** Plan preview: what cards the selection would create. Writes nothing. */
+    previewPlan: (scope: V3Scope, nodeIds: string[]): Promise<PlanPreview> =>
+      clientApi(scopedPath(scope, "/demand/plan/preview"), {
+        method: "POST",
+        body: JSON.stringify({ node_ids: nodeIds }),
+      }),
+    /** Plan confirm: creates the planned cards atomically. */
+    confirmPlan: (scope: V3Scope, nodeIds: string[]): Promise<PlanResult> =>
+      clientApi(scopedPath(scope, "/demand/plan"), {
+        method: "POST",
+        body: JSON.stringify({ node_ids: nodeIds }),
       }),
     importCsv: (scope: V3Scope, items: DemandImportItem[]): Promise<DemandImportResponse> =>
       clientApi(scopedPath(scope, "/demand/import"), {

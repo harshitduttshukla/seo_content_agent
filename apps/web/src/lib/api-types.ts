@@ -606,3 +606,48 @@ export interface StrategyMap {
   company_canvas: MapCanvasNode | null;
   unassigned_card_count: number;
 }
+
+// ── V3 demand Plan (handoff §4.5) ────────────────────────────────────
+
+export interface PlanKindCounts {
+  pillar: number;
+  cluster: number;
+  compare: number;
+  refresh: number;
+  secondary_demands: number;
+}
+
+export interface PlanCardPreview {
+  kind: "pillar" | "cluster" | "compare" | "refresh";
+  primary_node_id: string;
+  primary_text: string;
+  primary_type: "keyword" | "prompt";
+  score: number | null;
+  volume: number | null;
+  word_budget: number;
+  secondary_demands: { node_id: string; text: string }[];
+}
+
+export interface PlanGroupPreview {
+  area_id: string;
+  area_name: string;
+  market_country: string | null;
+  counts: PlanKindCounts;
+  cards: PlanCardPreview[];
+}
+
+export interface PlanPreview {
+  selected_count: number;
+  eligible_count: number;
+  skipped_count: number;
+  totals: PlanKindCounts;
+  groups: PlanGroupPreview[];
+  skipped: { node_id: string; text: string | null; reason: string }[];
+  deferred: string[];
+}
+
+export interface PlanResult extends PlanPreview {
+  created_count: number;
+  created_card_ids: string[];
+  job_run_id: string;
+}
