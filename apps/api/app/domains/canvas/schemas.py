@@ -351,3 +351,62 @@ class DrilldownResponse(BaseModel):
     argument_chain: list[ClaimResponse]
     demand_nodes: list[DemandNodeStub]
     content_cards: list[ContentCardStub]
+
+
+# ── Strategy map (V3 §4.4) ────────────────────────────────────────────
+
+
+class MapAreaNode(BaseModel):
+    """One AREA row of the read-only combined tree.
+
+    ``demand_count`` and ``card_count`` describe this area alone and are never
+    rolled up from sub-areas. ``card_count`` counts cards in every state;
+    ``card_states`` breaks it down by state. ``descendant_card_states`` holds the
+    same breakdown summed over every sub-area below, so a parent whose children
+    carry the content shows their actual states instead of reading as empty.
+
+    ``content_gap`` is true only when this area has kept demand and no card sits
+    on it or anywhere below it. The Unmapped area never carries it.
+    """
+
+    id: UUID
+    name: str
+    parent_id: UUID | None
+    default_argument_id: UUID | None
+    default_argument_pillar: str | None = None
+    demand_count: int = 0
+    card_count: int = 0
+    card_states: dict[str, int] = Field(default_factory=dict)
+    descendant_card_states: dict[str, int] = Field(default_factory=dict)
+    is_unmapped: bool = False
+    content_gap: bool = False
+    children: list[MapAreaNode] = Field(default_factory=list)
+
+
+class MapCanvasNode(BaseModel):
+    """One CANVAS row: the company canvas, or a product-line child canvas.
+
+    ``inherits`` lists the labels of arguments carried from the company canvas
+    unchanged, ``override_count`` counts arguments whose ``override`` is set, and
+    ``adds`` lists the labels of arguments that exist only on this child canvas.
+    All three derive from ``ARGUMENT.inherited_from`` and ``ARGUMENT.override``.
+    """
+
+    id: UUID
+    name: str
+    product_line: str | None
+    is_company: bool
+    argument_count: int = 0
+    cell_count: int = 0
+    inherits: list[str] = Field(default_factory=list)
+    override_count: int = 0
+    adds: list[str] = Field(default_factory=list)
+    areas: list[MapAreaNode] = Field(default_factory=list)
+    product_lines: list[MapCanvasNode] = Field(default_factory=list)
+
+
+class StrategyMapResponse(BaseModel):
+    """The whole strategy graph in one payload — see V3 §4.4 and §1.2 principle 1."""
+
+    company_canvas: MapCanvasNode | None
+    unassigned_card_count: int = 0

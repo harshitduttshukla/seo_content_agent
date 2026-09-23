@@ -2,7 +2,7 @@ import { StrategyTabs } from "@/components/v3/strategy/strategy-tabs";
 import type { Project } from "@/lib/api-types";
 import { serverApi, serverOrganizationName } from "@/lib/server-api";
 
-export default async function CanvasPage({
+export default async function MapPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
@@ -15,7 +15,7 @@ export default async function CanvasPage({
       organizationId={project.organization_id}
       organizationName={organizationName}
       projectId={project.id}
-      defaultTab="canvas"
+      defaultTab="map"
     />
   );
 }

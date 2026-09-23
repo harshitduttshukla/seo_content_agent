@@ -2,6 +2,7 @@
 
 from uuid import UUID, uuid4
 
+from app.core.errors import BadRequestError, ResourceNotFound
 from app.db.session import set_actor_context, transactional_session
 from app.domains.demand.models import DemandNode, DemandNodeStatus
 from app.domains.demand.repository import DemandRepository
@@ -28,6 +29,57 @@ class DemandService:
         from app.domains.auth.repository import AuthorizationRepository
 
         self._authorization = AuthorizationService(AuthorizationRepository())
+
+    async def _require_scoped_destination(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        *,
+        area_id: UUID | None = None,
+        argument_id: UUID | None = None,
+    ) -> None:
+        if area_id is not None:
+            area = await self.repository.get_area_by_id(organization_id, project_id, area_id)
+            if area is None:
+                raise ResourceNotFound("area")
+        if argument_id is not None:
+            argument = await self.repository.get_argument_by_id(
+                organization_id, project_id, argument_id
+            )
+            if argument is None:
+                raise ResourceNotFound("argument")
+
+    async def _resolve_import_area(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        area_reference: str | None,
+    ) -> UUID | None:
+        if area_reference is None or not area_reference.strip():
+            return None
+
+        reference = area_reference.strip()
+        try:
+            area_id = UUID(reference)
+        except ValueError:
+            matches = await self.repository.get_areas_by_name(
+                organization_id, project_id, reference
+            )
+            if len(matches) == 1:
+                return matches[0].id
+            if not matches:
+                raise BadRequestError(
+                    f"CSV area '{reference}' does not exist in this project.", field="area"
+                ) from None
+            raise BadRequestError(
+                f"CSV area '{reference}' is ambiguous in this project; use its UUID instead.",
+                field="area",
+            ) from None
+
+        area = await self.repository.get_area_by_id(organization_id, project_id, area_id)
+        if area is None:
+            raise BadRequestError("CSV area does not exist in this project.", field="area")
+        return area.id
 
     async def list_nodes(
         self,
@@ -128,6 +180,7 @@ class DemandService:
                 permission=PermissionCode.KEYWORD_WRITE,
             )
             for item in payload.items:
+                area_id = await self._resolve_import_area(organization_id, project_id, item.area)
                 existing = await self.repository.get_by_identity(
                     organization_id,
                     project_id,
@@ -147,9 +200,11 @@ class DemandService:
                         text=item.text.strip(),
                         volume=item.volume,
                         country=item.country,
+                        area_id=area_id,
                         funnel=item.funnel,
                         origin=item.origin,
-                        status=DemandNodeStatus.PENDING_CLASSIFY,
+                        status=item.status,
+                        score=item.score,
                         confidence=item.confidence,
                         competitor_names=[item.competitor] if item.competitor else [],
                     )
@@ -198,6 +253,7 @@ class DemandService:
                 project_id=project_id,
                 permission=PermissionCode.KEYWORD_WRITE,
             )
+            await self._require_scoped_destination(organization_id, project_id, area_id=area_id)
             updated = await self.repository.bulk_reassign_area(
                 organization_id, project_id, node_ids, area_id
             )
@@ -238,10 +294,16 @@ class DemandService:
                     organization_id, project_id, payload.ids, DemandNodeStatus.DISCARDED
                 )
             elif payload.action == "reassign_area" and payload.area_id is not None:
+                await self._require_scoped_destination(
+                    organization_id, project_id, area_id=payload.area_id
+                )
                 updated = await self.repository.bulk_reassign_area(
                     organization_id, project_id, payload.ids, payload.area_id
                 )
             elif payload.action == "set_argument" and payload.argument_id is not None:
+                await self._require_scoped_destination(
+                    organization_id, project_id, argument_id=payload.argument_id
+                )
                 updated = await self.repository.bulk_set_argument(
                     organization_id, project_id, payload.ids, payload.argument_id
                 )

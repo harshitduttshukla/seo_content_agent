@@ -25,6 +25,7 @@ from app.domains.ai.context import (
     WebsiteContext,
     WebsiteCrawlContext,
 )
+from app.domains.brand_kit.repository import BrandKitRepository
 from app.domains.content.editor_models import (
     ContentChatMessage,
     ContentDocument,
@@ -126,6 +127,14 @@ class ContentAgentContextBuilder:
             ],
             total_block_count=len(document.content_blocks or []),
         )
+        brand_kit = await BrandKitRepository(session).get(
+            document.organization_id, document.project_id
+        )
+        formatting_rules: list[str] = []
+        if brand_kit and brand_kit.spelling:
+            formatting_rules.append(f"Spelling: {brand_kit.spelling}")
+        if brand_kit and brand_kit.vocabulary:
+            formatting_rules.append(f"Vocabulary: {brand_kit.vocabulary}")
         return ContentAgentContext(
             request=request_ctx,
             project=project_ctx,
@@ -135,7 +144,12 @@ class ContentAgentContextBuilder:
             content_map=ContentMapContext(),
             seo_guide=SEOGuideContext(),
             content_brief=ContentBriefContext(),
-            brand_rules=BrandRulesContext(),
+            brand_rules=BrandRulesContext(
+                tone=(brand_kit.tone_profile or None) if brand_kit else None,
+                style=(brand_kit.style or None) if brand_kit else None,
+                words_to_avoid=brand_kit.banned_words if brand_kit else [],
+                formatting_rules=formatting_rules,
+            ),
             internal_linking=InternalLinkingContext(),
             website_context=WebsiteCrawlContext(),
             existing_pages=ExistingPagesContext(),

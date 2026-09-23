@@ -1,5 +1,8 @@
 import type {
   BulkUpdateResponse,
+  BrandKit,
+  BrandKitDetail,
+  BrandKitInput,
   Area,
   CanvasAnchorInput,
   CanvasArgumentInput,
@@ -18,6 +21,11 @@ import type {
   DemandListResponse,
   SiteImportResponse,
   SiteImportStatusResponse,
+  SocialProof,
+  StrategyMap,
+  SocialProofInput,
+  VoiceSnippet,
+  VoiceSnippetInput,
 } from "./api-types";
 import { clientApi } from "./client-api";
 
@@ -132,5 +140,17 @@ export const V3API = {
       }),
     getStatus: (scope: V3Scope, jobId: string): Promise<SiteImportStatusResponse> =>
       clientApi(scopedPath(scope, `/site-import/${jobId}/status`)),
+  },
+  strategyMap: {
+    get: (scope: V3Scope): Promise<StrategyMap> => clientApi(scopedPath(scope, "/strategy/map")),
+  },
+  brandKit: {
+    get: (scope: V3Scope): Promise<BrandKitDetail> => clientApi(scopedPath(scope, "/brand-kit")),
+    save: (scope: V3Scope, data: BrandKitInput): Promise<BrandKit> =>
+      clientApi(scopedPath(scope, "/brand-kit"), { method: "PUT", body: JSON.stringify(data) }),
+    addVoiceSnippet: (scope: V3Scope, data: VoiceSnippetInput): Promise<VoiceSnippet> =>
+      clientApi(scopedPath(scope, "/brand-kit/voice-snippets"), { method: "POST", body: JSON.stringify(data) }),
+    addSocialProof: (scope: V3Scope, data: SocialProofInput): Promise<SocialProof> =>
+      clientApi(scopedPath(scope, "/brand-kit/social-proofs"), { method: "POST", body: JSON.stringify(data) }),
   },
 };

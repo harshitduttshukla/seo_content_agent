@@ -103,7 +103,20 @@ function ClaimMetadata({
   );
 }
 
-export function CanvasTab({ scope }: { scope: V3Scope }) {
+/** "{organization} — company canvas" for the company row; every other canvas keeps its name. */
+function canvasLabel(item: CanvasListItem, organizationName: string): string {
+  if (item.product_line === null && organizationName) return `${organizationName} — company canvas`;
+  return item.name;
+}
+
+export function CanvasTab({
+  scope,
+  organizationName = "",
+}: {
+  scope: V3Scope;
+  /** The project's own organization name, read server-side; "" keeps "Company canvas". */
+  organizationName?: string;
+}) {
   const [canvases, setCanvases] = useState<CanvasListItem[]>([]);
   const [selectedCanvasId, setSelectedCanvasId] = useState("");
   const [canvas, setCanvas] = useState<CanvasDetail | null>(null);
@@ -247,13 +260,16 @@ export function CanvasTab({ scope }: { scope: V3Scope }) {
         >
           <SelectTrigger className="w-[280px] bg-white">
             <SelectValue placeholder={loading ? "Loading canvases…" : "Select canvas"}>
-              {canvases.find((item) => item.id === selectedCanvasId)?.name}
+              {(() => {
+                const selected = canvases.find((item) => item.id === selectedCanvasId);
+                return selected ? canvasLabel(selected, organizationName) : null;
+              })()}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {canvases.map((item) => (
               <SelectItem key={item.id} value={item.id}>
-                {item.name}
+                {canvasLabel(item, organizationName)}
               </SelectItem>
             ))}
           </SelectContent>

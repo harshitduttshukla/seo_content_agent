@@ -62,6 +62,23 @@ class CanvasService:
         )
 
     @staticmethod
+    def _has_primary_anchor(
+        canvas: Canvas, replacement: tuple[CanvasAnchorType, dict[str, object]]
+    ) -> bool:
+        replacement_type, replacement_value = replacement
+        anchors = (
+            (CanvasAnchorType.COMPANY, canvas.company_anchor),
+            (CanvasAnchorType.PERSONA, canvas.persona_anchor),
+            (CanvasAnchorType.USE_CASE, canvas.use_case_anchor),
+            (CanvasAnchorType.ALTERNATIVE, canvas.alternative_anchor),
+            (CanvasAnchorType.CATEGORY, canvas.category_anchor),
+        )
+        return any(
+            bool((replacement_value if anchor_type == replacement_type else value).get("primary"))
+            for anchor_type, value in anchors
+        )
+
+    @staticmethod
     def _empty_canvas_response(canvas: Canvas) -> CanvasFullResponse:
         anchors = [
             CanvasAnchor(anchor_type=anchor_type, **anchor)
@@ -295,7 +312,12 @@ class CanvasService:
             canvas = await self.repository.get_canvas_by_id(organization_id, project_id, canvas_id)
             if canvas is None:
                 raise ResourceNotFound("canvas")
-            setattr(canvas, attribute, {"text": payload.text.strip(), "primary": payload.primary})
+            anchor_value = {"text": payload.text.strip(), "primary": payload.primary}
+            if not self._has_primary_anchor(canvas, (payload.anchor_type, anchor_value)):
+                raise BadRequestError(
+                    "At least one canvas anchor must be marked primary.", field="primary"
+                )
+            setattr(canvas, attribute, anchor_value)
             await self._session.flush()
         return await self.get_canvas(organization_id, project_id, canvas_id, actor=actor)
 

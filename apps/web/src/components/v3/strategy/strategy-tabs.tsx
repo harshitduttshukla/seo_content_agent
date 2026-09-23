@@ -7,15 +7,23 @@ import type { V3Scope } from "@/lib/v3-api";
 
 import { CanvasTab } from "./canvas-tab";
 import { DemandTab } from "./demand-tab";
+import { BrandKitTab } from "./brand-kit-tab";
+import { MapTab } from "./map-tab";
 
 export function StrategyTabs({
   organizationId,
+  organizationName = "",
   projectId,
   defaultTab = "canvas",
+  initialAreaId = "",
+  initialStatus = "all",
 }: {
   organizationId: string;
+  organizationName?: string;
   projectId: string;
-  defaultTab?: "canvas" | "demand";
+  defaultTab?: "canvas" | "demand" | "brand" | "map";
+  initialAreaId?: string;
+  initialStatus?: string;
 }) {
   const scope = useMemo<V3Scope>(
     () => ({ organizationId, projectId }),
@@ -36,11 +44,13 @@ export function StrategyTabs({
         <TabsList variant="line" className="w-full justify-start rounded-none border-b border-[#D6DBD9] bg-transparent p-0">
           <TabsTrigger value="canvas">Canvas</TabsTrigger>
           <TabsTrigger value="demand">Demand</TabsTrigger>
-          <TabsTrigger value="brand" disabled>Brand kit</TabsTrigger>
-          <TabsTrigger value="map" disabled>Map</TabsTrigger>
+          <TabsTrigger value="brand">Brand kit</TabsTrigger>
+          <TabsTrigger value="map">Map</TabsTrigger>
         </TabsList>
-        <TabsContent value="canvas" className="mt-[18px]"><CanvasTab scope={scope} /></TabsContent>
-        <TabsContent value="demand" className="mt-[18px]"><DemandTab scope={scope} /></TabsContent>
+        <TabsContent value="canvas" className="mt-[18px]"><CanvasTab scope={scope} organizationName={organizationName} /></TabsContent>
+        <TabsContent value="demand" className="mt-[18px]"><DemandTab scope={scope} initialAreaId={initialAreaId} initialStatus={initialStatus} /></TabsContent>
+        <TabsContent value="brand" className="mt-[18px]"><BrandKitTab scope={scope} /></TabsContent>
+        <TabsContent value="map" className="mt-[18px]"><MapTab scope={scope} /></TabsContent>
       </Tabs>
     </section>
   );

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from app.core.errors import ConflictError, PermissionDenied
+from app.core.errors import BadRequestError, ConflictError, PermissionDenied
 from app.domains.canvas.models import Argument, Canvas, Claim, ClaimRow
 from app.domains.canvas.schemas import (
     ArgumentCreateRequest,
@@ -194,6 +194,90 @@ async def test_authoring_writes_anchor_argument_and_initial_claims() -> None:
         ClaimRow.FEATURE,
     }
     assert all(claim.version == 1 and not claim.approved for claim in claims)
+
+
+@pytest.mark.asyncio
+async def test_anchor_save_requires_at_least_one_primary_anchor() -> None:
+    service = CanvasService(AsyncMock())
+    canvas = Canvas(
+        id=uuid4(),
+        organization_id=uuid4(),
+        project_id=uuid4(),
+        parent_id=None,
+        product_line=None,
+        company_anchor={},
+        persona_anchor={},
+        use_case_anchor={},
+        alternative_anchor={},
+        category_anchor={},
+        problem_summary="",
+        differentiation_summary="",
+        version=1,
+    )
+    service._authorization.require_project = AsyncMock(return_value="editor")
+    service.repository.get_canvas_by_id = AsyncMock(return_value=canvas)
+    service.get_canvas = AsyncMock()
+
+    with (
+        patch("app.domains.canvas.service.transactional_session", passthrough_transaction),
+        patch("app.domains.canvas.service.set_actor_context", AsyncMock()),
+        pytest.raises(BadRequestError, match="must be marked primary"),
+    ):
+        await service.upsert_anchor(
+            canvas.organization_id,
+            canvas.project_id,
+            canvas.id,
+            CanvasAnchorUpsertRequest(
+                anchor_type=CanvasAnchorType.COMPANY,
+                text="Acme",
+                primary=False,
+            ),
+            actor=actor(),
+        )
+
+    assert canvas.company_anchor == {}
+
+
+@pytest.mark.asyncio
+async def test_anchor_save_cannot_remove_the_only_primary_anchor() -> None:
+    service = CanvasService(AsyncMock())
+    canvas = Canvas(
+        id=uuid4(),
+        organization_id=uuid4(),
+        project_id=uuid4(),
+        parent_id=None,
+        product_line=None,
+        company_anchor={"text": "Acme", "primary": True},
+        persona_anchor={},
+        use_case_anchor={},
+        alternative_anchor={},
+        category_anchor={},
+        problem_summary="",
+        differentiation_summary="",
+        version=1,
+    )
+    service._authorization.require_project = AsyncMock(return_value="editor")
+    service.repository.get_canvas_by_id = AsyncMock(return_value=canvas)
+    service.get_canvas = AsyncMock()
+
+    with (
+        patch("app.domains.canvas.service.transactional_session", passthrough_transaction),
+        patch("app.domains.canvas.service.set_actor_context", AsyncMock()),
+        pytest.raises(BadRequestError, match="must be marked primary"),
+    ):
+        await service.upsert_anchor(
+            canvas.organization_id,
+            canvas.project_id,
+            canvas.id,
+            CanvasAnchorUpsertRequest(
+                anchor_type=CanvasAnchorType.COMPANY,
+                text="Acme",
+                primary=False,
+            ),
+            actor=actor(),
+        )
+
+    assert canvas.company_anchor == {"text": "Acme", "primary": True}
 
 
 @pytest.mark.asyncio

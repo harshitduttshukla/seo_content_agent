@@ -10,17 +10,23 @@ import pytest
 import pytest_asyncio
 from app.core.errors import ResourceNotFound
 from app.domains.auth.models import OrganizationMember, ProjectMember
-from app.domains.canvas.models import Area, Canvas, Claim
+from app.domains.canvas.models import Area, Argument, Canvas, Claim
 from app.domains.canvas.service import CanvasService
 from app.domains.content_cards.service import SiteImportService
 from app.domains.demand.models import DemandNode, DemandNodeOrigin, DemandNodeStatus
+from app.domains.demand.schemas import BulkActionRequest, DemandImportRequest
 from app.domains.demand.service import DemandService
 from app.domains.job_runs.models import JobRun, JobRunStatus
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
 from app.domains.users.models import User
 from app.security.principal import AuthenticatedUser
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -35,7 +41,7 @@ MEMBER_ROLE_ID = UUID("00000000-0000-0000-0000-000000000002")
 
 
 @pytest_asyncio.fixture
-async def db_engine():
+async def db_engine() -> AsyncIterator[AsyncEngine]:
     # Use non-superuser application role to properly test RLS
     test_db_url = DATABASE_URL.replace("postgres:postgres", "seo_content_app:seo_content_app")
     engine = create_async_engine(test_db_url, echo=False, pool_pre_ping=True)
@@ -44,7 +50,9 @@ async def db_engine():
 
 
 @pytest_asyncio.fixture
-async def session_factory(db_engine) -> async_sessionmaker[AsyncSession]:
+async def session_factory(
+    db_engine: AsyncEngine,
+) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(db_engine, expire_on_commit=False)
 
 
@@ -268,6 +276,52 @@ async def test_demand_service_rls_actor_context(
         )
         assert len(result.items) == 1
         assert result.items[0].id == tenant_fixture["demand_id"]
+
+
+@pytest.mark.asyncio
+async def test_demand_csv_import_preserves_external_values(
+    session_factory: async_sessionmaker[AsyncSession], tenant_fixture: dict[str, Any]
+) -> None:
+    """Pre-computed CSV values are stored without an internal processing stage."""
+    payload = DemandImportRequest.model_validate(
+        {
+            "items": [
+                {
+                    "text": "external demand import",
+                    "type": "keyword",
+                    "area": "International sales",
+                    "funnel": "bofu",
+                    "competitor": "Competitor A",
+                    "score": 87.5,
+                    "status": "kept",
+                }
+            ]
+        }
+    )
+    async with session_factory() as session:
+        result = await DemandService(session).import_nodes(
+            tenant_fixture["org_id"],
+            tenant_fixture["proj_id"],
+            payload,
+            tenant_fixture["actor"],
+        )
+    assert result.created_count == 1
+
+    async with session_factory() as session:
+        nodes = await DemandService(session).list_nodes(
+            tenant_fixture["org_id"],
+            tenant_fixture["proj_id"],
+            status=None,
+            page=1,
+            page_size=10,
+            actor=tenant_fixture["actor"],
+        )
+    imported = next(node for node in nodes.items if node.text == "external demand import")
+    assert imported.area_id == tenant_fixture["area_id"]
+    assert imported.funnel == "bofu"
+    assert imported.competitor_names == ["Competitor A"]
+    assert imported.score == 87.5
+    assert imported.status == "kept"
 
 
 @pytest.mark.asyncio
@@ -510,3 +564,184 @@ async def test_cross_tenant_approve_denied(
         assert approved_b.id == claim_b
         assert approved_b.approved is True
         assert approved_b.approved_by == user_b
+
+
+@pytest.mark.asyncio
+async def test_demand_destination_actions_reject_real_cross_tenant_records(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Tenant A cannot attach its demand node to Tenant B's Area or Argument.
+
+    The destination IDs deliberately identify existing records in a separate
+    organization/project, rather than nonexistent IDs. This exercises both the
+    service's scoped destination lookup and RLS visibility boundary.
+    """
+    setup_engine = create_async_engine(DATABASE_URL, echo=False)
+    setup_factory = async_sessionmaker(setup_engine, expire_on_commit=False)
+
+    org_a, user_a, project_a, canvas_a, demand_a, area_a, argument_a = (uuid4() for _ in range(7))
+    org_b, user_b, project_b, canvas_b, area_b, argument_b = (uuid4() for _ in range(6))
+    actor_a = AuthenticatedUser(
+        user_id=user_a,
+        issuer="https://test.identity.example",
+        subject=f"demand-a-{user_a.hex[:8]}",
+        email=f"demand-a-{user_a.hex[:8]}@example.test",
+        display_name="Demand User A",
+    )
+    actor_b = AuthenticatedUser(
+        user_id=user_b,
+        issuer="https://test.identity.example",
+        subject=f"demand-b-{user_b.hex[:8]}",
+        email=f"demand-b-{user_b.hex[:8]}@example.test",
+        display_name="Demand User B",
+    )
+
+    tenants = (
+        (org_a, user_a, project_a, canvas_a, actor_a, "a"),
+        (org_b, user_b, project_b, canvas_b, actor_b, "b"),
+    )
+
+    async with setup_factory() as session:
+        for organization_id, user_id, _, _, actor, suffix in tenants:
+            session.add(
+                Organization(
+                    id=organization_id,
+                    name=f"Demand Org {suffix.upper()}",
+                    slug=f"demand-org-{suffix}-{organization_id.hex[:8]}",
+                )
+            )
+            session.add(
+                User(
+                    id=user_id,
+                    email=actor.email,
+                    normalized_email=actor.email,
+                    identity_issuer=actor.issuer,
+                    identity_subject=actor.subject,
+                    display_name=actor.display_name,
+                )
+            )
+
+        await session.flush()
+
+        for organization_id, user_id, project_id, _, _, suffix in tenants:
+            session.add(
+                Project(
+                    id=project_id,
+                    organization_id=organization_id,
+                    name=f"Demand Project {suffix.upper()}",
+                    slug=f"demand-project-{suffix}-{project_id.hex[:8]}",
+                )
+            )
+            session.add(
+                OrganizationMember(
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    role_id=MEMBER_ROLE_ID,
+                    status="active",
+                    joined_at=datetime.now(UTC),
+                )
+            )
+
+        await session.flush()
+
+        for organization_id, user_id, project_id, canvas_id, _, _ in tenants:
+            session.add(
+                ProjectMember(
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    user_id=user_id,
+                    role_id=MEMBER_ROLE_ID,
+                )
+            )
+            session.add(
+                Canvas(
+                    id=canvas_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    product_line=None,
+                )
+            )
+
+        await session.flush()
+        session.add(
+            DemandNode(
+                id=demand_a,
+                organization_id=org_a,
+                project_id=project_a,
+                type="keyword",
+                text=f"tenant-a-demand-{demand_a.hex[:8]}",
+                status=DemandNodeStatus.PENDING_CLASSIFY,
+                origin=DemandNodeOrigin.UPLOAD,
+            )
+        )
+        session.add(
+            Area(
+                id=area_a,
+                organization_id=org_a,
+                project_id=project_a,
+                canvas_id=canvas_a,
+                parent_id=None,
+                name="Tenant A area",
+                default_argument_id=None,
+            )
+        )
+        session.add(
+            Argument(
+                id=argument_a,
+                organization_id=org_a,
+                project_id=project_a,
+                canvas_id=canvas_a,
+                order=0,
+            )
+        )
+        session.add(
+            Area(
+                id=area_b,
+                organization_id=org_b,
+                project_id=project_b,
+                canvas_id=canvas_b,
+                parent_id=None,
+                name="Tenant B area",
+                default_argument_id=None,
+            )
+        )
+        session.add(
+            Argument(
+                id=argument_b,
+                organization_id=org_b,
+                project_id=project_b,
+                canvas_id=canvas_b,
+                order=0,
+            )
+        )
+        await session.commit()
+    await setup_engine.dispose()
+
+    async with session_factory() as session:
+        with pytest.raises(ResourceNotFound):
+            await DemandService(session).bulk_action(
+                org_a,
+                project_a,
+                payload=BulkActionRequest(ids=[demand_a], action="reassign_area", area_id=area_b),
+                actor=actor_a,
+            )
+
+    async with session_factory() as session:
+        with pytest.raises(ResourceNotFound):
+            await DemandService(session).bulk_action(
+                org_a,
+                project_a,
+                payload=BulkActionRequest(
+                    ids=[demand_a], action="set_argument", argument_id=argument_b
+                ),
+                actor=actor_a,
+            )
+
+    async with session_factory() as session:
+        result = await DemandService(session).list_nodes(
+            org_a, project_a, status=None, page=1, page_size=10, actor=actor_a
+        )
+    assert len(result.items) == 1
+    assert result.items[0].id == demand_a
+    assert result.items[0].area_id is None
+    assert result.items[0].argument_id is None

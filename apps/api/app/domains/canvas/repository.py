@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.domains.canvas.models import Area, Argument, Canvas, Claim
 from app.domains.content_cards.models import ContentCard, ContentCardClaim
-from app.domains.demand.models import DemandNode
+from app.domains.demand.models import DemandNode, DemandNodeStatus
 from app.domains.job_runs.models import JobRun
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +60,91 @@ class CanvasRepository:
             .group_by(Argument.canvas_id)
         )
         return {canvas_id: count for canvas_id, count in result.all()}
+
+    async def get_arguments_for_project(
+        self, organization_id: UUID, project_id: UUID
+    ) -> Sequence[Argument]:
+        """Load every argument in the project in one query, ordered for label assignment."""
+        result = await self._session.execute(
+            select(Argument)
+            .where(
+                Argument.organization_id == organization_id,
+                Argument.project_id == project_id,
+            )
+            .order_by(Argument.canvas_id, Argument.order)
+        )
+        return result.scalars().all()
+
+    async def get_claim_counts_by_canvas(
+        self, organization_id: UUID, project_id: UUID
+    ) -> dict[UUID, int]:
+        """Count current (non-superseded) claim cells per canvas in one grouped query.
+
+        A claim carries ``canvas_id`` whether it belongs to an argument column or to a
+        canvas-level row, so grouping on it covers both without a second query.
+        """
+        result = await self._session.execute(
+            select(Claim.canvas_id, func.count(Claim.id))
+            .where(
+                Claim.organization_id == organization_id,
+                Claim.project_id == project_id,
+                Claim.superseded_by.is_(None),
+            )
+            .group_by(Claim.canvas_id)
+        )
+        return {canvas_id: int(count) for canvas_id, count in result.all()}
+
+    async def get_kept_demand_counts_by_area(
+        self, organization_id: UUID, project_id: UUID
+    ) -> dict[UUID, int]:
+        """Count kept demand nodes per area in one grouped query.
+
+        Areas are counted individually; nothing is rolled up from sub-areas.
+        """
+        result = await self._session.execute(
+            select(DemandNode.area_id, func.count(DemandNode.id))
+            .where(
+                DemandNode.organization_id == organization_id,
+                DemandNode.project_id == project_id,
+                DemandNode.status == DemandNodeStatus.KEPT,
+                DemandNode.area_id.is_not(None),
+            )
+            .group_by(DemandNode.area_id)
+        )
+        return {area_id: int(count) for area_id, count in result.all()}
+
+    async def get_card_state_counts_by_area(
+        self, organization_id: UUID, project_id: UUID
+    ) -> dict[UUID, dict[str, int]]:
+        """Count content cards per area and state in one grouped query.
+
+        No state is excluded, imported live cards included, per V3 handoff 4.4;
+        an area's total is the sum over its states.
+        """
+        result = await self._session.execute(
+            select(ContentCard.area_id, ContentCard.state, func.count(ContentCard.id))
+            .where(
+                ContentCard.organization_id == organization_id,
+                ContentCard.project_id == project_id,
+                ContentCard.area_id.is_not(None),
+            )
+            .group_by(ContentCard.area_id, ContentCard.state)
+        )
+        counts: dict[UUID, dict[str, int]] = {}
+        for area_id, state, count in result.all():
+            counts.setdefault(area_id, {})[state] = int(count)
+        return counts
+
+    async def count_cards_without_area(self, organization_id: UUID, project_id: UUID) -> int:
+        """Count cards no area claims, so the map can report them instead of hiding them."""
+        result = await self._session.execute(
+            select(func.count(ContentCard.id)).where(
+                ContentCard.organization_id == organization_id,
+                ContentCard.project_id == project_id,
+                ContentCard.area_id.is_(None),
+            )
+        )
+        return int(result.scalar_one())
 
     async def get_arguments_for_canvas(
         self, organization_id: UUID, project_id: UUID, canvas_id: UUID

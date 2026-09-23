@@ -8,6 +8,7 @@ from app.domains.auth.models import (
     Role,
     RolePermission,
 )
+from app.domains.brand_kit.models import BrandKit, SocialProof, VoiceSnippet
 from app.domains.canvas.models import Area, Argument, Canvas, Claim
 from app.domains.content.models import (
     AIEditProposal,
@@ -51,6 +52,7 @@ __all__ = [
     "Area",
     "Argument",
     "AuditLog",
+    "BrandKit",
     "Canvas",
     "Claim",
     "ClusteringRun",
@@ -99,8 +101,10 @@ __all__ = [
     "SEOGuideVersion",
     "SEOStrategy",
     "SEOStrategyVersion",
+    "SocialProof",
     "ToolExecutionRecord",
     "Topic",
     "User",
+    "VoiceSnippet",
     "Website",
 ]

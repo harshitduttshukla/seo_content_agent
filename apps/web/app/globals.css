@@ -198,3 +198,72 @@ textarea {
     @apply font-sans;
   }
 }
+/* ─────────────────────────────────────────────────────────────────
+   V3 Strategy — chips and the combined tree.
+   Values copied from seo-geo-mockup-v3.html; the colour rule is
+   semantic: coral means a human needs to act, teal is a system fact,
+   grey is a resting label. Never decorative.
+   ───────────────────────────────────────────────────────────────── */
+:root {
+  --line: #d6dbd9;
+  --line2: #e7eae9;
+  --ink3: #8a949a;
+  --coral: #b9463a;
+  --coral-bg: #fbebe8;
+  --coral-br: #f0d2cc;
+  --teal: #15706a;
+  --teal-bg: #e1efed;
+  --teal-br: #c4deda;
+  --rest: #6f787d;
+  --rest-bg: #f0f2f1;
+  --rest-br: #dde2e0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.chip.c {
+  background: var(--coral-bg);
+  color: var(--coral);
+  border-color: var(--coral-br);
+}
+.chip.t {
+  background: var(--teal-bg);
+  color: var(--teal);
+  border-color: var(--teal-br);
+}
+.chip.r {
+  background: var(--rest-bg);
+  color: var(--rest);
+  border-color: var(--rest-br);
+}
+
+.tree {
+  font-size: 13.2px;
+}
+.tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 17px;
+  border-left: 1px solid var(--line2);
+}
+.tree > ul {
+  padding-left: 0;
+  border-left: 0;
+}
+.tree li {
+  padding: 3px 0;
+}
+.tree .n {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}

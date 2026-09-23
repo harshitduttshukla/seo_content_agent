@@ -509,14 +509,100 @@ export interface DemandImportItem {
   type: "keyword" | "prompt";
   volume?: number | null;
   country?: string | null;
+  area?: string | null;
   funnel?: "tofu" | "mofu" | "bofu" | null;
   origin?: "upload" | "gsc_striking_distance" | "insight";
   competitor?: string | null;
   confidence?: number | null;
+  score?: number | null;
+  status?: "pending" | "kept" | "discarded" | "pending_classify";
 }
 
 export interface DemandImportResponse {
   created_count: number;
   existing_count: number;
   job_run_id: string;
+}
+
+export interface BrandKitInput {
+  spelling: string;
+  banned_words: string[];
+  style: string;
+  vocabulary: string;
+  tone_profile: string;
+  profile_provisional: boolean;
+}
+
+export interface BrandKit extends BrandKitInput {
+  id: string;
+  revision: number;
+  updated_at: string;
+}
+
+export interface VoiceSnippetInput {
+  source_type: string;
+  source_name: string;
+  captured_on: string;
+  content: string;
+  area_id?: string | null;
+}
+
+export interface VoiceSnippet extends VoiceSnippetInput {
+  id: string;
+  created_at: string;
+}
+
+export interface SocialProofInput {
+  label: string;
+  proof_type: string;
+  area_ids: string[];
+  markets: string[];
+  approved: boolean;
+}
+
+export interface SocialProof extends SocialProofInput {
+  id: string;
+  created_at: string;
+}
+
+export interface BrandKitDetail {
+  brand_kit: BrandKit | null;
+  voice_snippets: VoiceSnippet[];
+  social_proofs: SocialProof[];
+}
+
+// ── V3 strategy map (handoff §4.4) ───────────────────────────────────
+
+export interface MapAreaNode {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  default_argument_id: string | null;
+  default_argument_pillar: string | null;
+  demand_count: number;
+  card_count: number;
+  card_states: Record<string, number>;
+  descendant_card_states: Record<string, number>;
+  is_unmapped: boolean;
+  content_gap: boolean;
+  children: MapAreaNode[];
+}
+
+export interface MapCanvasNode {
+  id: string;
+  name: string;
+  product_line: string | null;
+  is_company: boolean;
+  argument_count: number;
+  cell_count: number;
+  inherits: string[];
+  override_count: number;
+  adds: string[];
+  areas: MapAreaNode[];
+  product_lines: MapCanvasNode[];
+}
+
+export interface StrategyMap {
+  company_canvas: MapCanvasNode | null;
+  unassigned_card_count: number;
 }

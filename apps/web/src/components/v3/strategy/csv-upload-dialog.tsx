@@ -44,6 +44,15 @@ function splitCsvLine(line: string): string[] {
   return values;
 }
 
+function parseOptionalNumber(value: string, row: number, column: string): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Row ${row}: ${column} must be a number.`);
+  }
+  return parsed;
+}
+
 function parseCsv(source: string): DemandImportItem[] {
   const lines = source.split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) throw new Error("CSV must include a header and at least one row.");
@@ -53,10 +62,13 @@ function parseCsv(source: string): DemandImportItem[] {
   if (textIndex < 0 || typeIndex < 0) throw new Error("CSV headers must include text and type.");
   const volumeIndex = headers.indexOf("volume");
   const countryIndex = headers.indexOf("country");
+  const areaIndex = headers.indexOf("area");
   const funnelIndex = headers.indexOf("funnel");
   const originIndex = headers.indexOf("origin");
   const competitorIndex = headers.indexOf("competitor");
   const confidenceIndex = headers.indexOf("confidence");
+  const scoreIndex = headers.indexOf("score");
+  const statusIndex = headers.indexOf("status");
   return lines.slice(1).map((line, rowIndex) => {
     const values = splitCsvLine(line);
     const type = values[typeIndex]?.toLowerCase();
@@ -65,20 +77,31 @@ function parseCsv(source: string): DemandImportItem[] {
     }
     const text = values[textIndex]?.trim();
     if (!text) throw new Error(`Row ${rowIndex + 2}: text is required.`);
-    const volumeText = volumeIndex >= 0 ? values[volumeIndex] : "";
+    const row = rowIndex + 2;
+    const volume = parseOptionalNumber(volumeIndex >= 0 ? values[volumeIndex] : "", row, "volume");
+    if (volume !== null && (!Number.isInteger(volume) || volume < 0)) {
+      throw new Error(`Row ${row}: volume must be a non-negative whole number.`);
+    }
     const funnelText = funnelIndex >= 0 ? values[funnelIndex]?.toLowerCase() : "";
     if (funnelText && !["tofu", "mofu", "bofu"].includes(funnelText)) {
-      throw new Error(`Row ${rowIndex + 2}: funnel must be tofu, mofu, or bofu.`);
+      throw new Error(`Row ${row}: funnel must be tofu, mofu, or bofu.`);
+    }
+    const statusText = statusIndex >= 0 ? values[statusIndex]?.toLowerCase() : "";
+    if (statusText && !["pending", "kept", "discarded", "pending_classify"].includes(statusText)) {
+      throw new Error(`Row ${row}: status must be pending, kept, discarded, or pending_classify.`);
     }
     return {
       text,
       type,
-      volume: volumeText ? Number(volumeText) : null,
+      volume,
       country: countryIndex >= 0 ? values[countryIndex]?.toUpperCase() || null : null,
+      area: areaIndex >= 0 ? values[areaIndex]?.trim() || null : null,
       funnel: (funnelText || null) as DemandImportItem["funnel"],
       origin: (originIndex >= 0 ? values[originIndex]?.toLowerCase() : "upload") as DemandImportItem["origin"],
       competitor: competitorIndex >= 0 ? values[competitorIndex]?.trim() || null : null,
-      confidence: confidenceIndex >= 0 && values[confidenceIndex] ? Number(values[confidenceIndex]) : null,
+      confidence: parseOptionalNumber(confidenceIndex >= 0 ? values[confidenceIndex] : "", row, "confidence"),
+      score: parseOptionalNumber(scoreIndex >= 0 ? values[scoreIndex] : "", row, "score"),
+      status: (statusText || "pending") as DemandImportItem["status"],
     };
   });
 }
@@ -111,7 +134,8 @@ export function CsvUploadDialog({ scope, isOpen, onOpenChange, onImported }: Csv
         <DialogHeader>
           <DialogTitle>Upload demand CSV</DialogTitle>
           <DialogDescription>
-            Required headers: text, type. Optional: origin, volume, country, funnel, competitor, confidence.
+            Required headers: text, type. Optional: area (exact name or UUID), origin, volume, country,
+            funnel, competitor, confidence, score, status.
           </DialogDescription>
         </DialogHeader>
         <label className="grid cursor-pointer gap-2 rounded-[8px] border border-dashed border-[#D6DBD9] bg-[#FAFBFA] p-8 text-center">

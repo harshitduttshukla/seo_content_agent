@@ -27,11 +27,21 @@ import { V3API, type V3Scope } from "@/lib/v3-api";
 
 import { CsvUploadDialog } from "./csv-upload-dialog";
 
-export function DemandTab({ scope }: { scope: V3Scope }) {
+export function DemandTab({
+  scope,
+  initialAreaId = "",
+  initialStatus = "all",
+}: {
+  scope: V3Scope;
+  /** Area filter carried in from the Map tab (handoff §4): a filter, not a navigation. */
+  initialAreaId?: string;
+  /** Status filter carried in from the Map tab, which counts kept nodes only. */
+  initialStatus?: string;
+}) {
   const [result, setResult] = useState<DemandListResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [filters, setFilters] = useState({ origin: "", area_id: "", argument_id: "", type: "", funnel: "" });
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [filters, setFilters] = useState({ origin: "", area_id: initialAreaId, argument_id: "", type: "", funnel: "" });
   const [areaId, setAreaId] = useState("");
   const [argumentId, setArgumentId] = useState("");
   const [areas, setAreas] = useState<Area[]>([]);

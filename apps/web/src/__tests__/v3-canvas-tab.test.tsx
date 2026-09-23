@@ -401,3 +401,31 @@ describe("V3 Canvas", () => {
     expect(screen.getByText("Each primary anchor passes the stands-on-its-own rule")).toBeInTheDocument();
   });
 });
+
+describe("V3 Canvas company label", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(V3API.canvas.list).mockResolvedValue({
+      company_canvas: { id: "canvas-1", product_line: null, name: "Company canvas", argument_count: 0 },
+      product_lines: [
+        { id: "canvas-2", product_line: "Localization", name: "Localization", argument_count: 0 },
+      ],
+    });
+    vi.mocked(V3API.canvas.get).mockResolvedValue(emptyCanvas);
+  });
+
+  it("names the company row after the project's organization, and switches with it", async () => {
+    const { rerender } = render(<CanvasTab scope={scope} organizationName="Organization A" />);
+    expect(await screen.findByText("Organization A — company canvas")).toBeInTheDocument();
+
+    rerender(<CanvasTab scope={scope} organizationName="Organization B" />);
+    expect(await screen.findByText("Organization B — company canvas")).toBeInTheDocument();
+    expect(screen.queryByText(/Organization A/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to 'Company canvas' when the name is unavailable", async () => {
+    render(<CanvasTab scope={scope} organizationName="" />);
+    expect(await screen.findByText("Company canvas")).toBeInTheDocument();
+    expect(screen.queryByText(/undefined|null|\[object Object\]/)).not.toBeInTheDocument();
+  });
+});

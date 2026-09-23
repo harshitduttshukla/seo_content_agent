@@ -8,9 +8,10 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
 
   const navItems = [
     { name: "Strategy", path: `/projects/${projectId}/v3/canvas` },
-    { name: "Demand", path: `/projects/${projectId}/v3/demand` },
-    { name: "Content Cards", path: `/projects/${projectId}/v3/content-cards` },
-    { name: "Site Import", path: `/projects/${projectId}/v3/import` },
+    { name: "Content Hub", path: `/projects/${projectId}/v3/content-hub` },
+    { name: "Production", path: `/projects/${projectId}/content` },
+    { name: "Iteration Lab", path: `/projects/${projectId}/content-harness` },
+    { name: "Technical SEO", path: `/projects/${projectId}/website` },
   ];
 
   return (
@@ -31,8 +32,8 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
                 key={item.path}
                 href={item.path}
                 className={`flex items-center gap-[9px] w-full text-left p-[7px_8px] rounded-[5px] text-[13.3px] mb-1 hover:bg-[#F0F2F1] hover:text-[#12171A] ${pathname.startsWith(item.path)
-                    ? "bg-[#E5EAE8] text-[#12171A] font-medium"
-                    : "text-[#5C666C]"
+                  ? "bg-[#E5EAE8] text-[#12171A] font-medium"
+                  : "text-[#5C666C]"
                   }`}
               >
                 {item.name}

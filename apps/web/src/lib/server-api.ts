@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
-import type { ApiEnvelope } from "@/lib/api-types";
+import type { ApiEnvelope, Organization } from "@/lib/api-types";
 import { ACCESS_COOKIE } from "@/lib/oidc";
 
 export async function serverApi<T>(path: string): Promise<T> {
@@ -18,4 +18,19 @@ export async function serverApi<T>(path: string): Promise<T> {
     throw new Error(`${envelope.errors[0]?.message ?? "API request failed"} (${envelope.meta.request_id})`);
   }
   return envelope.data;
+}
+
+/**
+ * The name of the project's own organization, read through the existing authorized
+ * organization endpoint. Returns "" when it cannot be read, so callers fall back to
+ * their generic label instead of rendering undefined or failing the page.
+ */
+export async function serverOrganizationName(organizationId: string): Promise<string> {
+  try {
+    const organization = await serverApi<Organization>(`/organizations/${organizationId}`);
+    return organization.name?.trim() ?? "";
+  } catch (error) {
+    unstable_rethrow(error); // keep the 401 → /login redirect working
+    return "";
+  }
 }

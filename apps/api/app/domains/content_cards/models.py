@@ -115,6 +115,12 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ondelete="SET NULL",
         ),
         ForeignKeyConstraint(
+            ["area_id"],
+            ["areas.id"],
+            name="fk_content_cards_area_id_areas",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
             ["owner"],
             ["users.id"],
             name="fk_content_cards_owner_users",

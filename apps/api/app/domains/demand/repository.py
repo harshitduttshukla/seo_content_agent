@@ -1,11 +1,14 @@
 """Tenant-scoped demand-node persistence."""
 
 from collections.abc import Sequence
+from typing import cast
 from uuid import UUID
 
+from app.domains.canvas.models import Area, Argument
 from app.domains.demand.models import DemandNode, DemandNodeStatus
 from app.domains.job_runs.models import JobRun
 from sqlalchemy import case, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -69,6 +72,42 @@ class DemandRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_area_by_id(
+        self, organization_id: UUID, project_id: UUID, area_id: UUID
+    ) -> Area | None:
+        result = await self._session.execute(
+            select(Area).where(
+                Area.organization_id == organization_id,
+                Area.project_id == project_id,
+                Area.id == area_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_areas_by_name(
+        self, organization_id: UUID, project_id: UUID, name: str
+    ) -> Sequence[Area]:
+        result = await self._session.execute(
+            select(Area).where(
+                Area.organization_id == organization_id,
+                Area.project_id == project_id,
+                Area.name == name,
+            )
+        )
+        return result.scalars().all()
+
+    async def get_argument_by_id(
+        self, organization_id: UUID, project_id: UUID, argument_id: UUID
+    ) -> Argument | None:
+        result = await self._session.execute(
+            select(Argument).where(
+                Argument.organization_id == organization_id,
+                Argument.project_id == project_id,
+                Argument.id == argument_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_summary(
         self, organization_id: UUID, project_id: UUID
     ) -> tuple[int, int, int, int]:
@@ -102,7 +141,7 @@ class DemandRepository:
             )
             .values(status=new_status)
         )
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[object], result).rowcount or 0)
 
     async def bulk_reassign_area(
         self,
@@ -120,7 +159,7 @@ class DemandRepository:
             )
             .values(area_id=area_id)
         )
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[object], result).rowcount or 0)
 
     async def bulk_set_argument(
         self, organization_id: UUID, project_id: UUID, node_ids: list[UUID], argument_id: UUID
@@ -134,7 +173,7 @@ class DemandRepository:
             )
             .values(argument_id=argument_id)
         )
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[object], result).rowcount or 0)
 
     def add_job_run(self, job_run: JobRun) -> None:
         self._session.add(job_run)

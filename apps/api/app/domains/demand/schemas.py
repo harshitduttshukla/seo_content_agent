@@ -144,10 +144,14 @@ class DemandImportItem(BaseModel):
     type: DemandNodeType
     volume: int | None = Field(default=None, ge=0)
     country: str | None = Field(default=None, min_length=2, max_length=2)
+    # A CSV may use an existing area's UUID or its exact project-scoped name.
+    area: str | None = Field(default=None, max_length=500)
     funnel: DemandNodeFunnel | None = None
     origin: DemandNodeOrigin = DemandNodeOrigin.UPLOAD
     competitor: str | None = Field(default=None, max_length=500)
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    score: float | None = None
+    status: DemandNodeStatus = DemandNodeStatus.PENDING
 
 
 class DemandImportRequest(BaseModel):
