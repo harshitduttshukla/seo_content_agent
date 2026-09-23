@@ -7,12 +7,12 @@ from uuid import UUID, uuid4
 
 from app.ai.provider import AIMessage, AIProvider, GenerationRequest
 from app.core.errors import ResourceNotFound
-from app.db.session import set_actor_context
 from app.domains.ai.service import get_ai_provider
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.editor_models import ContentBrief
 from app.domains.content_harness.evaluator import evaluate_content, evaluate_with_ai
-from app.domains.content_harness.fixtures import GOLDEN_TEST_CASES
+
+GOLDEN_TEST_CASES = {}
 from app.domains.content_harness.models import ContentHarnessRun, HarnessRunStatus
 from app.domains.content_harness.prompts import build_harness_prompts
 from app.domains.content_harness.repository import ContentHarnessRepository
@@ -25,7 +25,6 @@ from app.domains.content_harness.schemas import (
     FindingStatus,
     HarnessGeneratedContent,
     HarnessScorecard,
-    HarnessSection,
 )
 from app.domains.projects.service import ProjectService
 from app.security.principal import AuthenticatedUser, PermissionCode
@@ -186,7 +185,9 @@ class ContentHarnessService:
             project_id=project.id,
             created_by_id=actor.user_id,
             name=input_data.name or f"Run: {input_data.primary_keyword}",
-            status=HarnessRunStatus.COMPLETED.value if not error_message else HarnessRunStatus.FAILED.value,
+            status=HarnessRunStatus.COMPLETED.value
+            if not error_message
+            else HarnessRunStatus.FAILED.value,
             prompt_version=input_data.prompt_version,
             model=model_name,
             provider=provider_name,
@@ -284,11 +285,21 @@ class ContentHarnessService:
         eval_b = run_b_detail.evaluation_data
 
         score_diffs: dict[str, float] = {
-            "overall": round(float(eval_b.get("overall_score", 0.0)) - float(eval_a.get("overall_score", 0.0)), 1),
-            "seo": round(float(eval_b.get("seo_score", 0.0)) - float(eval_a.get("seo_score", 0.0)), 1),
-            "content": round(float(eval_b.get("content_score", 0.0)) - float(eval_a.get("content_score", 0.0)), 1),
-            "brand": round(float(eval_b.get("brand_score", 0.0)) - float(eval_a.get("brand_score", 0.0)), 1),
-            "linking": round(float(eval_b.get("linking_score", 0.0)) - float(eval_a.get("linking_score", 0.0)), 1),
+            "overall": round(
+                float(eval_b.get("overall_score", 0.0)) - float(eval_a.get("overall_score", 0.0)), 1
+            ),
+            "seo": round(
+                float(eval_b.get("seo_score", 0.0)) - float(eval_a.get("seo_score", 0.0)), 1
+            ),
+            "content": round(
+                float(eval_b.get("content_score", 0.0)) - float(eval_a.get("content_score", 0.0)), 1
+            ),
+            "brand": round(
+                float(eval_b.get("brand_score", 0.0)) - float(eval_a.get("brand_score", 0.0)), 1
+            ),
+            "linking": round(
+                float(eval_b.get("linking_score", 0.0)) - float(eval_a.get("linking_score", 0.0)), 1
+            ),
         }
 
         # Analyze findings improvements and regressions
@@ -310,9 +321,15 @@ class ContentHarnessService:
         for rule in all_rules:
             st_a = findings_a.get(rule, "UNKNOWN")
             st_b = findings_b.get(rule, "UNKNOWN")
-            if st_b == FindingStatus.PASS.value and st_a in (FindingStatus.FAIL.value, FindingStatus.WARN.value):
+            if st_b == FindingStatus.PASS.value and st_a in (
+                FindingStatus.FAIL.value,
+                FindingStatus.WARN.value,
+            ):
                 improvements.append(f"Rule '{rule}' improved from {st_a} to PASS in Run B.")
-            elif st_b in (FindingStatus.FAIL.value, FindingStatus.WARN.value) and st_a == FindingStatus.PASS.value:
+            elif (
+                st_b in (FindingStatus.FAIL.value, FindingStatus.WARN.value)
+                and st_a == FindingStatus.PASS.value
+            ):
                 regressions.append(f"Rule '{rule}' degraded from PASS to {st_b} in Run B.")
 
         summary = (

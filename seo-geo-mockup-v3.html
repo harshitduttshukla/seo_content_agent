@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Graph — mockup v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ECEEED; --card:#FFF; --ink:#12171A; --ink2:#5C666C; --ink3:#8A949A;
+  --line:#D6DBD9; --line2:#E7EAE9;
+  --coral:#B9463A; --coral-bg:#FBEBE8; --coral-br:#F0D2CC;   /* a human holds it */
+  --teal:#15706A;  --teal-bg:#E1EFED;  --teal-br:#C4DEDA;    /* the system is working */
+  --rest:#6F787D;  --rest-bg:#F0F2F1;  --rest-br:#DDE2E0;    /* resting */
+  --rail:238px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",monospace;font-size:.86em;letter-spacing:-.01em}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;margin:0}
+h1{font-size:25px;letter-spacing:-.015em} h2{font-size:17px} h3{font-size:14.5px}
+p{margin:0 0 10px} a{color:var(--teal)} button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+.shell{display:flex;min-height:100vh}
+.rail{width:var(--rail);flex:0 0 var(--rail);background:#FAFBFA;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:17px 17px 13px;border-bottom:1px solid var(--line2)}
+.brand .mark{display:flex;align-items:center;gap:8px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--teal)}
+.brand small{display:block;color:var(--ink3);font-size:11.5px;margin-top:3px}
+.ws{padding:11px 17px;border-bottom:1px solid var(--line2)}
+.ws select{width:100%;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:#fff}
+nav{padding:10px 9px 30px}
+.ngroup{margin-top:13px}
+.ngroup>span{display:block;padding:0 8px 5px;font-size:11px;color:var(--ink3)}
+.navitem{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:7px 8px;border:0;background:none;border-radius:5px;color:var(--ink2);font-size:13.3px}
+.navitem:hover{background:#F0F2F1;color:var(--ink)}
+.navitem[aria-current=true]{background:#E5EAE8;color:var(--ink);font-weight:500}
+.navitem .cnt{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3)}
+.navitem .ph{margin-left:auto;font-size:10.5px;color:var(--ink3);border:1px solid var(--line);border-radius:9px;padding:0 5px}
+
+main{flex:1;min-width:0;padding:24px 28px 70px;max-width:1280px}
+.screen{display:none} .screen.on{display:block}
+.head{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.head .grow{flex:1;min-width:280px}
+.crumb{font-size:11.5px;color:var(--ink3);margin-bottom:6px}
+.sub{color:var(--ink2);font-size:13.4px;margin:5px 0 0;max-width:74ch}
+.rule{height:1px;background:var(--line);margin:18px 0}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 18px}
+.tabs button{border:0;background:none;padding:8px 13px;color:var(--ink2);font-size:13.4px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--ink);font-weight:500}
+.tabs .ph{font-size:10.5px;color:var(--ink3);margin-left:6px}
+.pane{display:none} .pane.on{display:block}
+
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11.5px;border:1px solid;white-space:nowrap}
+.chip.c{background:var(--coral-bg);color:var(--coral);border-color:var(--coral-br)}
+.chip.t{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-br)}
+.chip.r{background:var(--rest-bg);color:var(--rest);border-color:var(--rest-br)}
+.chip.o{background:#fff;color:var(--ink2);border-color:var(--line)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.card>header{padding:11px 15px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card>header h3{flex:1;min-width:140px}
+.card .body{padding:15px} .card .body.tight{padding:0}
+.grid{display:grid;gap:13px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:13px}
+.stack{display:flex;flex-direction:column;gap:13px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:11.5px;padding:8px 11px;border-bottom:1px solid var(--line);background:#FAFBFA;position:sticky;top:0}
+td{padding:8px 11px;border-bottom:1px solid var(--line2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#FAFBFA}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;font-size:12.2px}
+.scroll{max-height:430px;overflow:auto}
+.xscroll{overflow-x:auto}
+
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font-size:13px}
+.btn:hover{background:#F5F8F7}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:#115C57}
+.btn.dan{color:var(--coral);border-color:var(--coral-br)}
+.btn.dan:hover{background:var(--coral-bg)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn[disabled]{opacity:.42;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.right{margin-left:auto}
+.muted{color:var(--ink2)} .small{font-size:12px} .xs{font-size:11.5px;color:var(--ink3)}
+.hide{display:none}
+
+.kv{display:grid;grid-template-columns:132px 1fr;gap:6px 14px;font-size:13px}
+.kv dt{color:var(--ink3)} .kv dd{margin:0}
+.note{background:#FAFBFA;border:1px solid var(--line2);border-left:2px solid var(--ink3);padding:10px 13px;border-radius:0 6px 6px 0;font-size:12.6px;color:var(--ink2)}
+.note b{color:var(--ink);font-weight:500}
+.note.c{border-left-color:var(--coral)} .note.t{border-left-color:var(--teal)}
+.banner{display:flex;gap:12px;align-items:center;padding:11px 15px;border-radius:8px;border:1px solid;font-size:13px;margin-bottom:15px;flex-wrap:wrap}
+.banner.c{background:var(--coral-bg);border-color:var(--coral-br);color:var(--coral)}
+.banner.t{background:var(--teal-bg);border-color:var(--teal-br);color:var(--teal)}
+.banner.r{background:var(--rest-bg);border-color:var(--rest-br);color:var(--ink2)}
+
+/* canvas */
+.pitch{background:#fff;border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:0 8px 8px 0;padding:14px 17px;margin-bottom:14px}
+.pitch p{font-family:"IBM Plex Serif",serif;font-size:16.5px;line-height:1.5;margin:0;max-width:76ch}
+.canvas{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:900px}
+.canvas .cell{background:#fff;padding:9px 11px;font-size:12.6px}
+.canvas .rowlab{background:#FAFBFA;color:var(--ink3);font-size:11.5px;display:flex;align-items:center;gap:5px}
+.canvas .full{grid-column:1/-1}
+.canvas .cell b{font-weight:500}
+.cellmeta{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.tick{color:var(--teal);font-family:monospace}
+.untick{color:var(--coral);font-family:monospace}
+
+/* kanban */
+.board{display:grid;grid-template-columns:repeat(7,minmax(172px,1fr));gap:9px;min-width:1230px}
+.col{background:#F5F7F6;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column}
+.col>h3{padding:9px 11px;font-size:12.5px;font-family:"IBM Plex Sans",sans-serif;font-weight:500;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line);border-radius:8px 8px 0 0}
+.col.rest>h3{background:var(--rest-bg);color:var(--ink2)}
+.col.sys>h3{background:var(--teal-bg);color:var(--teal)}
+.col.hum>h3{background:var(--coral-bg);color:var(--coral)}
+.col>h3 .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.col .inner{padding:9px;display:flex;flex-direction:column;gap:8px}
+.kc{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 10px;font-size:12.4px}
+.kc b{display:block;font-weight:500;font-size:13px;margin-bottom:4px}
+.kc .m{color:var(--ink3);font-size:11.2px;line-height:1.45}
+.kc .f{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;align-items:center}
+.kc.act{border-color:var(--coral);box-shadow:0 0 0 2px var(--coral-bg)}
+
+.tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px}
+.tile .n{font-family:"IBM Plex Mono",monospace;font-size:23px;letter-spacing:-.02em}
+.tile .l{font-size:12.3px;color:var(--ink2);margin-top:2px}
+.tile .d{font-size:11.5px;color:var(--ink3);margin-top:6px}
+.tile.off{background:#F7F9F8;border-style:dashed;color:var(--ink3)}
+.tile.off .n{color:var(--ink3)}
+
+.bar{height:5px;border-radius:3px;background:var(--line2);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar i.v{background:#4B7CA8} .bar i.c{background:var(--teal)} .bar i.g{background:#AA7A2A}
+
+.qa ul{list-style:none;padding:0;margin:0;font-size:13px}
+.qa li{margin-bottom:6px}
+.qa .ok::before{content:"✓";color:var(--teal);font-family:monospace;margin-right:8px}
+.qa .no::before{content:"✕";color:var(--coral);font-family:monospace;margin-right:8px}
+.qa .warn::before{content:"!";color:#8A5A00;font-family:monospace;margin-right:10px}
+
+.doc{font-size:14px;line-height:1.62;max-width:66ch}
+.doc h4{font-family:"IBM Plex Serif",serif;font-size:16px;font-weight:500;margin:18px 0 6px}
+.doc h4:first-child{margin-top:0}
+.sect{border-left:2px solid var(--line2);padding-left:12px;margin-bottom:16px}
+.sect .tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.cl{background:var(--teal-bg);border-bottom:1px solid var(--teal-br);padding:0 1px;cursor:help}
+.cl.bad{background:var(--coral-bg);border-bottom-color:var(--coral-br)}
+
+.term{background:#14191C;color:#D8E0DE;border-radius:8px;padding:15px 17px;font-family:"IBM Plex Mono",monospace;font-size:12.4px;line-height:1.75;overflow-x:auto}
+.term .p{color:#6D9E97} .term .c{color:#77848A} .term .o{color:#E8C87E}
+
+.tree{font-size:13.2px}
+.tree ul{list-style:none;margin:0;padding-left:17px;border-left:1px solid var(--line2)}
+.tree>ul{padding-left:0;border-left:0}
+.tree li{padding:3px 0}
+.tree .n{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+
+textarea,input[type=text],select.f{width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff}
+label.fl{display:block;font-size:11.5px;color:var(--ink3);margin-bottom:4px}
+.selbar{display:flex;gap:8px;align-items:center;padding:9px 13px;background:var(--coral-bg);border:1px solid var(--coral-br);border-radius:7px;margin-bottom:12px;flex-wrap:wrap;font-size:13px;color:var(--coral)}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.filters select{font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+footer.mock{margin-top:32px;padding-top:15px;border-top:1px solid var(--line);color:var(--ink3);font-size:11.5px}
+
+@media (max-width:1040px){
+  .split,.g2,.g3,.g4{grid-template-columns:1fr}
+  .shell{flex-direction:column}
+  .rail{width:100%;height:auto;position:static;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:18px 15px 60px}
+  nav{display:flex;flex-wrap:wrap;gap:3px} .ngroup{margin:0} .ngroup>span{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.screen.on,.pane.on{animation:f .15s ease-out}@keyframes f{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="rail">
+  <div class="brand">
+    <div class="mark"><span class="dot"></span><h2>Strategy Graph</h2></div>
+    <small>Mockup v3 · against handoff 3.0</small>
+  </div>
+  <div class="ws">
+    <label class="fl" for="w">Workspace</label>
+    <select id="w"><option>Glopal</option><option>Tenant two (demo)</option><option>+ New workspace</option></select>
+  </div>
+  <nav id="nav">
+    <div class="ngroup"><span>Modules</span>
+      <button class="navitem" data-s="strategy">Strategy</button>
+      <button class="navitem" data-s="hub">Content Hub</button>
+      <button class="navitem" data-s="production">Production</button>
+      <button class="navitem" data-s="lab">Iteration Lab<span class="ph">2</span></button>
+      <button class="navitem" data-s="techseo">Technical SEO<span class="ph">2</span></button>
+    </div>
+    <div class="ngroup"><span>Base</span>
+      <button class="navitem" data-s="workspace">Workspace</button>
+    </div>
+    <div class="ngroup"><span>Waiting on you</span>
+      <button class="navitem" data-s="strategy" data-t="demand">Relevance<span class="cnt">H1</span></button>
+      <button class="navitem" data-s="hub" data-t="board">Lock plan<span class="cnt">H2</span></button>
+      <button class="navitem" data-s="production" data-t="writer">Review<span class="cnt">2</span></button>
+      <button class="navitem" data-s="production" data-t="publish">Publish<span class="cnt">4</span></button>
+      <button class="navitem" data-s="lab" data-t="digest">Stale claims<span class="cnt">3</span></button>
+    </div>
+  </nav>
+</aside>
+
+<main>
+
+<!-- ================= STRATEGY ================= -->
+<section class="screen on" id="s-strategy">
+  <div class="head">
+    <div class="grow"><div class="crumb">Module · authored</div><h1>Strategy</h1>
+      <p class="sub">The canvas is the source of every claim a page may assert. Demand hangs off the product tree and carries an argument tag.</p></div>
+    <div class="btnrow"><span class="chip r">canvas v4</span></div>
+  </div>
+
+  <div class="tabs" data-tabs="strategy">
+    <button data-t="canvas" aria-selected="true">Canvas</button>
+    <button data-t="demand">Demand</button>
+    <button data-t="brand">Brand kit</button>
+    <button data-t="map">Map</button>
+  </div>
+
+  <!-- canvas -->
+  <div class="pane on" data-p="canvas">
+    <div class="btnrow" style="margin-bottom:13px">
+      <select class="f" style="max-width:280px"><option>Company canvas (hero)</option><option>Duties &amp; Taxes</option><option>Localization</option><option>Glopal Performance Marketing</option></select>
+      <span class="chip t">3 arguments</span><span class="chip c">2 cells unapproved</span>
+      <button class="btn right">+ column</button><button class="btn">Version history</button>
+    </div>
+
+    <div class="pitch">
+      <div class="btnrow" style="margin-bottom:6px"><span class="xs">Elevator pitch · a claim cell (row: pitch) · line one of every bundle once approved</span><span class="chip r">CLM-000 · v2</span><span class="chip t">approved</span><span class="right xs">cited by 6 live pages</span></div>
+      <p>Glopal is a cross-border ecommerce platform for international leads at premium DTC brands who sell to twenty or more markets from a single storefront, and who are choosing between Global-e, Weglot and building it in-house. Cross-border is two problems, not one: what happens at the checkout, and everything that has to happen before it.</p>
+      <div class="btnrow" style="margin-top:9px"><button class="btn sm" id="pitch-edit">Edit cell</button><span class="xs" id="pitch-warn"></span></div>
+    </div>
+
+    <div class="xscroll">
+    <div class="canvas" style="grid-template-columns:120px repeat(3,minmax(215px,1fr))">
+      <div class="cell rowlab">Anchors</div>
+      <div class="cell full" style="grid-column:2/-1">
+        <b>Company</b> Glopal <span class="chip t">primary</span> · <b>Persona</b> Head of Ecommerce / International <span class="chip t">primary</span> · <b>Use case</b> Selling to 20+ markets from one storefront <span class="chip t">primary</span> · <b>Alternative</b> Global-e · Weglot · Shopify Markets Pro · in-house · <b>Category</b> Cross-border ecommerce platform
+        <div class="cellmeta"><span class="xs">Each primary anchor passes the stands-on-its-own rule</span></div>
+      </div>
+
+      <div class="cell rowlab">Problem summary</div>
+      <div class="cell full" style="grid-column:2/-1"><span class="tick">✓</span> Brands treat cross-border as a shipping problem, so they solve the checkout and leave the demand side — language, feeds, search — to a patchwork of apps that do not talk to each other.
+        <div class="cellmeta"><span class="chip r">CLM-001 · v2</span><span class="chip t">approved</span><span class="xs">evidence: 14 discovery calls</span></div></div>
+
+      <div class="cell rowlab">Sub-problem</div>
+      <div class="cell">Duty quoted at checkout does not match what the carrier bills<div class="cellmeta"><span class="chip r">CLM-010</span><span class="chip t">approved</span></div></div>
+      <div class="cell">Translated storefronts do not get indexed in their market<div class="cellmeta"><span class="chip r">CLM-020</span><span class="chip t">approved</span></div></div>
+      <div class="cell">International ad spend cannot be attributed per market<div class="cellmeta"><span class="chip r">CLM-030</span><span class="chip t">approved</span></div></div>
+
+      <div class="cell rowlab">Differentiation pillar</div>
+      <div class="cell"><b>Item-level landed cost</b><div class="cellmeta"><span class="chip r">CLM-011</span><span class="chip t">approved</span></div></div>
+      <div class="cell"><b>Storefront-domain localisation</b><div class="cellmeta"><span class="chip r">CLM-021</span><span class="chip t">approved</span></div></div>
+      <div class="cell"><b>Market-level performance marketing</b><div class="cellmeta"><span class="chip r">CLM-031</span><span class="chip t">approved</span></div></div>
+
+      <div class="cell rowlab">Capability</div>
+      <div class="cell">Duty and tax calculated per HS code at the item level, and collected as the amount charged<div class="cellmeta"><span class="chip r">CLM-012</span><span class="chip t">approved</span></div></div>
+      <div class="cell">Translated pages served from the merchant's own domain, indexable per market<div class="cellmeta"><span class="chip r">CLM-022</span><span class="chip t">approved</span></div></div>
+      <div class="cell">Feeds and campaigns managed per market with their own budgets<div class="cellmeta"><span class="chip r">CLM-032</span><span class="chip t">approved</span></div></div>
+
+      <div class="cell rowlab">Features</div>
+      <div class="cell">HS classification · DDP collection · remittance and filing · refund of duty on returns<div class="cellmeta"><span class="chip r">4 cells</span></div></div>
+      <div class="cell">Subdirectory delivery · hreflang handling · per-market human review · glossary<div class="cellmeta"><span class="chip r">4 cells</span><span class="chip c">1 unapproved</span></div></div>
+      <div class="cell">Localised feeds · market budgets · Shopping and PMax · market-level ROAS<div class="cellmeta"><span class="chip r">4 cells</span></div></div>
+
+      <div class="cell rowlab">Benefit</div>
+      <div class="cell">No post-delivery invoice and no refund ticket<div class="cellmeta"><span class="chip r">CLM-014</span><span class="chip t">approved</span></div></div>
+      <div class="cell">Translated pages rank in each market instead of sitting on a subdomain<div class="cellmeta"><span class="chip r">CLM-024</span><span class="chip t">approved</span></div></div>
+      <div class="cell">Spend moves to the markets that convert<div class="cellmeta"><span class="chip r">CLM-034</span><span class="chip c">no evidence</span></div></div>
+
+      <div class="cell rowlab">Differentiation summary</div>
+      <div class="cell full" style="grid-column:2/-1"><span class="tick">✓</span> One platform where the tax logic, the language and the ad spend share a market list, so they cannot drift apart.
+        <div class="cellmeta"><span class="chip r">CLM-002 · v1</span><span class="chip t">approved</span></div></div>
+    </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="note t"><b>Editing an approved cell creates a new version and runs the stale-claim job.</b> Click "Edit cell" above — the product tells you how many live pages cite it before you confirm. Those pages get a refresh card, regenerating only the sections that cite the claim.</div>
+      <div class="note"><b>Grain is no longer QA's problem.</b> The writer cites claim IDs inline; QA verifies IDs and hunts for unmarked brand assertions. A two-word features cell is fine because nothing is fuzzy-matched against it.</div>
+    </div>
+  </div>
+
+  <!-- demand -->
+  <div class="pane" data-p="demand">
+    <div class="banner c"><b>H1 · review queue.</b><span>Default view: discarded nodes the filter was least sure about. 1,204 discarded in total, 96 below 0.65.</span>
+      <span class="right xs">3,608 kept · 412 from GSC striking distance · full table one filter away</span></div>
+
+    <div class="filters">
+      <select><option>Status: discarded · conf &lt; 0.65</option><option>Status: discarded · all</option><option>Status: kept</option><option>Status: all</option></select>
+      <select><option>Origin: all</option><option>upload</option><option>gsc striking distance</option><option>insight</option></select>
+      <select><option>Area: all</option><option>Duties &amp; Taxes</option><option>Localization</option><option>GPM</option></select>
+      <select><option>Argument: all</option><option>Item-level landed cost</option><option>Storefront-domain localisation</option></select>
+      <select><option>Type: all</option><option>keyword</option><option>prompt</option></select>
+      <select><option>Funnel: all</option><option>bofu</option><option>mofu</option><option>tofu</option></select>
+      <label class="small muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox"> Group by area</label>
+      <button class="btn sm right">Upload CSV</button>
+    </div>
+
+    <div class="selbar hide" id="selbar">
+      <b id="selcount">0</b><span>selected</span>
+      <button class="btn sm" id="bulk-keep">Keep</button>
+      <button class="btn sm">Discard</button>
+      <button class="btn sm">Reassign area</button>
+      <button class="btn sm">Set argument</button>
+      <button class="btn sm right" id="selclear">Clear</button>
+    </div>
+
+    <div class="card"><div class="body tight scroll"><table>
+      <thead><tr><th style="width:28px"><input type="checkbox" id="selall"></th><th>Text</th><th>Type</th><th>Origin</th><th class="num">Vol</th><th>Area</th><th>Argument</th><th>Funnel</th><th>Competitor</th><th>Status</th><th class="num">Score</th></tr></thead>
+      <tbody id="dem">
+        <tr><td><input type="checkbox" class="rs"></td><td>how to sell to japan from us<div class="xs">reason: matches no argument · conf 0.52</div></td><td>keyword</td><td class="xs">upload</td><td class="num">590</td><td class="muted">—</td><td class="muted">—</td><td>—</td><td>—</td><td><span class="chip c">discarded</span></td><td class="num">—</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>incoterms ddp vs dap<div class="xs">reason: trade terminology · conf 0.55</div></td><td>keyword</td><td class="xs">upload</td><td class="num">3,400</td><td class="muted">Duties &amp; Taxes</td><td class="muted">—</td><td>tofu</td><td>—</td><td><span class="chip c">discarded</span></td><td class="num">—</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>shopify translate app free<div class="xs">reason: plugin shopper, not the persona anchor · conf 0.58</div></td><td>keyword</td><td class="xs">upload</td><td class="num">880</td><td class="muted">Localization</td><td class="muted">—</td><td>bofu</td><td>Weglot</td><td><span class="chip c">discarded</span></td><td class="num">—</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>eu vat rates 2026<div class="xs">reason: reference data, not a platform decision · conf 0.61</div></td><td>keyword</td><td class="xs">upload</td><td class="num">1,300</td><td class="muted">Duties &amp; Taxes</td><td class="muted">—</td><td>tofu</td><td>—</td><td><span class="chip c">discarded</span></td><td class="num">—</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>"is glopal worth it for a small brand"<div class="xs">reason: reviews intent, not category · conf 0.63</div></td><td>prompt</td><td class="xs">upload</td><td class="num">—</td><td class="muted">—</td><td class="muted">—</td><td>bofu</td><td>—</td><td><span class="chip c">discarded</span></td><td class="num">—</td></tr>
+        <tr style="background:#F7FAF9"><td><input type="checkbox" class="rs"></td><td>duty drawback for returned orders<div class="xs">pos 9 · 1,240 impressions · page: Duties and taxes for DTC brands</div></td><td>keyword</td><td class="xs">gsc striking</td><td class="num">—</td><td class="muted">Returns</td><td class="muted">Item-level landed cost</td><td>mofu</td><td>—</td><td><span class="chip t">kept</span></td><td class="num">0.71</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>weglot alternative<div class="xs">variants: alternatives to weglot · weglot competitors · + 1 prompt</div></td><td>keyword</td><td class="xs">upload</td><td class="num">1,140</td><td class="muted">Translation</td><td class="muted">Storefront-domain localisation</td><td>bofu</td><td>Weglot</td><td><span class="chip t">kept</span></td><td class="num">0.78</td></tr>
+        <tr><td><input type="checkbox" class="rs"></td><td>"who handles duties for shopify brands selling to the EU"<div class="xs">citation gap 1.0 · 3 platforms · Glopal absent</div></td><td>prompt</td><td class="xs">upload</td><td class="num">—</td><td class="muted">Deemed supplier</td><td class="muted">Item-level landed cost</td><td>bofu</td><td>Zonos</td><td><span class="chip t">kept</span></td><td class="num">3.0</td></tr>
+      </tbody>
+    </table></div></div>
+
+    <div class="grid g2" style="margin-top:13px">
+      <div class="note t"><b>Two scoring scales in one column.</b> Keywords score 0–1; prompts score citation gap × platforms, so 3.0 here. The board sorts within kind, but a mixed column will confuse anyone reading it cold. Either normalise prompts to 0–1 or split the column.</div>
+      <div class="note"><b>Striking-distance rows skip relevance.</b> They already rank, so they enter at classify. The tinted row shows one linked to its imported page — it will become a refresh card, not a new page.</div>
+    </div>
+  </div>
+
+  <!-- brand kit -->
+  <div class="pane" data-p="brand">
+    <div class="split">
+      <div class="stack">
+        <div class="card"><header><h3>Tone</h3><span class="chip c">profile provisional</span></header>
+          <div class="body">
+            <dl class="kv small">
+              <dt>Spelling</dt><dd>en-GB · demand strings exempt</dd>
+              <dt>Banned words</dt><dd class="muted">seamless · unlock · revolutionary</dd>
+              <dt>Style</dt><dd>Operator to operator. Short declaratives. No superlatives.</dd>
+              <dt>Vocabulary</dt><dd>"landed cost" in buyer-facing copy, "duties and taxes" in category copy</dd>
+            </dl>
+            <p class="xs" style="margin-top:12px">Profile is derived from the canvas while the corpus is below 10 sources. It re-derives automatically past that.</p>
+          </div>
+        </div>
+        <div class="card"><header><h3>Voice corpus</h3><span class="chip r">3 sources</span></header>
+          <div class="body tight"><table>
+            <tbody>
+              <tr><td>"We didn't want a second domain just to be multilingual."<div class="xs">call · Rodier · 04 Sep · tagged Translation</div></td></tr>
+              <tr><td>"Per-word pricing was the reason we moved."<div class="xs">interview · 29 Aug · tagged Translation</div></td></tr>
+              <tr><td>"The duty was a surprise for the customer, which is a refund for us."<div class="xs">call · Mac Duggal · 21 Aug · tagged Landed cost</div></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card"><header><h3>Social proof</h3><span class="chip r">9</span><button class="btn sm right">+ add</button></header>
+          <div class="body tight"><table>
+            <thead><tr><th>Proof</th><th>Type</th><th>Areas</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Mac Duggal</td><td>logo</td><td class="muted small">all</td><td><span class="chip t">approved</span></td></tr>
+              <tr><td>Rodier</td><td>case study</td><td class="muted small">Translation</td><td><span class="chip t">approved</span></td></tr>
+              <tr><td>Sabre Paris</td><td>case study</td><td class="muted small">Landed cost</td><td><span class="chip t">approved</span></td></tr>
+              <tr><td>"28 markets from one storefront"</td><td>stat</td><td class="muted small">Translation</td><td><span class="chip t">approved</span></td></tr>
+              <tr><td>Dior</td><td>logo</td><td class="muted small">—</td><td><span class="chip c">not approved</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="note"><b>Competitor edge is not here.</b> It is the Alternative anchor on the canvas plus stances in Workspace config — so a writer checking "may I compare to Linguise" has to look in two places that neither the canvas nor this tab links to.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- map -->
+  <div class="pane" data-p="map">
+    <div class="card"><header><h3>Combined tree</h3><span class="chip r">read-only</span><span class="right xs">canvas → product lines → areas → demand</span></header>
+      <div class="body tree">
+        <ul>
+          <li><div class="n"><b>Glopal — company canvas</b><span class="xs">3 arguments · 41 cells</span></div>
+            <ul>
+              <li><div class="n"><b>Duties &amp; Taxes</b><span class="chip r">line canvas</span><span class="xs">inherits A1 · adds A4</span></div>
+                <ul>
+                  <li><div class="n">Landed cost<span class="xs">412 demand · 4 cards</span><span class="chip t">Item-level landed cost</span></div></li>
+                  <li><div class="n">Deemed supplier / IOSS<span class="xs">188 demand · 3 cards</span></div></li>
+                  <li><div class="n">Returns and refunds of duty<span class="xs">61 demand · 0 cards</span><span class="chip c">no content</span></div></li>
+                </ul></li>
+              <li><div class="n"><b>Localization</b><span class="chip r">line canvas</span><span class="xs">inherits A2 · 1 override</span></div>
+                <ul>
+                  <li><div class="n">Translation<span class="xs">903 demand · 8 cards</span><span class="chip t">Storefront-domain localisation</span></div></li>
+                  <li><div class="n">Localisation<span class="xs">344 demand · 4 cards</span></div></li>
+                  <li><div class="n">International SEO<span class="xs">502 demand · 1 card</span></div></li>
+                </ul></li>
+              <li><div class="n"><b>Glopal Performance Marketing</b><span class="chip r">line canvas</span><span class="xs">inherits A3</span></div>
+                <ul>
+                  <li><div class="n">Feeds<span class="xs">216 demand · 3 cards</span></div></li>
+                  <li><div class="n">Market campaigns<span class="xs">582 demand · 8 cards</span></div></li>
+                </ul></li>
+            </ul></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="margin-top:13px">Orientation only. Everything here is reachable from the flat tabs; nothing is edited in this view.</div>
+  </div>
+</section>
+
+<!-- ================= CONTENT HUB ================= -->
+<section class="screen" id="s-hub">
+  <div class="head">
+    <div class="grow"><div class="crumb">Module · planned</div><h1>Content Hub</h1>
+      <p class="sub">One board whose columns are the card state machine and nothing else. Cards move by passing gates in Production, not by drag.</p></div>
+  </div>
+
+  <div class="tabs" data-tabs="hub">
+    <button data-t="board" aria-selected="true">Plan board</button>
+    <button data-t="dash">Dashboard</button>
+  </div>
+
+  <div class="pane on" data-p="board">
+    <div class="banner c" id="h2banner"><b>H2 · plan is unlocked.</b><span>19 cards in Planned, 3 added by yesterday's upload.</span>
+      <button class="btn sm right" id="h2lock">Lock plan</button></div>
+
+    <div class="filters">
+      <select><option>Area: all</option><option>Landed cost</option><option>Translation</option></select>
+      <select><option>Kind: all</option><option>pillar</option><option>cluster</option><option>compare</option></select>
+      <select><option>Owner: all</option><option>Anirudh</option><option>Patrice</option></select>
+      <select><option>Argument: all</option></select>
+      <select><option>Market: all</option><option>en-GB</option><option>fr-FR</option><option>de-DE</option></select>
+      <select><option>Reviewer: me</option><option>Patrice (G2 only)</option><option>all</option></select>
+      <button class="btn sm right">+ card</button>
+    </div>
+
+    <div class="xscroll"><div class="board">
+      <div class="col rest"><h3>Backlog<span class="n">7</span></h3><div class="inner">
+        <div class="kc"><b>Linguise alternative</b><div class="m">compare · Translation · en-GB<br>linguise alternative · 210</div><div class="f"><span class="chip c">stance conflict</span><span class="xs">drag to Planned</span></div></div>
+        <div class="kc"><b>Incoterms explained</b><div class="m">cluster · Duties &amp; Taxes<br>re-admitted at H1 · 3,400</div><div class="f"><span class="chip o">0.48</span></div></div>
+      </div></div>
+
+      <div class="col rest"><h3>Planned<span class="n">19</span></h3><div class="inner">
+        <div class="kc"><b>Deemed supplier for DTC brands</b><div class="m">pillar · Deemed supplier · en-GB<br>deemed supplier · 390</div><div class="f"><span class="chip r">new</span><span class="chip o">0.71</span></div></div>
+        <div class="kc"><b>Who handles EU duties for Shopify brands</b><div class="m">cluster · Deemed supplier · en-GB<br>prompt primary · gap 1.0 · 3 platforms</div><div class="f"><span class="chip t">GEO</span><span class="chip o">3.0</span></div></div>
+        <div class="kc"><b>Duties and taxes for DTC brands</b><div class="m">refresh · Duties &amp; Taxes<br>adds "duty drawback for returned orders"</div><div class="f"><span class="chip r">refresh</span><span class="chip o">0.71</span></div></div>
+        <div class="kc"><b>International SEO for ecommerce</b><div class="m">cluster · International SEO<br>1,500</div><div class="f"><span class="chip o">0.39</span></div></div>
+      </div></div>
+
+      <div class="col sys"><h3>Outline<span class="n">4</span></h3><div class="inner">
+        <div class="kc"><b>What is a deemed supplier</b><div class="m">cluster · Deemed supplier<br>bundled · assembling context</div><div class="f"><span class="chip t">system working</span></div></div>
+        <div class="kc"><b>Global-e alternative</b><div class="m">refresh · Duties &amp; Taxes<br>stale CLM-021 v1 → v2 · 2 sections</div><div class="f"><span class="chip r">refresh</span><span class="chip t">regenerating</span></div></div>
+        <div class="kc"><b>Localised product feeds</b><div class="m">cluster · Feeds<br>outlined · G1 auto-approved</div><div class="f"><span class="chip t">auto</span></div></div>
+      </div></div>
+
+      <div class="col sys"><h3>Draft<span class="n">4</span></h3><div class="inner">
+        <div class="kc"><b>Ecommerce translation and localisation</b><div class="m">pillar · Translation<br>qa_failed · 2 hard fails</div><div class="f"><span class="chip c">QA fail</span><span class="chip t">redrafting</span></div></div>
+        <div class="kc"><b>Market-level ROAS</b><div class="m">cluster · Market campaigns<br>drafting · v1</div><div class="f"><span class="chip t">system working</span></div></div>
+      </div></div>
+
+      <div class="col hum"><h3>Review<span class="n">2</span></h3><div class="inner">
+        <div class="kc act"><b>Landed cost calculation</b><div class="m">pillar · Landed cost · en-GB<br>qa_passed · 2 soft warnings open</div><div class="f"><span class="chip c">G2 · you</span><button class="btn sm" data-go="production" data-gt="writer">Open</button></div></div>
+        <div class="kc"><b>Weglot alternative</b><div class="m">compare · Translation · en-GB<br>outlined · not eligible for auto (compare)</div><div class="f"><span class="chip c">G1 · you</span></div></div>
+      </div></div>
+
+      <div class="col rest"><h3>Approved<span class="n">4</span></h3><div class="inner">
+        <div class="kc"><b>Shopify Markets vs Glopal</b><div class="m">compare · Landed cost · en-GB<br>export ready</div><div class="f"><span class="chip r">publish</span><button class="btn sm" data-go="production" data-gt="publish">Publish</button></div></div>
+        <div class="kc"><b>Deemed supplier / IOSS</b><div class="m">cluster · Deemed supplier · fr-FR<br>variant of en-GB · hreflang group</div><div class="f"><span class="chip r">variant · 1.5</span></div></div>
+      </div></div>
+
+      <div class="col rest"><h3>Live<span class="n">218</span></h3><div class="inner">
+        <div class="kc"><b>Duties and taxes for DTC brands</b><div class="m">pillar · Duties &amp; Taxes<br>published 09 Sep · cms_id 7f31</div><div class="f"><span class="chip c">stale · CLM-021</span><span class="chip r">live</span></div></div>
+        <div class="kc"><b>Cross-border ecommerce platform</b><div class="m">pillar · company<br>pos 8 · 4,390 impr</div><div class="f"><span class="chip r">live 42 days</span></div></div>
+        <div class="kc"><b>/blog/what-is-ioss</b><div class="m">imported · Deemed supplier<br>pos 12 · 2,870 impr · 3 striking queries</div><div class="f"><span class="chip r">imported</span></div></div>
+        <div class="kc"><b>/blog/black-friday-2024</b><div class="m">imported · Unmapped<br>0 clicks · 90 days</div><div class="f"><span class="chip r">imported</span><span class="chip o">unmapped</span></div></div>
+        <div class="xs" style="padding:4px 2px">+ 214 imported pages</div>
+      </div></div>
+    </div></div>
+
+    <div class="grid g3" style="margin-top:14px">
+      <div class="note t"><b>Live is 218 cards, six of them ours.</b> That is the import doing its job — siblings, links and cannibalisation now see the whole site. It also means the Live column is a list, not a Kanban column; it probably wants its own table view with GSC columns.</div>
+      <div class="note t"><b>Auto-approval shows up on the card, not silently.</b> "Localised product feeds" passed G1 on config. The activity log records `auto_approve` as the trigger.</div>
+      <div class="note c"><b>Two refresh sources, one kind.</b> A striking-distance query and a stale claim both make a refresh card. The face should say which — a stale refresh is a compliance fix; a striking-distance refresh is an opportunity.</div>
+    </div>
+  </div>
+
+  <div class="pane" data-p="dash">
+    <div class="filters">
+      <select><option>Product line: all</option><option>Duties &amp; Taxes</option><option>Localization</option><option>GPM</option></select>
+      <select><option>Area: all</option></select>
+    </div>
+    <div class="grid g4">
+      <div class="tile"><div class="n">218</div><div class="l">Pages live</div><div class="d">212 imported · 6 produced · 14 unmapped</div></div>
+      <div class="tile"><div class="n">12,480</div><div class="l">Organic clicks · 28 days</div><div class="d">+6% vs prior 28 · from GSC at import</div></div>
+      <div class="tile"><div class="n">3</div><div class="l">Stale pages</div><div class="d">cite CLM-021 v1 · refresh cards raised</div></div>
+      <div class="tile"><div class="n">2</div><div class="l">Waiting on a human</div><div class="d">1 at G1 · 1 at G2 · 4 to publish</div></div>
+    </div>
+    <div class="grid g4" style="margin-top:13px">
+      <div class="tile"><div class="n">21<span style="font-size:15px;color:var(--ink3)">/34</span></div><div class="l">Claims on a live page</div><div class="d">13 approved claims appear nowhere</div></div>
+      <div class="tile"><div class="n">412</div><div class="l">Striking-distance queries</div><div class="d">position 4–15 · 38 became refresh cards</div></div>
+      <div class="tile off"><div class="n">—</div><div class="l">AI citation share</div><div class="d"><button class="btn sm">Connect Otterly</button></div></div>
+      <div class="tile off"><div class="n">—</div><div class="l">Leads attributed</div><div class="d"><button class="btn sm">Connect HubSpot</button></div></div>
+    </div>
+    <div class="note t" style="margin-top:14px"><b>Two dark tiles carry a connect action, not a dash</b>, and the rest have numbers on day one because import brought 16 months of GSC. The "13 approved claims appear nowhere" figure is the claim coverage map in one number.</div>
+  </div>
+</section>
+
+<!-- ================= PRODUCTION ================= -->
+<section class="screen" id="s-production">
+  <div class="head">
+    <div class="grow"><div class="crumb">Module · executed</div><h1>Production</h1>
+      <p class="sub">The card opened for work. Same jobs are available from the CLI and MCP; this stays the review surface.</p></div>
+  </div>
+
+  <div class="tabs" data-tabs="production">
+    <button data-t="writer" aria-selected="true">Writer view</button>
+    <button data-t="publish">Publish</button>
+    <button data-t="cli">CLI and MCP</button>
+  </div>
+
+  <div class="pane on" data-p="writer">
+    <div class="card" style="margin-bottom:13px"><div class="body" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div><h3>Landed cost calculation</h3><div class="xs">pillar · Landed cost · <span class="mono">CRD-0018</span></div></div>
+      <span class="chip c">qa_passed · at G2</span>
+      <span class="chip t">Item-level landed cost</span>
+      <span class="chip r">landed cost calculator · 2,310</span>
+      <span class="chip r">owner Anirudh</span>
+      <span class="right xs">draft v3 · bundle stored 16 Sep</span>
+    </div></div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,260px) minmax(0,1.6fr) minmax(0,300px);gap:13px" id="panes">
+      <!-- context -->
+      <div class="card"><header><h3>Context</h3><span class="chip t">stored bundle</span></header>
+        <div class="body" style="font-size:12.5px">
+          <div class="xs" style="margin-bottom:4px">Elevator pitch · line one</div>
+          <p class="muted" style="font-size:12.2px">Glopal is a cross-border ecommerce platform for international leads at premium DTC brands…</p>
+          <div class="rule" style="margin:11px 0"></div>
+          <div class="xs">Claims used</div>
+          <p style="margin:5px 0 0"><span class="tick">✓</span> CLM-012 duty per HS code at item level<br><span class="tick">✓</span> CLM-014 no post-delivery invoice<br><span class="tick">✓</span> CLM-001 problem summary</p>
+          <div class="rule" style="margin:11px 0"></div>
+          <div class="xs">Tone</div>
+          <p class="muted" style="margin:5px 0 0;font-size:12.2px">en-GB · no superlatives · "landed cost" in buyer-facing copy. 1 snippet tagged to this area.</p>
+          <div class="rule" style="margin:11px 0"></div>
+          <div class="xs">Siblings</div>
+          <p class="muted" style="margin:5px 0 0;font-size:12.2px">Duties and taxes for DTC brands (approved) · Shopify Markets vs Glopal (approved)</p>
+          <div class="rule" style="margin:11px 0"></div>
+          <div class="xs">References</div>
+          <p class="muted" style="margin:5px 0 0;font-size:12.2px">5 ranking pages, 3 AI-cited. Headings and entities only.</p>
+          <div class="rule" style="margin:11px 0"></div>
+          <div class="xs">Rules in force</div>
+          <p class="muted" style="margin:5px 0 0;font-size:12.2px">2,000 words ±15% · proof: Rodier, Sabre Paris, Mac Duggal · Zonos: documented facts only</p>
+        </div>
+      </div>
+
+      <!-- document -->
+      <div class="card"><header>
+        <div class="tabs" style="margin:0;border:0" data-tabs="doc">
+          <button data-t="outline" aria-selected="true">Outline</button>
+          <button data-t="draft">Draft</button>
+        </div>
+        <span class="right"><button class="btn sm">Regenerate all</button><button class="btn sm">History</button></span>
+      </header>
+        <div class="body">
+          <div class="pane on" data-p="outline">
+            <div class="banner t" style="margin-bottom:13px"><b>Approved at G1 on 16 Sep.</b><span>The draft may not introduce a claim absent from this outline.</span></div>
+            <div class="sect"><div class="tags"><span class="chip r">CLM-001</span><span class="chip o">landed cost calculator</span></div><b>What landed cost actually includes</b><div class="xs">leads with: Item-level landed cost</div></div>
+            <div class="sect"><div class="tags"><span class="chip r">CLM-012</span><span class="chip o">how to calculate landed cost</span></div><b>How the calculation works per item</b><div class="xs">internal link → Duties and taxes for DTC brands</div></div>
+            <div class="sect"><div class="tags"><span class="chip r">CLM-014</span></div><b>Why estimates cause refunds</b></div>
+            <div class="sect"><div class="tags"><span class="chip r">CLM-014</span><span class="chip o">proof: Rodier</span></div><b>How Rodier handles it</b></div>
+            <div class="sect"><div class="tags"><span class="chip o">landed cost calculator</span></div><b>Choosing a calculator</b><div class="xs">internal link → Shopify Markets vs Glopal</div></div>
+          </div>
+
+          <div class="pane" data-p="draft">
+            <div class="doc">
+              <div class="xs" style="margin-bottom:10px">Claim markers are shown here and stripped on export. Category information carries no marker and is checked softly.</div>
+              <h4>What landed cost actually includes</h4>
+              <p>A landed cost is the total a buyer pays to receive an order in their own country: product price, shipping, duty, import tax and any broker fee. Most EU member states apply import VAT at the standard rate on the full landed value. <span class="cl" title="CLM-012 v2 approved">Duty and tax are calculated per HS code at the item level rather than estimated across the basket <span class="mono">[CLM-012]</span></span>, which matters once an order mixes categories with different rates.</p>
+              <h4>Why estimates cause refunds</h4>
+              <p>When a checkout estimates rather than calculates, the gap appears later. <span class="cl" title="CLM-014 v1 approved">The quoted figure is the amount charged, with no invoice arriving after delivery <span class="mono">[CLM-014]</span></span> — the alternative is a support ticket and, often, a refund.</p>
+              <p><span class="cl bad" title="Writer could not find a claim — hard fail in v2, sentence removed in v3"><span class="mono">[NEEDS-CLAIM: support-ticket reduction figure]</span></span> <span class="xs">v2 · removed in v3</span></p>
+              <h4>How Rodier handles it</h4>
+              <p>Rodier sells to 28 markets from one storefront and quotes duty at checkout in each. <span class="cl" title="CLM-002 v1 approved">The tax logic, the language and the ad spend share one market list <span class="mono">[CLM-002]</span></span>, so they do not drift apart.</p>
+            </div>
+            <div class="btnrow" style="margin-top:14px"><button class="btn sm">Comment on selection · becomes FEEDBACK</button><button class="btn sm">Regenerate this section</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- checks -->
+      <div class="card"><header><h3>Checks and gate</h3><span class="chip t">passed</span></header>
+        <div class="body qa" style="font-size:12.6px">
+          <ul>
+            <li class="ok">3 claim markers resolve to approved cells at current version</li>
+            <li class="ok">No unmarked brand assertions found</li>
+            <li class="ok">No NEEDS-CLAIM markers</li>
+            <li class="ok">Proof ⊆ approved social proof for area and market</li>
+            <li class="ok">No comparative claim on Zonos</li>
+            <li class="ok">1,940 words · budget 2,000 ±15%</li>
+            <li class="ok">6 internal links resolve (2 to imported pages)</li>
+            <li class="ok">Primary demand in title, H1, first 100 words, meta</li>
+            <li class="ok">No near-duplicate vs 218 live pages</li>
+            <li class="warn">1 category fact without a source ("import VAT at the standard rate") <button class="btn sm sw">Dismiss</button></li>
+            <li class="warn">"optimize" — market is en-GB <button class="btn sm sw">Dismiss</button></li>
+          </ul>
+          <div class="rule" style="margin:12px 0"></div>
+          <div id="g2box">
+            <div class="xs" id="swnote" style="margin-bottom:8px">Approve enables when soft warnings are dismissed or fixed.</div>
+            <div class="btnrow" style="margin-bottom:11px">
+              <button class="btn pri" id="g2ok" disabled>Approve</button><button class="btn dan" id="g2no">Send back</button>
+            </div>
+            <div id="g2form" class="hide">
+              <div style="margin-bottom:9px"><label class="fl">This is about</label><select class="f"><option>writer</option><option>claim</option><option>tone rule</option><option>plan</option><option>QA rule</option></select></div>
+              <div style="margin-bottom:9px"><label class="fl">Reason · required</label><textarea rows="3" placeholder="Section three reads like a case study. Two sentences, then link the webinar."></textarea></div>
+              <div style="margin-bottom:10px"><label class="fl">Disposition</label><select class="f"><option>fix now</option><option>log only</option></select></div>
+              <button class="btn pri" id="g2send">Send back to drafting</button>
+            </div>
+          </div>
+          <div class="rule" style="margin:12px 0"></div>
+          <div class="xs">Activity<br>16 Sep 14:02 draft v3 · cli<br>16 Sep 11:20 QA failed v2 · ui<br>16 Sep 09:40 outline approved · ui</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="note t"><b>Approve is disabled until both soft warnings are dismissed.</b> Dismissals are logged with the approver, so "who let 'optimize' through" has an answer.</div>
+      <div class="note"><b>The category-fact warning is the narrowed QA rule in action.</b> "Import VAT at the standard rate" is about the EU, not about Glopal — so it is a soft flag asking for a source, not a hard fail asking for a claim.</div>
+    </div>
+  </div>
+
+  <div class="pane" data-p="publish">
+    <div class="banner r"><b>4 approved cards ready.</b><span>v1 hands the export to the agent's CMS tool; the agent writes back cms_id and URL. Direct HubSpot adapter is phase 2.</span></div>
+    <div class="split">
+      <div class="card"><header><h3>Ready to publish</h3></header>
+        <div class="body tight"><table>
+          <thead><tr><th>Card</th><th>Market</th><th>Path</th><th>State</th><th></th></tr></thead>
+          <tbody id="pubrows">
+            <tr><td>Shopify Markets vs Glopal<div class="xs">compare · Landed cost</div></td><td>en-GB</td><td class="xs">agent → HubSpot MCP</td><td><span class="chip r">approved</span></td><td><button class="btn sm pri pub">Publish</button></td></tr>
+            <tr><td>Landed cost calculation<div class="xs">pillar · Landed cost</div></td><td>en-GB</td><td class="xs">agent → HubSpot MCP</td><td><span class="chip r">approved</span></td><td><button class="btn sm pri pub">Publish</button></td></tr>
+            <tr><td>Deemed supplier / IOSS<div class="xs">cluster · fr-FR variant</div></td><td>fr-FR</td><td class="xs">agent → HubSpot MCP</td><td><span class="chip r">approved</span></td><td><button class="btn sm pri pub">Publish</button></td></tr>
+            <tr><td>Global-e alternative<div class="xs">refresh · 2 sections</div></td><td>en-GB</td><td class="xs">update cms_id 7f31</td><td><span class="chip r">approved</span></td><td><button class="btn sm pri pub">Republish</button></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="stack">
+        <div class="card"><header><h3>Export payload</h3><span class="chip r">md + json</span></header>
+          <div class="body" style="padding:0"><div class="term"><span class="c">// CRD-0018.json (excerpt)</span><br>{ "title": "Landed cost calculation: what the buyer actually pays",<br>&nbsp; "slug": "landed-cost-calculation",<br>&nbsp; "meta": "…",<br>&nbsp; "market": {"lang":"en","country":"GB"},<br>&nbsp; "claims": ["CLM-012@2","CLM-014@1","CLM-002@1"],<br>&nbsp; "internal_links": ["/duties-and-taxes", "/shopify-markets-vs-glopal"],<br>&nbsp; "schema": ["Article","FAQPage"],<br>&nbsp; "hreflang_group": null }</div></div>
+        </div>
+        <div class="card"><header><h3>What the agent does</h3></header>
+          <div class="body qa"><ul>
+            <li class="ok"><span class="mono">sg export CRD-0018</span></li>
+            <li class="ok">HubSpot MCP: create blog post from markdown, set meta and slug</li>
+            <li class="ok"><span class="mono">sg set-cms-id CRD-0018 --id 7f9a --url /landed-cost-calculation</span></li>
+            <li class="ok">card → <span class="chip r">live</span> · published_at set · GSC starts attaching next sync</li>
+          </ul></div>
+        </div>
+        <div class="note c"><b>The agent is a trust boundary.</b> Whatever Claude Code does between export and set-cms-id — layout, images, a stray edit — is outside the product's QA. Phase 2's direct adapter closes that. Until then the export should carry a content hash the product can compare on next import.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" data-p="cli">
+    <div class="split">
+      <div class="stack">
+        <div class="card"><header><h3>Same jobs, three surfaces</h3></header>
+          <div class="body tight"><table>
+            <thead><tr><th>Verb</th><th>Does</th><th>Writes</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">bundle</td><td class="muted">Assemble and store the context bundle</td><td class="xs">bundle_ref · JOB_RUN</td></tr>
+              <tr><td class="mono">outline</td><td class="muted">Generate the outline against the bundle</td><td class="xs">outline · JOB_RUN</td></tr>
+              <tr><td class="mono">draft</td><td class="muted">Write against the approved outline</td><td class="xs">draft vN · JOB_RUN</td></tr>
+              <tr><td class="mono">qa</td><td class="muted">Run hard and soft checks</td><td class="xs">qa_report</td></tr>
+              <tr><td class="mono">approve</td><td class="muted">Pass the gate the card is waiting at</td><td class="xs">state</td></tr>
+              <tr><td class="mono">send-back</td><td class="muted">Return with a typed reason</td><td class="xs">FEEDBACK · state</td></tr>
+              <tr><td class="mono">export</td><td class="muted">Markdown + JSON</td><td class="xs">object store</td></tr>
+              <tr><td class="mono">publish</td><td class="muted">Export and hand to the CMS tool</td><td class="xs">JOB_RUN</td></tr>
+              <tr><td class="mono">set-cms-id</td><td class="muted">Write back id and URL → live</td><td class="xs">cms_id · url · state</td></tr>
+              <tr><td class="mono">import site</td><td class="muted">Sitemap → cards in live, GSC attach</td><td class="xs">CONTENT_CARD × N</td></tr>
+              <tr><td class="mono">cards list · card show</td><td class="muted">Read the board</td><td class="xs">—</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="note t"><b>approve needs a per-user key.</b> A workspace key gets <span class="mono">403 approve requires a user key</span>. The call records the bundle version it was shown, so a CLI approval is attributable to a person and a document.</div>
+      </div>
+
+      <div class="stack">
+        <div class="card"><header><h3>Terminal</h3></header><div class="body" style="padding:0">
+          <div class="term"><span class="c"># take a card from planned to a reviewable draft</span><br>
+<span class="p">$</span> sg cards list --state planned --area "Landed cost"<br>
+<span class="o">CRD-0018</span>  Landed cost calculation      pillar   0.81<br>
+<span class="o">CRD-0021</span>  How to calculate landed cost cluster  0.62<br><br>
+<span class="p">$</span> sg bundle CRD-0018<br>
+bundle stored · 7,840 tokens · rules &gt; claims &gt; demand &gt; tone &gt; siblings &gt; refs<br><br>
+<span class="p">$</span> sg outline CRD-0018<br>
+outlined · 5 sections · 3 claims · <span class="o">waiting at G1</span><br><br>
+<span class="p">$</span> sg draft CRD-0018 &amp;&amp; sg qa CRD-0018<br>
+draft v1 · 2,140 words<br>
+qa <span class="o">FAILED</span> · 2 hard: unmatched claim, word budget<br><br>
+<span class="p">$</span> sg approve CRD-0018 --gate G2<br>
+<span class="o">403</span> approve requires a user key · using workspace key<br><br>
+<span class="p">$</span> SG_KEY=$USER_KEY sg approve CRD-0018 --gate G2 --seen bundle@16sep<br>
+approved · by anirudh · bundle 16sep recorded<br><br>
+<span class="p">$</span> sg publish CRD-0018 &amp;&amp; sg set-cms-id CRD-0018 --id 7f9a --url /landed-cost-calculation<br>
+<span class="o">live</span> · published_at 19 Sep<br>
+<span class="c"># every call above wrote a JOB_RUN with triggered_by=cli</span></div>
+        </div></div>
+
+        <div class="card"><header><h3>MCP tools</h3><span class="chip r">same verbs</span></header>
+          <div class="body">
+            <p class="small muted">Exposed so a card can be run end to end from Claude Code or a chat. Auth model is open question 6.</p>
+            <p class="mono xs">sg_cards_list · sg_card_show · sg_bundle · sg_outline · sg_draft · sg_qa · sg_approve · sg_send_back · sg_export · sg_publish · sg_set_cms_id · sg_import_site</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ITERATION LAB ================= -->
+<section class="screen" id="s-lab">
+  <div class="head">
+    <div class="grow"><div class="crumb">Module · learned · phase 1 detectors live</div><h1>Iteration Lab</h1>
+      <p class="sub">Weekly, propose only. Three detectors run on imported pages from day one; the rest arrive with their connectors.</p></div>
+  </div>
+
+  <div class="tabs" data-tabs="lab">
+    <button data-t="digest" aria-selected="true">Digest</button>
+    <button data-t="exp">Experiments</button>
+    <button data-t="hist">History</button>
+    <button data-t="reports">Reports</button>
+  </div>
+
+  <div class="pane on" data-p="digest">
+    <div class="banner r"><b>Monday 14 September.</b><span>5 cards · 3 from phase-1 detectors. Accepting moves a card to Experiments as ready to apply.</span></div>
+    <div class="stack" id="cards">
+
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip c">stale claim</span><h3 style="flex:1">3 live pages assert CLM-021 v1; v2 was approved on 17 Sep</h3><span class="xs mono">INS-0046</span></div>
+        <p class="small muted">Target: <b>CLM-021</b>. v1 said translated pages are indexable; v2 adds "from the merchant's own domain". The three pages say the weaker thing.</p>
+        <div class="card" style="margin:10px 0"><div class="body tight"><table>
+          <thead><tr><th>Page</th><th>Sections citing</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td>Duties and taxes for DTC brands</td><td class="num">1</td><td><span class="chip r">live</span></td></tr>
+            <tr><td>Global-e alternative</td><td class="num">2</td><td><span class="chip r">live</span></td></tr>
+            <tr><td>Ecommerce translation and localisation</td><td class="num">3</td><td><span class="chip r">live · imported</span></td></tr>
+          </tbody></table></div></div>
+        <p class="small"><b>Proposed:</b> one refresh card per page, regenerating only the citing sections. Each is its own experiment.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">claim versions × citations · phase 1</span></div>
+      </div></div>
+
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip t">striking distance</span><h3 style="flex:1">/blog/what-is-ioss ranks 12 for 3 queries totalling 4,100 impressions it does not target</h3><span class="xs mono">INS-0047</span></div>
+        <p class="small muted">Target: imported card <b>/blog/what-is-ioss</b>. "ioss registration cost", "ioss vs oss", "do I need ioss" — none in the title or H2s.</p>
+        <p class="small"><b>Proposed:</b> refresh card adding three sections; primary stays as is.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">GSC · 16 months · phase 1</span></div>
+      </div></div>
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip t">perception</span><h3 style="flex:1">Zonos is cited on 6 of 20 bofu duty prompts where Glopal is absent</h3><span class="xs mono">INS-0042</span><span class="chip r">phase 2 · needs Otterly</span></div>
+        <p class="small muted">Target: <b>Deemed supplier / IOSS</b> area. Three of the six ask who handles duty for Shopify brands selling to the EU — no card answers that directly.</p>
+        <div class="card" style="margin:10px 0"><div class="body tight"><table>
+          <thead><tr><th>Prompt</th><th>Cited</th><th>Glopal</th></tr></thead>
+          <tbody>
+            <tr><td>who handles duties for shopify brands selling to the EU</td><td>zonos.com, shopify.com</td><td>absent</td></tr>
+            <tr><td>best IOSS provider for small brands</td><td>zonos.com, avalara.com</td><td>absent</td></tr>
+            <tr><td>do I need a deemed supplier for EU sales</td><td>zonos.com</td><td>absent</td></tr>
+          </tbody></table></div></div>
+        <p class="small"><b>Proposed:</b> create a cluster card under Deemed supplier targeting <span class="mono">DN-0501</span>.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">3 signals · Otterly · week 37</span></div>
+      </div></div>
+
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip t">CTR / rank</span><h3 style="flex:1">Global-e alternative ranks 5 with CTR 3.9% against an area median of 6.2%</h3><span class="xs mono">INS-0043</span></div>
+        <p class="small muted">Target: <b>CRD-0004</b>. Position stable for three weeks, so this is title and meta rather than content.</p>
+        <p class="small"><b>Proposed:</b> three title and meta candidates, re-entering Production at Outline with the current sections untouched.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">9 signals · Search Console · weeks 35–37 · phase 1</span></div>
+      </div></div>
+
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip t">attribution</span><h3 style="flex:1">Translation produced 7 leads; 5 described the problem as pricing, not indexing</h3><span class="xs mono">INS-0044</span></div>
+        <p class="small muted">Target: <b>argument 2</b> on the company canvas. The sub-problem cell says pages do not get indexed; the leads say per-word pricing.</p>
+        <p class="small"><b>Proposed:</b> add an argument column for pricing, or reorder claim emphasis in the bundle. Applying opens the canvas cell.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">7 CRM records × landing pages</span></div>
+      </div></div>
+
+      <div class="card ins"><div class="body">
+        <div class="btnrow" style="margin-bottom:8px"><span class="chip t">phrasing drift</span><h3 style="flex:1">Prospects said "landed cost" 3× more often than "duties and taxes" this month</h3><span class="xs mono">INS-0045</span><span class="chip r">phase 3</span></div>
+        <p class="small muted">Target: tone profile. CLM-012 uses the less-used phrase in buyer-facing wording.</p>
+        <p class="small"><b>Proposed:</b> reword CLM-012. This changes a canvas cell, so it re-opens approval rather than a card.</p>
+        <div class="btnrow"><button class="btn pri acc">Accept</button><button class="btn rej">Reject</button><span class="right xs">14 call transcripts · Sep</span></div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="pane" data-p="exp">
+    <div class="card"><header><h3>Open experiments</h3><span class="chip r">window 28 days</span></header>
+      <div class="body tight"><table>
+        <thead><tr><th>Change</th><th>Target</th><th>Started</th><th>Window</th><th>Baseline</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Title and meta rewritten</td><td>Cross-border ecommerce platform</td><td class="muted small">20 Aug</td><td class="muted small">ends 17 Sep</td><td class="mono xs">CTR 1.1% · pos 6.0</td><td><span class="chip t">pending · today</span></td></tr>
+          <tr><td>Added FAQ answering the IOSS prompt</td><td>Duties and taxes for DTC brands</td><td class="muted small">02 Sep</td><td class="muted small">ends 30 Sep</td><td class="mono xs">citations 0/20</td><td><span class="chip t">pending</span></td></tr>
+          <tr><td>CLM-021 v2 · refresh (INS-0040)</td><td>Global-e alternative</td><td class="muted small">17 Sep</td><td class="muted small">ends 15 Oct</td><td class="mono xs">pos 5 · CTR 3.9%</td><td><span class="chip t">pending</span></td></tr>
+          <tr><td>CLM-021 v2 · refresh (INS-0040)</td><td>Duties and taxes for DTC brands</td><td class="muted small">17 Sep</td><td class="muted small">ends 15 Oct</td><td class="mono xs">pos 6 · CTR 1.1%</td><td><span class="chip t">pending</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-top:13px"><header><h3>Accepted, not yet applied</h3><span class="chip c">2</span></header>
+      <div class="body tight"><table>
+        <thead><tr><th>Insight</th><th>Accepted</th><th>Age</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><span class="mono xs">INS-0041</span> Add a cluster answering "duty on returns"</td><td class="muted small">08 Sep</td><td class="mono xs">11 d</td><td><button class="btn sm pri">Apply</button></td></tr>
+          <tr><td><span class="mono xs">INS-0038</span> Reorder claims in the Translation bundle</td><td class="muted small">01 Sep</td><td class="mono xs" style="color:var(--coral)">18 d</td><td><button class="btn sm pri">Apply</button></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="grid g2" style="margin-top:13px">
+      <div class="note t"><b>A claim change is now one experiment per page</b>, each with its own baseline, grouped under the insight. Clean verdicts; the refresh regenerates only the citing sections so the trips through G1/G2 are short (and clusters can auto-approve).</div>
+      <div class="note c"><b>Accepted-not-applied still ages.</b> 18 days is the product waiting on a person. Worth a digest line: "2 accepted insights older than 14 days."</div>
+    </div>
+  </div>
+
+  <div class="pane" data-p="hist">
+    <div class="card"><header><h3>Closed</h3></header>
+      <div class="body tight"><table>
+        <thead><tr><th>What</th><th>Target</th><th>Closed</th><th>Delta</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Title and meta rewritten</td><td>Global-e alternative</td><td class="muted small">12 Aug</td><td class="mono xs">CTR 2.4 → 3.9%</td><td><span class="chip t">improved</span></td></tr>
+          <tr><td>Comparison table added</td><td>Shopify Markets vs Glopal</td><td class="muted small">05 Aug</td><td class="mono xs">pos 11 → 10</td><td><span class="chip r">no change</span></td></tr>
+          <tr><td>Intro shortened to lead with the benefit</td><td>Duties and taxes for DTC brands</td><td class="muted small">28 Jul</td><td class="mono xs">CTR 3.1 → 2.6%</td><td><span class="chip c">worse</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin-top:13px"><header><h3>Rejected insights</h3><span class="chip r">suppressed</span></header>
+      <div class="body tight"><table>
+        <tbody>
+          <tr><td><span class="mono xs">INS-0039</span> Translation leads mention pricing</td><td class="muted small">"sample too small"</td><td class="xs">suppressed until 20+ leads</td></tr>
+          <tr><td><span class="mono xs">INS-0033</span> Add a cluster for hreflang</td><td class="muted small">"covered by the pillar"</td><td class="xs">suppressed indefinitely</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="note t" style="margin-top:13px"><b>The "worse" row now does something.</b> The reverted-change detector raises a digest card proposing rollback to the baseline draft version. It is the loop the module is named after.</div>
+  </div>
+
+  <div class="pane" data-p="reports">
+    <div class="banner r"><b>Traceability, made visible.</b><span>Three artefacts that show the strategy is executed, that every assertion is approved, and what AI says about you versus what you decided to say.</span></div>
+
+    <div class="card" style="margin-bottom:13px"><header><h3>Claim coverage map</h3><span class="chip t">phase 1</span><span class="right xs">approved claims × live pages</span></header>
+      <div class="body tight xscroll"><table>
+        <thead><tr><th>Claim</th><th>Argument</th><th class="num">Live pages</th><th>Where</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><span class="mono xs">CLM-012</span> duty per HS code at item level</td><td class="muted small">Item-level landed cost</td><td class="num">5</td><td class="xs">D&amp;T pillar · landed cost · Global-e alt · Shopify Markets vs · /blog/what-is-ioss</td><td></td></tr>
+          <tr><td><span class="mono xs">CLM-014</span> no post-delivery invoice</td><td class="muted small">Item-level landed cost</td><td class="num">4</td><td class="xs">—</td><td></td></tr>
+          <tr><td><span class="mono xs">CLM-022</span> served from merchant domain, indexable</td><td class="muted small">Storefront-domain localisation</td><td class="num">2</td><td class="xs">translation pillar · Weglot alt</td><td></td></tr>
+          <tr style="background:var(--coral-bg)"><td><span class="mono xs">CLM-032</span> feeds and campaigns per market with own budgets</td><td class="muted small">Market-level performance marketing</td><td class="num">0</td><td class="xs">appears nowhere</td><td><button class="btn sm">Plan a card</button></td></tr>
+          <tr style="background:var(--coral-bg)"><td><span class="mono xs">CLM-034</span> spend moves to markets that convert</td><td class="muted small">Market-level performance marketing</td><td class="num">0</td><td class="xs">unapproved · no evidence</td><td></td></tr>
+          <tr><td colspan="5" class="xs">+ 29 more · 13 approved claims appear on no live page · argument 3 has 0 coverage across 8 cards</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="split">
+      <div class="card"><header><h3>Provenance export</h3><span class="chip t">phase 1</span><span class="right xs">per page · PDF / JSON</span></header>
+        <div class="body">
+          <div class="xs" style="margin-bottom:8px">Landed cost calculation · CRD-0018 · draft v3 · approved 19 Sep by Anirudh</div>
+          <table style="font-size:12.3px">
+            <thead><tr><th>Assertion</th><th>Claim</th><th>Evidence</th><th>Approved</th></tr></thead>
+            <tbody>
+              <tr><td>Duty and tax are calculated per HS code…</td><td class="mono xs">CLM-012 @2</td><td class="xs">product docs §4</td><td class="xs">Hans · 11 Sep</td></tr>
+              <tr><td>The quoted figure is the amount charged…</td><td class="mono xs">CLM-014 @1</td><td class="xs">Rodier webinar 12:40</td><td class="xs">Anirudh · 02 Sep</td></tr>
+              <tr><td>The tax logic, the language and the ad spend share one market list</td><td class="mono xs">CLM-002 @1</td><td class="xs">canvas · differentiation summary</td><td class="xs">Patrick · 02 Sep</td></tr>
+              <tr><td>Rodier sells to 28 markets from one storefront</td><td class="mono xs">PROOF stat</td><td class="xs">case study</td><td class="xs">Anirudh · 29 Aug</td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow" style="margin-top:12px"><button class="btn sm">Export PDF</button><button class="btn sm">Export JSON</button><span class="xs right">soft dismissals included: 2</span></div>
+        </div>
+      </div>
+
+      <div class="card"><header><h3>Perception report</h3><span class="chip r">phase 2 · needs Otterly</span></header>
+        <div class="body">
+          <p class="small muted">Per bofu prompt: what AI answers say about Glopal vs what the canvas says. Shown here with sample data.</p>
+          <table style="font-size:12.3px">
+            <thead><tr><th>Prompt</th><th>AI says</th><th>Canvas says</th><th>Gap</th></tr></thead>
+            <tbody>
+              <tr><td class="xs">best way to handle EU duties for shopify</td><td class="xs">"Glopal handles duties and taxes"</td><td class="xs">item-level landed cost, amount charged is amount quoted</td><td><span class="chip c">generic</span></td></tr>
+              <tr><td class="xs">weglot alternative for shopify</td><td class="xs">Glopal not mentioned</td><td class="xs">storefront-domain localisation</td><td><span class="chip c">absent</span></td></tr>
+              <tr><td class="xs">global-e alternative</td><td class="xs">"Glopal offers landed cost at checkout with no surprise fees"</td><td class="xs">CLM-014</td><td><span class="chip t">matches</span></td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow" style="margin-top:12px"><span class="xs">Trend: matches 1 → ? · the number this product exists to move</span><button class="btn sm right">Connect Otterly</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note c" style="margin-top:13px"><b>Argument 3 has zero coverage.</b> Eight GPM cards, none live. The coverage map is the first thing that says the plan and the positioning have drifted apart — a planning input, not just a report.</div>
+  </div>
+</section>
+
+<!-- ================= TECHNICAL SEO ================= -->
+<section class="screen" id="s-techseo">
+  <div class="head">
+    <div class="grow"><div class="crumb">Module · audited · phase 2</div><h1>Technical SEO</h1>
+      <p class="sub">Import-first. Search Console and site-audit exports in; no crawler until phase 3. Issues become signals on a card, and fixes are proposed only.</p></div>
+    <div class="btnrow"><button class="btn">Import site audit</button></div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="grid g4">
+    <div class="tile"><div class="n">72</div><div class="l">Duties &amp; Taxes</div><div class="d">11 issues · 2 severe</div><div class="bar" style="margin-top:8px"><i class="c" style="width:72%"></i></div></div>
+    <div class="tile"><div class="n">54</div><div class="l">Localization</div><div class="d">19 issues · 6 severe</div><div class="bar" style="margin-top:8px"><i class="g" style="width:54%"></i></div></div>
+    <div class="tile"><div class="n">88</div><div class="l">GPM</div><div class="d">4 issues · 0 severe</div><div class="bar" style="margin-top:8px"><i class="c" style="width:88%"></i></div></div>
+    <div class="tile"><div class="n">61</div><div class="l">Unmapped area</div><div class="d">14 imported pages no area claimed</div><div class="bar" style="margin-top:8px"><i class="g" style="width:61%"></i></div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px"><header><h3>Issues</h3><span class="chip r">from Ahrefs site audit · 16 Sep</span></header>
+    <div class="body tight"><table>
+      <thead><tr><th>Issue</th><th class="num">Pages</th><th>Severity</th><th>Area</th><th>Suggested fix</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>hreflang points to a noindexed page</td><td class="num">34</td><td><span class="chip c">severe</span></td><td class="muted">Localization</td><td class="muted small">Remove noindex on the /fr and /de variants</td><td><button class="btn sm">Raise</button></td></tr>
+        <tr><td>Duplicate title tags</td><td class="num">12</td><td><span class="chip c">severe</span></td><td class="muted">Localization</td><td class="muted small">6 pairs are translated variants missing hreflang</td><td><button class="btn sm">Raise</button></td></tr>
+        <tr><td>LCP above 2.5s</td><td class="num">8</td><td><span class="chip r">moderate</span></td><td class="muted">Duties &amp; Taxes</td><td class="muted small">Hero image not preloaded</td><td><button class="btn sm">Raise</button></td></tr>
+        <tr><td>No inbound internal link</td><td class="num">31</td><td><span class="chip r">moderate</span></td><td class="muted">Unmapped</td><td class="muted small">Imported cards no produced page links to · candidates for the sibling block</td><td><button class="btn sm">Raise</button></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:14px">
+    <div class="note t"><b>No orphans.</b> Every page is a card because of site import, so every issue attaches and can be raised as an insight. The 14 the classifier could not place sit in the Unmapped area, visible, not lost.</div>
+    <div class="note t"><b>Score weights are config</b> (<span class="mono">techseo_score_weights</span>: severe 5, moderate 2, minor 1) so 72 vs 54 means the same thing across tenants.</div>
+  </div>
+</section>
+
+<!-- ================= WORKSPACE ================= -->
+<section class="screen" id="s-workspace">
+  <div class="head">
+    <div class="grow"><div class="crumb">Base · configured</div><h1>Workspace</h1>
+      <p class="sub">Anything that would be wrong for another company lives here. Tenant one's rulings ship as the product defaults.</p></div>
+  </div>
+
+  <div class="tabs" data-tabs="ws">
+    <button data-t="site" aria-selected="true">Site import</button>
+    <button data-t="int">Integrations</button>
+    <button data-t="cfg">Config</button>
+    <button data-t="rev">Reviewers</button>
+    <button data-t="keys">API keys</button>
+    <button data-t="bill">Billing and usage</button>
+  </div>
+
+  <div class="pane on" data-p="site">
+    <div class="banner t"><b>Last import 12 Sep · 212 pages · GSC connected.</b><span>Runs at setup, re-runs on demand. Every page becomes a card in Live.</span><button class="btn sm right">Re-run import</button></div>
+    <div class="grid g4">
+      <div class="tile"><div class="n">212</div><div class="l">Pages found</div><div class="d">sitemap.xml · 3 sub-sitemaps</div></div>
+      <div class="tile"><div class="n">198</div><div class="l">Classified to an area</div><div class="d">14 in Unmapped</div></div>
+      <div class="tile"><div class="n">16 mo</div><div class="l">GSC history attached</div><div class="d">page × query · weekly sync · next Mon 06:00</div></div>
+      <div class="tile"><div class="n">412</div><div class="l">Striking-distance queries</div><div class="d">pos 4–15 · ≥100 impressions</div></div>
+    </div>
+    <div class="split" style="margin-top:13px">
+      <div class="card"><header><h3>What is stored per page</h3></header>
+        <div class="body qa"><ul>
+          <li class="ok">URL, title, meta, H1, H2s, word count, internal links, lastmod</li>
+          <li class="ok">GSC clicks, impressions, CTR, position by query, 16 months</li>
+          <li class="no">Body text — never fetched or stored</li>
+        </ul>
+        <p class="xs" style="margin-top:10px">Structure is what siblings, cannibalisation and internal-link checks need. Body would be a copyright and storage problem for no gain.</p></div>
+      </div>
+      <div class="card"><header><h3>Unmapped · 14</h3><span class="chip c">needs an area</span></header>
+        <div class="body tight"><table>
+          <tbody>
+            <tr><td class="mono xs">/blog/black-friday-2024</td><td class="xs">0 clicks · 90 d</td><td><select class="f" style="max-width:150px"><option>assign area…</option><option>Marketing</option><option>archive</option></select></td></tr>
+            <tr><td class="mono xs">/careers/paris</td><td class="xs">non-marketing</td><td><select class="f" style="max-width:150px"><option>exclude</option></select></td></tr>
+            <tr><td class="mono xs">/blog/team-offsite-2025</td><td class="xs">12 clicks · 90 d</td><td><select class="f" style="max-width:150px"><option>exclude</option></select></td></tr>
+            <tr><td colspan="3" class="xs">+ 11 more</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="note c" style="margin-top:13px"><b>Open question 9, made visible.</b> This site had a sitemap. A Webflow or Shopify blog often does not expose one cleanly, and JS-rendered headings will not appear in a shallow fetch. Import needs a "pages I expected but did not find" affordance before a second client.</div>
+  </div>
+
+  <div class="pane" data-p="int">
+    <div class="card"><div class="body tight"><table>
+      <thead><tr><th>Integration</th><th>Feeds</th><th>Phase</th><th>Last sync</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Search Console</td><td class="muted small">card and demand signals</td><td>1</td><td class="muted small">Mon 06:00</td><td><span class="chip t">connected</span></td></tr>
+        <tr><td>HubSpot CMS (via agent)</td><td class="muted small">publish hand-off · cms_id write-back</td><td>1</td><td class="muted small">19 Sep</td><td><span class="chip t">via MCP</span></td></tr>
+        <tr><td>Ahrefs</td><td class="muted small">positions, competitor positions, site audit</td><td>2</td><td class="muted small">—</td><td><button class="btn sm">Connect</button></td></tr>
+        <tr><td>Otterly</td><td class="muted small">prompt citations and share</td><td>2</td><td class="muted small">—</td><td><button class="btn sm">Connect</button></td></tr>
+        <tr><td>HubSpot CRM</td><td class="muted small">leads, landing page, deal stage</td><td>2</td><td class="muted small">—</td><td><button class="btn sm">Connect</button></td></tr>
+        <tr><td>HubSpot CMS (direct)</td><td class="muted small">publish without an agent</td><td>2</td><td class="muted small">—</td><td><span class="chip r">phase 2</span></td></tr>
+        <tr><td>Call recorder</td><td class="muted small">transcripts, attribution mentions</td><td>3</td><td class="muted small">—</td><td><span class="chip r">phase 3 · consent review first</span></td></tr>
+      </tbody>
+    </table></div></div>
+    <div class="note t" style="margin-top:13px">Two rows live on day one. The rest say which phase, and Connect is a real action where the connector exists.</div>
+  </div>
+
+  <div class="pane" data-p="cfg">
+    <div class="grid g2">
+      <div class="card"><header><h3>Scoring</h3><span class="chip r">closeness removed</span></header><div class="body">
+        <dl class="kv small">
+          <dt>Volume</dt><dd><div class="bar"><i class="v" style="width:50%"></i></div><span class="mono xs">0.50</span></dd>
+          <dt>Competitor gap</dt><dd><div class="bar"><i class="g" style="width:30%"></i></div><span class="mono xs">0.30</span></dd>
+          <dt>Funnel weight</dt><dd><div class="bar"><i class="c" style="width:20%"></i></div><span class="mono xs">0.20 · bofu 1.0 · mofu 0.7 · tofu 0.4</span></dd>
+          <dt>Prompts</dt><dd class="mono xs">citation_gap × platforms</dd>
+        </dl>
+        <p class="xs" style="margin-top:11px">Changing these re-scores changed nodes only (classification cached by node hash) and unlocks the plan.</p>
+      </div></div>
+      <div class="card"><header><h3>Gates</h3></header><div class="body"><dl class="kv small">
+        <dt>G1 auto-approve</dt><dd><span class="chip t">on</span> <span class="xs">when outline cites only approved claims and passes structure</span></dd>
+        <dt>G2 auto-approve</dt><dd><span class="chip r">off</span> <span class="xs">kinds: cluster, refresh · after 20 approvals · 0% send-back · 14/20 so far</span></dd>
+        <dt>Soft warnings</dt><dd>require dismissal before Approve</dd>
+        <dt>Approve over API</dt><dd>per-user key only</dd>
+      </dl></div></div>
+      <div class="card"><header><h3>Writing and markets</h3></header><div class="body"><dl class="kv small">
+        <dt>Word budgets</dt><dd>pillar 2,000 · cluster 1,000 · compare 1,000 · refresh inherits · tables excluded</dd>
+        <dt>Markets</dt><dd>en-GB (GBP) · fr-FR (EUR) · de-DE (EUR) <span class="chip r">variants 1.5</span></dd>
+        <dt>Banned words</dt><dd>seamless, unlock, revolutionary</dd>
+        <dt>Translation</dt><dd class="mono xs">provider: glopal-translate</dd>
+      </dl></div></div>
+      <div class="card"><header><h3>Thresholds and cost</h3></header><div class="body"><dl class="kv small">
+        <dt>Dedupe similarity</dt><dd class="mono">0.86</dd>
+        <dt>Cluster volume floor</dt><dd class="mono">50</dd>
+        <dt>Striking distance</dt><dd class="mono">pos 4–15 · ≥100 impr</dd>
+        <dt>Experiment window</dt><dd class="mono">28 days</dd>
+        <dt>Monthly model cap</dt><dd class="mono">$150 · jobs pause at cap</dd>
+      </dl></div></div>
+      <div class="card"><header><h3>Competitor stances</h3></header><div class="body tight"><table>
+        <tbody>
+          <tr><td>Weglot</td><td><span class="chip t">evaluated</span></td></tr>
+          <tr><td>Global-e</td><td><span class="chip t">evaluated</span></td></tr>
+          <tr><td>Zonos</td><td><span class="chip r">documented facts only</span></td></tr>
+          <tr><td>Linguise</td><td><span class="chip c">no comparative claims</span></td></tr>
+        </tbody>
+      </table></div></div>
+    </div>
+    <div class="note c" style="margin-top:13px"><b>Stance is config but behaves like positioning.</b> It decides what a page may assert, same as a canvas cell, yet it lives three clicks from the Alternative anchor that names the same companies. Strong candidate to move onto the canvas.</div>
+  </div>
+
+  <div class="pane" data-p="rev">
+    <div class="card"><div class="body tight"><table>
+      <thead><tr><th>Person</th><th>Role</th><th>G1</th><th>G2</th><th>Digest</th></tr></thead>
+      <tbody>
+        <tr><td>Anirudh</td><td>owner</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Patrice</td><td>reviewer</td><td>—</td><td>✓</td><td>—</td></tr>
+        <tr><td>Alexandre</td><td>reviewer</td><td>—</td><td>✓</td><td>—</td></tr>
+      </tbody>
+    </table></div></div>
+    <div class="note t" style="margin-top:13px">The board's Review column filters by reviewer, so Patrice sees only G2 drafts. Auto-approved gates appear in activity under <span class="mono">auto_approve</span>, not under a person.</div>
+  </div>
+
+  <div class="pane" data-p="keys">
+    <div class="card"><header><h3>Keys</h3><button class="btn sm right">+ new key</button></header><div class="body tight"><table>
+      <thead><tr><th>Label</th><th>Type</th><th>Can approve</th><th>Used by</th><th>Last used</th></tr></thead>
+      <tbody>
+        <tr><td>Anirudh · laptop</td><td><span class="chip t">user</span></td><td>yes · G1, G2</td><td>CLI</td><td class="muted small">today 14:02</td></tr>
+        <tr><td>Patrice · laptop</td><td><span class="chip t">user</span></td><td>yes · G2</td><td>CLI</td><td class="muted small">17 Sep</td></tr>
+        <tr><td>Claude Code · MCP</td><td><span class="chip r">workspace</span></td><td>no</td><td>MCP</td><td class="muted small">today 15:10</td></tr>
+        <tr><td>Scheduler</td><td><span class="chip r">workspace</span></td><td>no</td><td>digest, sync</td><td class="muted small">Mon 06:00</td></tr>
+      </tbody>
+    </table></div></div>
+    <div class="note t" style="margin-top:13px">A workspace key can run every verb except <span class="mono">approve</span>. So the agent can bundle, outline, draft, QA and publish an already-approved card, but the gate stays with a person.</div>
+  </div>
+
+  <div class="pane" data-p="bill">
+    <div class="card"><header><h3>Usage · September</h3><span class="right mono xs">from JOB_RUN</span></header>
+      <div class="body tight"><table>
+        <thead><tr><th>Job</th><th>Trigger</th><th class="num">Calls</th><th class="num">Tokens</th><th class="num">Cost</th></tr></thead>
+        <tbody>
+          <tr><td>relevance</td><td>ui</td><td class="num">4,812</td><td class="num">2,240,000</td><td class="num">$17.40</td></tr>
+          <tr><td>classify · area</td><td>ui</td><td class="num">4,812</td><td class="num">1,880,000</td><td class="num">$14.60</td></tr>
+          <tr><td>classify · funnel</td><td>ui</td><td class="num">4,812</td><td class="num">1,910,000</td><td class="num">$14.80</td></tr>
+          <tr><td>classify · competitor</td><td>ui</td><td class="num">4,812</td><td class="num">1,840,000</td><td class="num">$14.20</td></tr>
+          <tr><td>dedupe · embed</td><td>ui</td><td class="num">18,164</td><td class="num">940,000</td><td class="num">$1.90</td></tr>
+          <tr><td>draft</td><td>cli</td><td class="num">11</td><td class="num">198,000</td><td class="num">$3.40</td></tr>
+          <tr><td>qa · unmarked assertions</td><td>ui</td><td class="num">14</td><td class="num">61,000</td><td class="num">$0.70</td></tr>
+          <tr><td>classify · re-score after weight change</td><td>ui</td><td class="num">38</td><td class="num">14,000</td><td class="num">$0.10</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="4" class="muted">Total · cap $150</td><td class="num"><b>$66.10</b></td></tr></tfoot>
+      </table></div>
+    </div>
+    <div class="grid g2" style="margin-top:13px">
+      <div class="note t"><b>The last row is the cache working.</b> A weight change re-scored 38 changed nodes for ten cents instead of 4,812 for fifty dollars.</div>
+      <div class="note t"><b>QA is cheaper too.</b> Verifying declared IDs is code; the model only hunts unmarked brand assertions, half the tokens of full extraction.</div>
+    </div>
+  </div>
+</section>
+
+<footer class="mock">Mockup only, against handoff 3.0. Nothing calls a model, a database or an API.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  function show(id,tab){
+    document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id==='s-'+id)});
+    document.querySelectorAll('#nav .navitem').forEach(function(b){b.setAttribute('aria-current',b.dataset.s===id&&!b.dataset.t?'true':'false')});
+    if(tab){var scope=document.getElementById('s-'+id);var t=scope.querySelector('.tabs');if(t)selTab(t,tab)}
+    window.scrollTo({top:0,behavior:'instant'});
+  }
+  function selTab(tabs,name){
+    var scope=tabs.parentElement.classList.contains('card')?tabs.closest('.card'):tabs.parentElement;
+    tabs.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.t===name?'true':'false')});
+    var panes=(tabs.closest('section')||document).querySelectorAll('[data-p]');
+    var names=Array.from(tabs.querySelectorAll('button')).map(function(b){return b.dataset.t});
+    panes.forEach(function(p){ if(names.indexOf(p.dataset.p)>-1) p.classList.toggle('on',p.dataset.p===name); });
+  }
+  document.addEventListener('click',function(e){
+    var n=e.target.closest('#nav .navitem');
+    if(n){show(n.dataset.s,n.dataset.t);return}
+    var g=e.target.closest('[data-go]');
+    if(g){show(g.dataset.go,g.dataset.gt);return}
+    var t=e.target.closest('.tabs button');
+    if(t){selTab(t.parentElement,t.dataset.t);return}
+  });
+  show('strategy');
+
+  // demand bulk select
+  var dem=document.getElementById('dem'), bar=document.getElementById('selbar');
+  function sync(){
+    var n=dem.querySelectorAll('.rs:checked').length;
+    bar.classList.toggle('hide',n===0);
+    document.getElementById('selcount').textContent=n;
+  }
+  dem.addEventListener('change',sync);
+  document.getElementById('selall').addEventListener('change',function(){
+    dem.querySelectorAll('.rs').forEach(function(c){c.checked=this.checked}.bind(this));sync();
+  });
+  document.getElementById('selclear').addEventListener('click',function(){
+    dem.querySelectorAll('.rs').forEach(function(c){c.checked=false});
+    document.getElementById('selall').checked=false;sync();
+  });
+  document.getElementById('bulk-keep').addEventListener('click',function(){
+    dem.querySelectorAll('.rs:checked').forEach(function(c){
+      var tr=c.closest('tr');
+      tr.children[9].innerHTML='<span class="chip t">re-admitted</span>';
+      tr.children[5].innerHTML='<span class="chip t">pending classify</span>';
+      tr.children[6].innerHTML='<span class="xs">pending</span>';
+      c.checked=false;
+    });
+    document.getElementById('selall').checked=false;sync();
+  });
+
+  // pitch edit → stale warning
+  document.getElementById('pitch-edit').addEventListener('click',function(){
+    document.getElementById('pitch-warn').innerHTML='<span style="color:var(--coral)">6 live pages cite CLM-000 v2. Saving creates v3 and raises a stale-claim insight with 6 refresh cards.</span> <button class="btn sm">Continue</button> <button class="btn sm">Cancel</button>';
+  });
+
+  // soft warning dismissal gates Approve
+  var sw=document.querySelectorAll('.sw'), open=sw.length;
+  sw.forEach(function(b){b.addEventListener('click',function(){
+    var li=b.parentElement; li.className='ok'; li.innerHTML=li.textContent.replace('Dismiss','').trim()+' <span class="xs">dismissed · Anirudh</span>';
+    open--; if(open===0){document.getElementById('g2ok').disabled=false;document.getElementById('swnote').textContent='Soft warnings dismissed. Dismissals are recorded with the approval.';}
+  })});
+
+  // publish rows
+  var pubs=document.getElementById('pubrows');
+  if(pubs) pubs.addEventListener('click',function(e){
+    var b=e.target.closest('.pub'); if(!b) return;
+    var tr=b.closest('tr');
+    tr.children[3].innerHTML='<span class="chip t">handed to agent</span>';
+    b.outerHTML='<span class="xs">awaiting set-cms-id</span>';
+    setTimeout(function(){tr.children[3].innerHTML='<span class="chip r">live</span><div class="xs">cms_id 7f9a · 19 Sep</div>';},1400);
+  });
+
+  // H2
+  document.getElementById('h2lock').addEventListener('click',function(){
+    var b=document.getElementById('h2banner');
+    b.className='banner t';
+    b.innerHTML='<b>Plan locked.</b><span>19 cards confirmed. Later uploads appear as new and need another lock.</span>';
+  });
+
+  // G2
+  var ok=document.getElementById('g2ok'),no=document.getElementById('g2no'),f=document.getElementById('g2form');
+  no.addEventListener('click',function(){f.classList.remove('hide')});
+  ok.addEventListener('click',function(){
+    document.getElementById('g2box').innerHTML='<div class="banner t" style="margin:0"><b>Approved.</b></div><p class="small muted" style="margin:9px 0">Card moves to Approved with a provenance record. Publish hands it to the CMS tool.</p><button class="btn pri" data-go="production" data-gt="publish">Publish</button>';
+  });
+  document.getElementById('g2send').addEventListener('click',function(){
+    document.getElementById('g2box').innerHTML='<div class="banner c" style="margin:0"><b>Sent back to drafting.</b></div><p class="small muted" style="margin-top:9px">Stored as a FEEDBACK record against the target you chose.</p>';
+  });
+
+  // digest
+  document.getElementById('cards').addEventListener('click',function(e){
+    var b=e.target.closest('.acc,.rej'); if(!b) return;
+    var row=b.closest('.btnrow'), acc=b.classList.contains('acc');
+    row.innerHTML= acc
+      ? '<span class="chip t">accepted · ready to apply</span><button class="btn sm" data-go="lab" data-gt="exp">Open experiments</button>'
+      : '<span class="chip c">rejected · hypothesis suppressed</span>';
+    b.closest('.ins').style.opacity=.55;
+  });
+})();
+</script>
+</body>
+</html>

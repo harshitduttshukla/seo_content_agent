@@ -3,6 +3,8 @@
 from typing import Any
 from uuid import UUID
 
+from fastapi import APIRouter, Query, Request
+
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.api.responses import success
 from app.domains.content_harness.schemas import (
@@ -16,7 +18,6 @@ from app.domains.content_harness.schemas import (
 )
 from app.domains.content_harness.service import ContentHarnessService
 from app.schemas.common import ApiResponse
-from fastapi import APIRouter, Query, Request
 
 router = APIRouter(prefix="/content-harness", tags=["content-harness"])
 

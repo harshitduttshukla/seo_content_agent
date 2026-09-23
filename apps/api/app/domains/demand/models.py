@@ -3,7 +3,7 @@
 V3 Reference: seo-geo-system-handoff-v3.md §3.1, §4.2, §4.5, §4.7
 
 A DemandNode can represent a keyword OR a prompt. V3 expands the old keyword
-concept into demand — prompts have their own scoring model (citation_gap ×
+concept into demand — prompts have their own scoring model (citation_gap x
 platforms) while keywords use volume + competitor_gap + funnel_weight.
 
 Existing Keyword table is preserved untouched. DemandNode is a new V3 entity.
@@ -45,6 +45,7 @@ class DemandNodeStatus(StrEnum):
     PENDING = "pending"
     KEPT = "kept"
     DISCARDED = "discarded"
+    PENDING_CLASSIFY = "pending_classify"
 
 
 class DemandNodeOrigin(StrEnum):
@@ -74,6 +75,12 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
+            ["area_id"],
+            ["areas.id"],
+            name="fk_demand_nodes_area_id_areas",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
             ["argument_id"],
             ["arguments.id"],
             name="fk_demand_nodes_argument_id_arguments",
@@ -84,7 +91,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             name="ck_demand_nodes_type_allowed",
         ),
         CheckConstraint(
-            "status IN ('pending', 'kept', 'discarded')",
+            "status IN ('pending', 'kept', 'discarded', 'pending_classify')",
             name="ck_demand_nodes_status_allowed",
         ),
         CheckConstraint(
@@ -129,7 +136,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
 
-    # Area reference — nullable until Area entity is created in a later step.
+    # Area reference — nullable until classified or manually reassigned.
     area_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
     # Canvas linkage
@@ -139,9 +146,8 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     intent: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # Competitor linkage — array of competitor UUIDs (future entity)
-    competitor_ids: Mapped[list[object]] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
-    )
+    competitor_ids: Mapped[list[object]] = mapped_column(JSONB, nullable=False, server_default="[]")
+    competitor_names: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
 
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=DemandNodeStatus.PENDING
@@ -150,6 +156,7 @@ class DemandNode(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
 
     # Scoring
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     score_breakdown: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
 
     origin: Mapped[str] = mapped_column(String(32), nullable=False)

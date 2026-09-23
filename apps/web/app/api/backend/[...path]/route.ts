@@ -54,7 +54,8 @@ async function proxy(
   requestBody: ArrayBuffer | undefined,
 ) {
   const safePath = path.map((part) => encodeURIComponent(part)).join("/");
-  const url = new URL(`${process.env.API_INTERNAL_URL ?? "http://localhost:8000"}/api/v1/${safePath}`);
+  const apiPath = safePath.startsWith("v3/") ? `/api/${safePath}` : `/api/v1/${safePath}`;
+  const url = new URL(`${process.env.API_INTERNAL_URL ?? "http://localhost:8000"}${apiPath}`);
   request.nextUrl.searchParams.forEach((value, key) => url.searchParams.append(key, value));
   const headers = new Headers({ Authorization: `Bearer ${accessToken}` });
   for (const name of ["content-type", "idempotency-key", "x-request-id"]) {

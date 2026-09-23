@@ -71,9 +71,7 @@ class TestWorkspaceConfig:
                 refresh="inherit",
                 tables_excluded=True,
             ),
-            markets=[
-                MarketConfig(lang="en", country="GB", spelling="en-GB", currency="GBP")
-            ],
+            markets=[MarketConfig(lang="en", country="GB", spelling="en-GB", currency="GBP")],
             demand_strings_exempt_from_spelling=True,
             banned_words=[],
             competitor_stances={},

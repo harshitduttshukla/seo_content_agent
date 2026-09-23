@@ -189,7 +189,10 @@ def evaluate_content(
                     status=FindingStatus.PASS,
                     impact=FindingImpact.MEDIUM,
                     message=f"Secondary keyword coverage is {len(matched_sec)}/{len(sec_kws)} ({ratio:.0%}).",
-                    details={"matched": matched_sec, "missing": list(set(sec_kws) - set(matched_sec))},
+                    details={
+                        "matched": matched_sec,
+                        "missing": list(set(sec_kws) - set(matched_sec)),
+                    },
                 )
             )
         else:
@@ -200,7 +203,10 @@ def evaluate_content(
                     status=FindingStatus.WARN,
                     impact=FindingImpact.MEDIUM,
                     message=f"Secondary keyword coverage is only {len(matched_sec)}/{len(sec_kws)} ({ratio:.0%}).",
-                    details={"matched": matched_sec, "missing": list(set(sec_kws) - set(matched_sec))},
+                    details={
+                        "matched": matched_sec,
+                        "missing": list(set(sec_kws) - set(matched_sec)),
+                    },
                 )
             )
 
@@ -283,7 +289,11 @@ def evaluate_content(
                 status=FindingStatus.WARN if diff_pct <= 0.4 else FindingStatus.FAIL,
                 impact=FindingImpact.MEDIUM,
                 message=f"Word count ({total_words}) deviates by {diff_pct:.0%} from target ({target_wc}).",
-                details={"actual": total_words, "target": target_wc, "diff_pct": round(diff_pct, 2)},
+                details={
+                    "actual": total_words,
+                    "target": target_wc,
+                    "diff_pct": round(diff_pct, 2),
+                },
             )
         )
 
@@ -311,7 +321,10 @@ def evaluate_content(
                     status=FindingStatus.PASS,
                     impact=FindingImpact.HIGH,
                     message=f"Covered {len(covered_topics)} of {len(req_topics)} required topics ({topic_ratio:.0%}).",
-                    details={"covered": covered_topics, "missing": list(set(req_topics) - set(covered_topics))},
+                    details={
+                        "covered": covered_topics,
+                        "missing": list(set(req_topics) - set(covered_topics)),
+                    },
                 )
             )
         else:
@@ -322,7 +335,10 @@ def evaluate_content(
                     status=FindingStatus.WARN,
                     impact=FindingImpact.HIGH,
                     message=f"Missing topics: only {len(covered_topics)} of {len(req_topics)} required topics covered.",
-                    details={"covered": covered_topics, "missing": list(set(req_topics) - set(covered_topics))},
+                    details={
+                        "covered": covered_topics,
+                        "missing": list(set(req_topics) - set(covered_topics)),
+                    },
                 )
             )
 
@@ -350,7 +366,10 @@ def evaluate_content(
                     status=FindingStatus.PASS,
                     impact=FindingImpact.MEDIUM,
                     message=f"Addressed {len(answered_questions)} of {len(req_questions)} required questions.",
-                    details={"answered": answered_questions, "missing": list(set(req_questions) - set(answered_questions))},
+                    details={
+                        "answered": answered_questions,
+                        "missing": list(set(req_questions) - set(answered_questions)),
+                    },
                 )
             )
         else:
@@ -361,7 +380,10 @@ def evaluate_content(
                     status=FindingStatus.WARN,
                     impact=FindingImpact.MEDIUM,
                     message=f"Addressed only {len(answered_questions)} of {len(req_questions)} required questions.",
-                    details={"answered": answered_questions, "missing": list(set(req_questions) - set(answered_questions))},
+                    details={
+                        "answered": answered_questions,
+                        "missing": list(set(req_questions) - set(answered_questions)),
+                    },
                 )
             )
 
@@ -455,20 +477,26 @@ def evaluate_content(
     else:
         linking_points = 0.0
         used_links = generated.internal_links or []
-        used_urls = [str(l.get("url", "")).strip().lower() for l in used_links if isinstance(l, dict)]
-        used_anchors = [str(l.get("anchor_text", "")).strip().lower() for l in used_links if isinstance(l, dict)]
+        used_urls = [
+            str(l.get("url", "")).strip().lower() for l in used_links if isinstance(l, dict)
+        ]
+        used_anchors = [
+            str(l.get("anchor_text", "")).strip().lower() for l in used_links if isinstance(l, dict)
+        ]
 
         matched_targets: list[str] = []
         for target in link_targets:
             t_url = (target.url or "").strip().lower()
             t_anchor = (target.anchor_text or "").strip().lower()
 
-            url_found = any(t_url in u for u in used_urls) or (t_url and t_url in full_content.lower())
-            anchor_found = any(t_anchor in a for a in used_anchors) or (t_anchor and _text_contains_phrase(full_content, t_anchor))
+            url_found = any(t_url in u for u in used_urls) or (
+                t_url and t_url in full_content.lower()
+            )
+            anchor_found = any(t_anchor in a for a in used_anchors) or (
+                t_anchor and _text_contains_phrase(full_content, t_anchor)
+            )
 
-            if url_found and anchor_found:
-                matched_targets.append(t_url)
-            elif url_found:
+            if (url_found and anchor_found) or url_found:
                 matched_targets.append(t_url)
 
         link_ratio = len(matched_targets) / len(link_targets) if link_targets else 1.0
@@ -526,7 +554,12 @@ def evaluate_content(
     has_high_impact_failure = any(
         f.status == FindingStatus.FAIL and f.impact == FindingImpact.HIGH for f in findings
     )
-    if technical_validity == "FAIL" or brand_score < 70.0 or has_high_impact_failure or overall_score < 75.0:
+    if (
+        technical_validity == "FAIL"
+        or brand_score < 70.0
+        or has_high_impact_failure
+        or overall_score < 75.0
+    ):
         overall_status = "NEEDS IMPROVEMENT"
     else:
         overall_status = "PASS"
@@ -565,7 +598,7 @@ DO NOT MODIFY OR REWRITE THE ARTICLE. Your job is ONLY to assess its quality and
 - Brand Voice: {input_data.brand_rules.voice}
 - Tone: {input_data.brand_rules.tone}
 - Provided Website Context:
-{input_data.website_context or 'None provided.'}
+{input_data.website_context or "None provided."}
 
 ### ARTICLE TO EVALUATE:
 Title: {generated.title}

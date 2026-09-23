@@ -4,8 +4,23 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from app.domains.content.brief_schemas import BrandRequirements, InternalLinkTarget
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class BrandRequirements(BaseModel):
+    tone: str | None = None
+    voice: str | None = None
+    style: str | None = None
+    words_to_avoid: list[str] = Field(default_factory=list)
+    formatting_rules: list[str] = Field(default_factory=list)
+
+
+class InternalLinkTarget(BaseModel):
+    url: str
+    target_page_id: UUID | None = None
+    anchor_suggestion: str | None = None
+    reason: str | None = None
+    priority: int = 1
 
 
 class FindingImpact(StrEnum):

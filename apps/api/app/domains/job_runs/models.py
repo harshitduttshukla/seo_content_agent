@@ -102,9 +102,7 @@ class JobRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     estimated_cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default=JobRunStatus.PENDING
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=JobRunStatus.PENDING)
 
     # Who/what triggered this job (V3 §5.4, §6.5)
     triggered_by: Mapped[str] = mapped_column(String(64), nullable=False)

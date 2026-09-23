@@ -104,12 +104,20 @@ describe("Core UI Components", () => {
   });
 
   it("keeps project navigation fixed below the header", () => {
-    render(<Sidebar active="Content" projectId="project-001" />);
+    render(<Sidebar active="Website" projectId="project-001" />);
     expect(screen.getByTestId("project-sidebar")).toHaveClass(
       "sticky",
       "top-20",
       "h-[calc(100vh-5rem)]",
       "overflow-y-auto"
     );
+    expect(screen.getByRole("link", { name: "Website" })).toBeInTheDocument();
+    expect(screen.queryByText("Keywords")).not.toBeInTheDocument();
+    expect(screen.queryByText("Content Map")).not.toBeInTheDocument();
+    expect(screen.queryByText("Content")).not.toBeInTheDocument();
+    expect(screen.queryByText("Knowledge")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
+    expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
+    expect(screen.queryByText("Soon")).not.toBeInTheDocument();
   });
 });

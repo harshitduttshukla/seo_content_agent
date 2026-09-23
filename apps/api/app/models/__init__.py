@@ -8,7 +8,8 @@ from app.domains.auth.models import (
     Role,
     RolePermission,
 )
-from app.domains.canvas.models import Argument, Canvas, Claim
+from app.domains.brand_kit.models import BrandKit, SocialProof, VoiceSnippet
+from app.domains.canvas.models import Area, Argument, Canvas, Claim
 from app.domains.content.models import (
     AIEditProposal,
     ContentBrief,
@@ -27,25 +28,12 @@ from app.domains.content.models import (
     PlannedContentPage,
     Topic,
 )
-from app.domains.content_cards.models import ContentCard
+from app.domains.content_cards.models import ContentCard, ContentCardClaim
 from app.domains.content_harness.models import ContentHarnessRun
-from app.domains.content_map.models import (
-    ContentArchitectureVersion,
-    ContentMapEdge,
-    ContentMapNode,
-)
 from app.domains.crawling.models import CrawlEvent, CrawlJob, CrawlUrl
 from app.domains.demand.models import DemandNode
 from app.domains.internal_linking.models import LinkOpportunity, PageRelationship
 from app.domains.job_runs.models import JobRun
-from app.domains.keywords.models import (
-    ClusteringRun,
-    Keyword,
-    KeywordCluster,
-    KeywordClusterMember,
-    KeywordImport,
-    KeywordImportRow,
-)
 from app.domains.orchestrator.models import (
     AIWorkflow,
     AIWorkflowStep,
@@ -53,7 +41,6 @@ from app.domains.orchestrator.models import (
 )
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
-from app.domains.seo.models import SEOGuide, SEOGuideVersion
 from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.domains.users.models import User
 from app.domains.websites.models import Website
@@ -62,8 +49,10 @@ __all__ = [
     "AIEditProposal",
     "AIWorkflow",
     "AIWorkflowStep",
+    "Area",
     "Argument",
     "AuditLog",
+    "BrandKit",
     "Canvas",
     "Claim",
     "ClusteringRun",
@@ -71,6 +60,7 @@ __all__ = [
     "ContentBrief",
     "ContentBriefVersion",
     "ContentCard",
+    "ContentCardClaim",
     "ContentChatMessage",
     "ContentChatSession",
     "ContentDocument",
@@ -111,8 +101,10 @@ __all__ = [
     "SEOGuideVersion",
     "SEOStrategy",
     "SEOStrategyVersion",
+    "SocialProof",
     "ToolExecutionRecord",
     "Topic",
     "User",
+    "VoiceSnippet",
     "Website",
 ]

@@ -115,6 +115,12 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ondelete="SET NULL",
         ),
         ForeignKeyConstraint(
+            ["area_id"],
+            ["areas.id"],
+            name="fk_content_cards_area_id_areas",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
             ["owner"],
             ["users.id"],
             name="fk_content_cards_owner_users",
@@ -149,6 +155,14 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             unique=True,
             postgresql_where="slug != ''",
         ),
+        # Unique URL per project (for idempotency).
+        Index(
+            "uq_content_cards_project_url",
+            "project_id",
+            "url",
+            unique=True,
+            postgresql_where="url IS NOT NULL",
+        ),
         Index("ix_content_cards_org_proj", "organization_id", "project_id"),
     )
 
@@ -175,9 +189,7 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     )
 
     # V3 §5.2 state machine
-    state: Mapped[str] = mapped_column(
-        String(16), nullable=False, default=ContentCardState.BACKLOG
-    )
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default=ContentCardState.BACKLOG)
 
     owner: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     due: Mapped[object | None] = mapped_column(Date, nullable=True)
@@ -198,9 +210,44 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     published_at: Mapped[object | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Stale claim tracking — V3 §6.7
-    stale_claims: Mapped[list[object]] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
-    )
+    stale_claims: Mapped[list[object]] = mapped_column(JSONB, nullable=False, server_default="[]")
 
     word_budget: Mapped[int | None] = mapped_column(Integer, nullable=True)
     origin: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class ContentCardClaim(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Join table mapping ContentCards to the Claims they cite.
+
+    Includes organization_id and project_id for tenant isolation.
+    """
+
+    __tablename__ = "content_card_claims"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["projects.organization_id", "projects.id"],
+            name="fk_content_card_claims_org_proj_projects",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["content_card_id"],
+            ["content_cards.id"],
+            name="fk_content_card_claims_card_id_content_cards",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["claim_id"],
+            ["claims.id"],
+            name="fk_content_card_claims_claim_id_claims",
+            ondelete="CASCADE",
+        ),
+        Index("uq_content_card_claims_card_claim", "content_card_id", "claim_id", unique=True),
+        Index("ix_content_card_claims_claim_id", "claim_id"),  # for citation count queries
+        Index("ix_content_card_claims_org_proj", "organization_id", "project_id"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    content_card_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    claim_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)

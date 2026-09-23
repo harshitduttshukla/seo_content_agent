@@ -15,7 +15,6 @@ import {
   KeyRound,
   BookOpen,
   ArrowUpRight,
-  Layers,
   CheckCircle2,
   X,
   AlertCircle,
@@ -439,13 +438,6 @@ export function ContentDashboard({
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={`/projects/${projectId}/content-map`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-xs font-semibold text-[var(--ink)] hover:bg-gray-50 shadow-2xs"
-          >
-            <Layers size={14} />
-            Visual Content Map
-          </Link>
           <button
             onClick={() => {
               resetForm();

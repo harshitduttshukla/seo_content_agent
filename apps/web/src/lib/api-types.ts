@@ -326,3 +326,328 @@ export interface WorkflowDetail {
   steps: WorkflowStepDetail[];
   executions: ToolExecutionRecordDTO[];
 }
+
+// Phase 7: V3 Foundation
+export interface ClaimBase {
+  id: string;
+  row: string;
+  text: string;
+  evidence: string;
+  approved: boolean;
+  approved_by: string | null;
+  version: number;
+  superseded_by: string | null;
+  clm_number: string;
+  citation_count?: number;
+}
+
+export type CanvasAnchorType = "company" | "persona" | "use_case" | "alternative" | "category";
+
+export interface CanvasAnchor {
+  anchor_type: CanvasAnchorType | null;
+  text: string;
+  primary: boolean;
+}
+
+export interface CanvasAnchorInput {
+  anchor_type: CanvasAnchorType;
+  text: string;
+  primary: boolean;
+}
+
+export interface CanvasArgumentInput {
+  sub_problem: string;
+  differentiation_pillar: string;
+  capability: string;
+  features: string[];
+  benefit: string;
+}
+
+export interface CanvasClaimInput {
+  row: string;
+  text: string;
+  evidence: string;
+  argument_id?: string | null;
+}
+
+export interface ClaimEditConfirm {
+  text: string;
+  evidence: string;
+}
+
+export interface ClaimEditCheckResponse {
+  citation_count: number;
+  claim_text: string;
+  claim_id: string;
+}
+
+export interface ClaimEditConfirmResponse {
+  old_claim_id: string;
+  new_claim_id: string;
+  new_version: number;
+  job_run_id: string;
+}
+
+export interface ContentCardStub {
+  id: string;
+  title: string;
+  kind: string;
+  state: string;
+  url?: string | null;
+}
+
+export interface ClaimCitationInput {
+  content_card_id?: string | null;
+  title?: string;
+  url?: string;
+}
+
+export interface CanvasListItem {
+  id: string;
+  product_line: string | null;
+  name: string;
+  argument_count: number;
+}
+
+export interface CanvasListResponse {
+  company_canvas: CanvasListItem | null;
+  product_lines: CanvasListItem[];
+}
+
+export interface CanvasArgument {
+  id: string;
+  order: number;
+  sub_problem: string | null;
+  differentiation_pillar: string | null;
+  capability: string | null;
+  features: string[];
+  benefit: string | null;
+  claims: ClaimBase[];
+  inherited: boolean;
+  override: boolean;
+}
+
+export interface CanvasDetail {
+  id: string;
+  product_line: string | null;
+  name: string;
+  anchors: CanvasAnchor[];
+  problem_summary: string | null;
+  differentiation_summary: string | null;
+  version: number;
+  arguments: CanvasArgument[];
+  problem_summary_claim: ClaimBase | null;
+  differentiation_summary_claim: ClaimBase | null;
+  pitch_claim: ClaimBase | null;
+}
+
+export interface Area {
+  id: string;
+  canvas_id: string;
+  parent_id: string | null;
+  name: string;
+  default_argument_id: string | null;
+}
+
+export interface ClaimDrilldown {
+  argument_chain: ClaimBase[];
+  demand_nodes: DemandNode[];
+  content_cards: ContentCardStub[];
+}
+
+export interface DemandNode {
+  id: string;
+  text: string;
+  type: "keyword" | "prompt";
+  origin: string;
+  volume: number | null;
+  country: string | null;
+  area_id: string | null;
+  argument_id: string | null;
+  funnel: string | null;
+  intent: string | null;
+  status: "pending" | "kept" | "discarded" | "pending_classify";
+  score: number | null;
+  confidence: number | null;
+  discard_reason: string | null;
+  citation_gap: number | null;
+  platforms: string[];
+  competitor_names: string[];
+}
+
+export interface DemandListResponse {
+  items: DemandNode[];
+  summary: {
+    total_discarded: number;
+    below_065_confidence: number;
+    total_kept: number;
+    gsc_striking_distance_count: number;
+  };
+  meta: { total_count: number; page: number; page_size: number };
+}
+
+export interface SiteImportResponse {
+  job_run_id: string;
+  status: string;
+  created_count: number;
+  existing_count: number;
+}
+
+export interface SiteImportStatusResponse extends SiteImportResponse {
+  created_at: string;
+  completed_at: string | null;
+  unmapped_count: number;
+}
+
+export interface BulkUpdateResponse {
+  updated_count: number;
+  job_run_id: string;
+}
+
+export interface DemandImportItem {
+  text: string;
+  type: "keyword" | "prompt";
+  volume?: number | null;
+  country?: string | null;
+  area?: string | null;
+  funnel?: "tofu" | "mofu" | "bofu" | null;
+  origin?: "upload" | "gsc_striking_distance" | "insight";
+  competitor?: string | null;
+  confidence?: number | null;
+  score?: number | null;
+  status?: "pending" | "kept" | "discarded" | "pending_classify";
+}
+
+export interface DemandImportResponse {
+  created_count: number;
+  existing_count: number;
+  job_run_id: string;
+}
+
+export interface BrandKitInput {
+  spelling: string;
+  banned_words: string[];
+  style: string;
+  vocabulary: string;
+  tone_profile: string;
+  profile_provisional: boolean;
+}
+
+export interface BrandKit extends BrandKitInput {
+  id: string;
+  revision: number;
+  updated_at: string;
+}
+
+export interface VoiceSnippetInput {
+  source_type: string;
+  source_name: string;
+  captured_on: string;
+  content: string;
+  area_id?: string | null;
+}
+
+export interface VoiceSnippet extends VoiceSnippetInput {
+  id: string;
+  created_at: string;
+}
+
+export interface SocialProofInput {
+  label: string;
+  proof_type: string;
+  area_ids: string[];
+  markets: string[];
+  approved: boolean;
+}
+
+export interface SocialProof extends SocialProofInput {
+  id: string;
+  created_at: string;
+}
+
+export interface BrandKitDetail {
+  brand_kit: BrandKit | null;
+  voice_snippets: VoiceSnippet[];
+  social_proofs: SocialProof[];
+}
+
+// ── V3 strategy map (handoff §4.4) ───────────────────────────────────
+
+export interface MapAreaNode {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  default_argument_id: string | null;
+  default_argument_pillar: string | null;
+  demand_count: number;
+  card_count: number;
+  card_states: Record<string, number>;
+  descendant_card_states: Record<string, number>;
+  is_unmapped: boolean;
+  content_gap: boolean;
+  children: MapAreaNode[];
+}
+
+export interface MapCanvasNode {
+  id: string;
+  name: string;
+  product_line: string | null;
+  is_company: boolean;
+  argument_count: number;
+  cell_count: number;
+  inherits: string[];
+  override_count: number;
+  adds: string[];
+  areas: MapAreaNode[];
+  product_lines: MapCanvasNode[];
+}
+
+export interface StrategyMap {
+  company_canvas: MapCanvasNode | null;
+  unassigned_card_count: number;
+}
+
+// ── V3 demand Plan (handoff §4.5) ────────────────────────────────────
+
+export interface PlanKindCounts {
+  pillar: number;
+  cluster: number;
+  compare: number;
+  refresh: number;
+  secondary_demands: number;
+}
+
+export interface PlanCardPreview {
+  kind: "pillar" | "cluster" | "compare" | "refresh";
+  primary_node_id: string;
+  primary_text: string;
+  primary_type: "keyword" | "prompt";
+  score: number | null;
+  volume: number | null;
+  word_budget: number;
+  secondary_demands: { node_id: string; text: string }[];
+}
+
+export interface PlanGroupPreview {
+  area_id: string;
+  area_name: string;
+  market_country: string | null;
+  counts: PlanKindCounts;
+  cards: PlanCardPreview[];
+}
+
+export interface PlanPreview {
+  selected_count: number;
+  eligible_count: number;
+  skipped_count: number;
+  totals: PlanKindCounts;
+  groups: PlanGroupPreview[];
+  skipped: { node_id: string; text: string | null; reason: string }[];
+  deferred: string[];
+}
+
+export interface PlanResult extends PlanPreview {
+  created_count: number;
+  created_card_ids: string[];
+  job_run_id: string;
+}

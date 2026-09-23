@@ -20,6 +20,7 @@ Provides the central strategic framework defining what the product does and for 
 - **Canvas**: Supports self-referential inheritance (`parent_id`) for company-level vs. product-level differentiation. Contains typed anchor models for Company, Persona, Use Case, Alternative, and Category.
 - **Argument**: Strategic building blocks for the canvas (Sub-Problem, Differentiation Pillar, Capability, Benefit). Supports inheritance and overrides (`inherited_from`, `override`).
 - **Claim**: The atomic units of content that back arguments. Implements a full version chain (`superseded_by`) and is strictly validated against the `ClaimRow` enum (e.g., capability, pitch). Claims track approval state and market-level overrides.
+- **Area**: A Canvas-scoped product-tree node with a parent relation, readable `name`, and optional `default_argument_id`. Areas are tenant/RLS scoped and Demand Nodes reference them through a nullable foreign key.
 
 ### 2. Demand (`app/domains/demand`)
 

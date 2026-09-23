@@ -11,7 +11,6 @@ from app.domains.content.models import (
     PageType,
     PlannedPageStatus,
 )
-from app.domains.keywords.models import SearchIntent
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
@@ -359,7 +358,7 @@ class PlannedContentPageCreate(BaseModel):
     page_type: PageType = PageType.PLANNED
     content_type: PageContentType = PageContentType.GUIDE
     status: PlannedPageStatus = PlannedPageStatus.PLANNED
-    intent: SearchIntent = SearchIntent.INFORMATIONAL
+    intent: str = "INFORMATIONAL"
     primary_keyword: str = ""
     primary_keyword_id: UUID | None = None
     cluster_id: UUID | None = None
@@ -380,7 +379,7 @@ class PlannedContentPageUpdate(BaseModel):
     page_type: PageType | None = None
     content_type: PageContentType | None = None
     status: PlannedPageStatus | None = None
-    intent: SearchIntent | None = None
+    intent: str | None = None
     primary_keyword: str | None = None
     primary_keyword_id: UUID | None = None
     cluster_id: UUID | None = None

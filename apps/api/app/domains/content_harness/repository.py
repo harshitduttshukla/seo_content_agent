@@ -64,12 +64,9 @@ class ContentHarnessRepository:
         organization_id: UUID,
         project_id: UUID,
     ) -> int:
-        stmt = (
-            select(func.count(ContentHarnessRun.id))
-            .where(
-                ContentHarnessRun.organization_id == organization_id,
-                ContentHarnessRun.project_id == project_id,
-            )
+        stmt = select(func.count(ContentHarnessRun.id)).where(
+            ContentHarnessRun.organization_id == organization_id,
+            ContentHarnessRun.project_id == project_id,
         )
         res = await session.execute(stmt)
         return int(res.scalar_one_or_none() or 0)

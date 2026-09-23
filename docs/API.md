@@ -115,6 +115,17 @@ Request/response schemas use `Create`, `Update`, `Command`, `Summary`, and `Deta
 | `POST /seo-rules/{rule_id}/activate` | exact version -> active | `seo_rules.approve` |
 | `GET/POST /projects/{project_id}/linking-rules` | rule-set projection/change | `link_rules.read/write` |
 
+The V3 strategy workspace currently exposes its canvas slice under `/api/v3`:
+
+| Method/path | Input -> output | Permission / notes |
+|---|---|---|
+| `POST /canvases?organization_id={organization_id}&project_id={project_id}` | no body -> empty `CanvasFullResponse` | `strategy.write`; creates the single company canvas (`parent_id = null`); `409 COMPANY_CANVAS_EXISTS` if one already exists |
+| `GET /canvases?organization_id={organization_id}&project_id={project_id}` | -> `CanvasListResponse` | `strategy.read`; tenant- and project-scoped |
+| `GET /canvases/{canvas_id}?organization_id={organization_id}&project_id={project_id}` | -> `CanvasFullResponse` | `strategy.read`; tenant- and project-scoped |
+| `POST /canvases/{canvas_id}/anchors?organization_id={organization_id}&project_id={project_id}` | `CanvasAnchorUpsertRequest` -> `CanvasFullResponse` | `strategy.write`; creates or replaces one typed company-level anchor |
+| `POST /canvases/{canvas_id}/arguments?organization_id={organization_id}&project_id={project_id}` | `ArgumentCreateRequest` -> `CanvasFullResponse` | `strategy.write`; adds the next ordered argument and claims for supplied cells |
+| `POST /canvases/{canvas_id}/claims?organization_id={organization_id}&project_id={project_id}` | `CanvasClaimCreateRequest` -> `CanvasFullResponse` | `strategy.write`; creates an unapproved v1 claim for a blank summary or argument cell |
+
 ### Keywords and content architecture
 
 | Method/path | Input -> output | Permission / notes |

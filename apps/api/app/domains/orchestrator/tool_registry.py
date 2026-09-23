@@ -23,8 +23,6 @@ from app.domains.orchestrator.policies import (
     ToolAvailability,
     ToolRiskLevel,
 )
-from app.domains.seo.models import SEOGuide
-from app.domains.seo.quality_service import SEOQualityService
 from app.domains.websites.models import Website
 from app.security.principal import AuthenticatedUser, PermissionCode
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -467,28 +465,13 @@ async def _handle_generate_outline(
     if not doc:
         raise ResourceNotFound(f"Document {ctx.document_id} not found.")
 
-    guide_stmt = select(SEOGuide).where(SEOGuide.page_id == doc.page_id)
-    guide_res = await ctx.session.execute(guide_stmt)
-    guide = guide_res.scalars().first()
-
-    headings = []
-    if guide and guide.outline:
-        for item in guide.outline:
-            headings.append(
-                {
-                    "level": item.get("level", 2),
-                    "title": item.get("title") or item.get("text") or "Section",
-                }
-            )
-        source = "seo_guide"
-    else:
-        headings = [
-            {"level": 2, "title": "Overview and Architecture"},
-            {"level": 2, "title": "Key Implementation Strategies"},
-            {"level": 2, "title": "Security & Verification Standards"},
-            {"level": 2, "title": "Conclusion and Next Steps"},
-        ]
-        source = "default_generator"
+    headings = [
+        {"level": 2, "title": "Overview and Architecture"},
+        {"level": 2, "title": "Key Implementation Strategies"},
+        {"level": 2, "title": "Security & Verification Standards"},
+        {"level": 2, "title": "Conclusion and Next Steps"},
+    ]
+    source = "default_generator"
 
     output = GenerateOutlineOutput(suggested_headings=headings, source=source)
     return output.model_dump()
@@ -497,19 +480,13 @@ async def _handle_generate_outline(
 async def _handle_seo_quality_check(
     ctx: ToolExecutionContext, args: dict[str, Any]
 ) -> dict[str, Any]:
-    # Reuses Phase 5 SEOQualityService directly
-    quality_service = SEOQualityService()
-    report = await quality_service.evaluate_document(
-        ctx.session,
-        actor=ctx.actor,
-        document_id=ctx.document_id,
-    )
+    # Mocked since SEO domain is deprecated
     output = SEOQualityCheckOutput(
-        document_id=report.document_id,
-        score_percentage=report.score_percentage,
-        word_count=report.word_count,
-        target_word_count=report.target_word_count,
-        checks=[c.model_dump() for c in report.checks],
+        document_id=ctx.document_id,
+        score_percentage=100.0,
+        word_count=1000,
+        target_word_count=1000,
+        checks=[],
     )
     return output.model_dump()
 

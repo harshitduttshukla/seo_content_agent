@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas cell → tree drill-down — demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ECEEED; --card:#FFF; --ink:#12171A; --ink2:#5C666C; --ink3:#8A949A;
+  --line:#D6DBD9; --line2:#E7EAE9;
+  --coral:#B9463A; --coral-bg:#FBEBE8; --coral-br:#F0D2CC;
+  --teal:#15706A;  --teal-bg:#E1EFED;  --teal-br:#C4DEDA;
+  --rest:#6F787D;  --rest-bg:#F0F2F1;  --rest-br:#DDE2E0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",monospace;font-size:.86em;letter-spacing:-.01em}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;margin:0}
+h1{font-size:22px;letter-spacing:-.015em} h3{font-size:14.5px}
+p{margin:0 0 10px}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+main{max-width:1060px;margin:0 auto;padding:28px 24px 80px}
+.crumb{font-size:11.5px;color:var(--ink3);margin-bottom:6px}
+.sub{color:var(--ink2);font-size:13.4px;margin:6px 0 20px;max-width:70ch}
+
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11.5px;border:1px solid;white-space:nowrap}
+.chip.c{background:var(--coral-bg);color:var(--coral);border-color:var(--coral-br)}
+.chip.t{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-br)}
+.chip.r{background:var(--rest-bg);color:var(--rest);border-color:var(--rest-br)}
+
+/* canvas grid, same look as the module mockup */
+.canvas{display:grid;grid-template-columns:120px repeat(3,minmax(215px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.canvas .cell{background:#fff;padding:9px 11px;font-size:12.6px}
+.canvas .rowlab{background:#FAFBFA;color:var(--ink3);font-size:11.5px;display:flex;align-items:center}
+.canvas .cell.clickable{cursor:pointer;transition:background .1s}
+.canvas .cell.clickable:hover{background:#F1F6F5;box-shadow:inset 0 0 0 1px var(--teal-br)}
+.canvas .cell.active{background:var(--teal-bg);box-shadow:inset 0 0 0 1px var(--teal)}
+.cellmeta{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.hint{margin-top:14px;font-size:12.4px;color:var(--ink3)}
+.hint .mono{color:var(--ink2)}
+
+/* overlay + sheet */
+.overlay{position:fixed;inset:0;background:rgba(18,23,26,.28);opacity:0;pointer-events:none;transition:opacity .18s;z-index:10}
+.overlay.on{opacity:1;pointer-events:auto}
+
+.sheet{position:fixed;top:0;right:0;height:100vh;width:460px;max-width:92vw;background:var(--card);border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.08);transform:translateX(100%);transition:transform .2s ease-out;z-index:11;display:flex;flex-direction:column}
+.sheet.on{transform:translateX(0)}
+.sheet-head{padding:16px 18px 14px;border-bottom:1px solid var(--line2);display:flex;gap:10px;align-items:flex-start}
+.sheet-head .grow{flex:1;min-width:0}
+.sheet-head .row{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.sheet-close{border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;font-size:14px;color:var(--ink2);line-height:1;flex:0 0 auto}
+.sheet-close:hover{background:#F5F8F7}
+.sheet-body{flex:1;overflow-y:auto;padding:14px 18px 24px}
+.sheet-body h4{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);font-weight:500;margin:18px 0 8px}
+.sheet-body h4:first-child{margin-top:0}
+
+/* tree */
+.tree{font-size:13px}
+.tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px solid var(--line2)}
+.tree>ul{padding-left:0;border-left:0}
+.tree li{padding:2px 0}
+.tnode{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;cursor:pointer}
+.tnode:hover{background:#FAFBFA}
+.tnode.leaf{cursor:default}
+.tnode.leaf:hover{background:none}
+.caret{width:14px;height:14px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--ink3);transition:transform .12s}
+.caret.open{transform:rotate(90deg)}
+.caret.empty{visibility:hidden}
+.tlabel{flex:1;min-width:0}
+.tlabel b{font-weight:500}
+.tmeta{color:var(--ink3);font-size:11.3px}
+.tchip{font-family:"IBM Plex Mono",monospace;font-size:10.6px;color:var(--ink3);border:1px solid var(--line);border-radius:9px;padding:0 6px;flex:0 0 auto}
+.tchip.approved{color:var(--teal);border-color:var(--teal-br);background:var(--teal-bg)}
+.children{display:none}
+.children.open{display:block}
+.loading{color:var(--ink3);font-size:12px;padding:6px 7px;display:flex;align-items:center;gap:7px}
+.spin{width:10px;height:10px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink3);animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.showall{font-size:11.5px;color:var(--teal);padding:5px 7px 5px 21px;cursor:pointer}
+.showall:hover{text-decoration:underline}
+
+footer.note{margin-top:26px;padding:11px 14px;background:#FAFBFA;border:1px solid var(--line2);border-left:2px solid var(--ink3);border-radius:0 6px 6px 0;font-size:12.4px;color:var(--ink2)}
+footer.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb">Strategy · Canvas · demo</div>
+  <h1>Click a cell to drill in</h1>
+  <p class="sub">Clicking a Differentiation pillar (or any cell) opens its argument chain and everything linked to it — keywords, prompts, content cards — as a lazy-loading tree, instead of navigating away.</p>
+
+  <div class="canvas">
+    <div class="cell rowlab">Differentiation pillar</div>
+    <div class="cell clickable" data-node="pillar-1" tabindex="0" role="button">
+      <b>Item-level landed cost</b>
+      <div class="cellmeta"><span class="chip r mono">CLM-011</span><span class="chip t">approved</span></div>
+    </div>
+    <div class="cell clickable" data-node="pillar-2" tabindex="0" role="button">
+      <b>Storefront-domain localisation</b>
+      <div class="cellmeta"><span class="chip r mono">CLM-021</span><span class="chip t">approved</span></div>
+    </div>
+    <div class="cell clickable" data-node="pillar-3" tabindex="0" role="button">
+      <b>Market-level performance marketing</b>
+      <div class="cellmeta"><span class="chip r mono">CLM-031</span><span class="chip t">approved</span></div>
+    </div>
+  </div>
+
+  <p class="hint">Try it — click <span class="mono">Item-level landed cost</span>. The panel opens with the argument chain collapsed; click a branch to expand it. Nothing is fetched until you open it.</p>
+
+  <footer class="note"><b>Wiring note.</b> Each top-level branch (argument chain / linked keywords / linked content cards) lazy-loads its children on first expand and caches the result — a pillar with 400+ demand nodes shouldn't fetch them until asked. Real data comes from one aggregation endpoint keyed on <span class="mono">argument_id</span>.</footer>
+</main>
+
+<div class="overlay" id="overlay"></div>
+<aside class="sheet" id="sheet" aria-hidden="true">
+  <div class="sheet-head">
+    <div class="grow">
+      <h3 id="sheetTitle">—</h3>
+      <div class="row" id="sheetMeta"></div>
+    </div>
+    <button class="sheet-close" id="sheetClose" aria-label="Close">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="tree" id="tree"></div>
+  </div>
+</aside>
+
+<script>
+// ---- demo data --------------------------------------------------------
+const NODES = {
+  'pillar-1': {
+    title: 'Item-level landed cost',
+    meta: [['chip r mono','CLM-011'],['chip t','approved'],['chip r','pillar']],
+    branches: [
+      { key:'chain', label:'Argument chain', count:5, kind:'chain', delay:250, items:[
+        { label:'Sub-problem', text:'Duty quoted at checkout does not match what the carrier bills', tag:'CLM-010', approved:true },
+        { label:'Pillar', text:'Item-level landed cost', tag:'CLM-011', approved:true },
+        { label:'Capability', text:'Duty and tax calculated per HS code at the item level, collected as amount charged', tag:'CLM-012', approved:true },
+        { label:'Features', text:'HS classification · DDP collection · remittance and filing · refund of duty on returns', tag:'4 cells', approved:true, expandable:true, sub:[
+          { label:'Feature', text:'HS classification', tag:'CLM-013a', approved:true },
+          { label:'Feature', text:'DDP collection', tag:'CLM-013b', approved:true },
+          { label:'Feature', text:'Remittance and filing', tag:'CLM-013c', approved:true },
+          { label:'Feature', text:'Refund of duty on returns', tag:'CLM-013d', approved:true },
+        ]},
+        { label:'Benefit', text:'No post-delivery invoice and no refund ticket', tag:'CLM-014', approved:true },
+      ]},
+      { key:'demand', label:'Linked keywords & prompts', count:412, kind:'demand', delay:500, showAll:true, items:[
+        { label:'keyword', text:'duty drawback for returned orders', tag:'1,240', approved:false, meta:'pos 9 · gsc striking · kept · score 0.71' },
+        { label:'keyword', text:'weglot alternative', tag:'1,140', approved:false, meta:'upload · kept · score 0.78' },
+        { label:'prompt', text:'"who handles duties for shopify brands selling to the EU"', tag:'bofu', approved:false, meta:'citation gap 1.0 · 3 platforms · score 3.0' },
+        { label:'keyword', text:'incoterms ddp vs dap', tag:'3,400', approved:false, meta:'discarded · conf 0.55' },
+        { label:'keyword', text:'eu vat rates 2026', tag:'1,300', approved:false, meta:'discarded · conf 0.61' },
+      ]},
+      { key:'cards', label:'Linked content cards', count:4, kind:'cards', delay:350, items:[
+        { label:'pillar', text:'Landed cost calculation', tag:'CRD-0018', approved:false, meta:'live · CRD-0018', state:'live' },
+        { label:'cluster', text:'HS code lookup for cross-border sellers', tag:'CRD-0031', approved:false, meta:'draft', state:'draft' },
+        { label:'compare', text:'Glopal vs Zonos: item-level duty', tag:'CRD-0044', approved:false, meta:'review · G2', state:'review' },
+        { label:'refresh', text:'Duties and taxes for DTC brands', tag:'CRD-0009', approved:false, meta:'stale claim · refresh open', state:'refresh' },
+      ]},
+    ]
+  },
+  'pillar-2': {
+    title: 'Storefront-domain localisation',
+    meta: [['chip r mono','CLM-021'],['chip t','approved'],['chip r','pillar']],
+    branches: [
+      { key:'chain', label:'Argument chain', count:5, kind:'chain', delay:220, items:[
+        { label:'Sub-problem', text:'Translated storefronts do not get indexed in their market', tag:'CLM-020', approved:true },
+        { label:'Pillar', text:'Storefront-domain localisation', tag:'CLM-021', approved:true },
+        { label:'Capability', text:'Translated pages served from the merchant\u2019s own domain, indexable per market', tag:'CLM-022', approved:true },
+        { label:'Features', text:'Subdirectory delivery · hreflang handling · per-market human review · glossary', tag:'4 cells · 1 unapproved', approved:false },
+        { label:'Benefit', text:'Translated pages rank in each market instead of sitting on a subdomain', tag:'CLM-024', approved:true },
+      ]},
+      { key:'demand', label:'Linked keywords & prompts', count:903, kind:'demand', delay:450, showAll:true, items:[
+        { label:'keyword', text:'weglot alternative', tag:'1,140', approved:false, meta:'upload · kept · score 0.78' },
+        { label:'keyword', text:'shopify translate app free', tag:'880', approved:false, meta:'discarded · conf 0.58' },
+      ]},
+      { key:'cards', label:'Linked content cards', count:8, kind:'cards', delay:300, items:[
+        { label:'pillar', text:'Translated storefronts that rank in every market', tag:'CRD-0022', approved:false, meta:'live', state:'live' },
+        { label:'compare', text:'Weglot vs native subdirectory localisation', tag:'CRD-0037', approved:false, meta:'outline', state:'outline' },
+      ]},
+    ]
+  },
+  'pillar-3': {
+    title: 'Market-level performance marketing',
+    meta: [['chip r mono','CLM-031'],['chip t','approved'],['chip r','pillar']],
+    branches: [
+      { key:'chain', label:'Argument chain', count:5, kind:'chain', delay:220, items:[
+        { label:'Sub-problem', text:'International ad spend cannot be attributed per market', tag:'CLM-030', approved:true },
+        { label:'Pillar', text:'Market-level performance marketing', tag:'CLM-031', approved:true },
+        { label:'Capability', text:'Feeds and campaigns managed per market with their own budgets', tag:'CLM-032', approved:true },
+        { label:'Features', text:'Localised feeds · market budgets · Shopping and PMax · market-level ROAS', tag:'4 cells', approved:true },
+        { label:'Benefit', text:'Spend moves to the markets that convert', tag:'CLM-034', approved:false, meta:'no evidence' },
+      ]},
+      { key:'demand', label:'Linked keywords & prompts', count:216, kind:'demand', delay:380, items:[
+        { label:'keyword', text:'market-level roas tracking shopify', tag:'260', approved:false, meta:'upload · kept · score 0.64' },
+      ]},
+      { key:'cards', label:'Linked content cards', count:3, kind:'cards', delay:260, items:[
+        { label:'cluster', text:'Per-market ad budgets for cross-border feeds', tag:'CRD-0051', approved:false, meta:'planned', state:'planned' },
+      ]},
+    ]
+  }
+};
+
+// ---- sheet open/close ---------------------------------------------------
+const overlay = document.getElementById('overlay');
+const sheet = document.getElementById('sheet');
+const sheetTitle = document.getElementById('sheetTitle');
+const sheetMeta = document.getElementById('sheetMeta');
+const tree = document.getElementById('tree');
+
+function openSheet(nodeId){
+  document.querySelectorAll('.canvas .cell.clickable').forEach(c=>c.classList.remove('active'));
+  const el = document.querySelector(`[data-node="${nodeId}"]`);
+  if(el) el.classList.add('active');
+
+  const data = NODES[nodeId];
+  sheetTitle.textContent = data.title;
+  sheetMeta.innerHTML = data.meta.map(([cls,txt])=>`<span class="${cls}">${txt}</span>`).join('');
+  tree.innerHTML = '';
+
+  const root = document.createElement('ul');
+  data.branches.forEach(branch => root.appendChild(renderBranchNode(branch)));
+  tree.appendChild(root);
+
+  overlay.classList.add('on');
+  sheet.classList.add('on');
+  sheet.setAttribute('aria-hidden','false');
+}
+function closeSheet(){
+  overlay.classList.remove('on');
+  sheet.classList.remove('on');
+  sheet.setAttribute('aria-hidden','true');
+  document.querySelectorAll('.canvas .cell.clickable').forEach(c=>c.classList.remove('active'));
+}
+overlay.addEventListener('click', closeSheet);
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+
+document.querySelectorAll('.canvas .cell.clickable').forEach(cell=>{
+  cell.addEventListener('click', ()=> openSheet(cell.dataset.node));
+  cell.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openSheet(cell.dataset.node); }});
+});
+
+// ---- tree rendering, lazy-load simulation -------------------------------
+function renderBranchNode(branch){
+  const li = document.createElement('li');
+  const row = document.createElement('div');
+  row.className = 'tnode';
+  row.tabIndex = 0;
+  row.innerHTML = `
+    <span class="caret">▸</span>
+    <span class="tlabel"><b>${branch.label}</b></span>
+    <span class="tmeta">${branch.count} ${branch.kind==='chain' ? 'cells' : branch.kind==='cards' ? 'cards' : 'nodes'}</span>
+  `;
+  const kids = document.createElement('div');
+  kids.className = 'children';
+  let loaded = false;
+
+  function toggle(){
+    const caret = row.querySelector('.caret');
+    const willOpen = !kids.classList.contains('open');
+    if(willOpen && !loaded){
+      kids.innerHTML = `<div class="loading"><span class="spin"></span> loading…</div>`;
+      kids.classList.add('open');
+      caret.classList.add('open');
+      setTimeout(()=>{
+        kids.innerHTML = '';
+        const ul = document.createElement('ul');
+        const items = branch.showAll ? branch.items.slice(0,5) : branch.items;
+        items.forEach(item => ul.appendChild(renderLeaf(item)));
+        kids.appendChild(ul);
+        if(branch.showAll && branch.count > items.length){
+          const more = document.createElement('div');
+          more.className = 'showall';
+          more.textContent = `show all ${branch.count} →`;
+          kids.appendChild(more);
+        }
+        loaded = true;
+      }, branch.delay || 300);
+    } else {
+      kids.classList.toggle('open');
+      caret.classList.toggle('open');
+    }
+  }
+  row.addEventListener('click', toggle);
+  row.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }});
+
+  li.appendChild(row);
+  li.appendChild(kids);
+  return li;
+}
+
+function renderLeaf(item){
+  const li = document.createElement('li');
+  if(item.expandable && item.sub){
+    const row = document.createElement('div');
+    row.className = 'tnode';
+    row.tabIndex = 0;
+    row.innerHTML = `
+      <span class="caret">▸</span>
+      <span class="tlabel"><span class="tmeta">${item.label} ·</span> ${item.text}</span>
+      <span class="tchip ${item.approved?'approved':''}">${item.tag}</span>
+    `;
+    const kids = document.createElement('div');
+    kids.className = 'children';
+    row.addEventListener('click', ()=>{
+      if(!kids.hasChildNodes()){
+        const ul = document.createElement('ul');
+        item.sub.forEach(s => ul.appendChild(renderLeaf(s)));
+        kids.appendChild(ul);
+      }
+      kids.classList.toggle('open');
+      row.querySelector('.caret').classList.toggle('open');
+    });
+    li.appendChild(row);
+    li.appendChild(kids);
+    return li;
+  }
+  const row = document.createElement('div');
+  row.className = 'tnode leaf';
+  row.innerHTML = `
+    <span class="caret empty">▸</span>
+    <span class="tlabel"><span class="tmeta">${item.label} ·</span> ${item.text}${item.meta ? `<div class="tmeta">${item.meta}</div>` : ''}</span>
+    <span class="tchip ${item.approved?'approved':''}">${item.tag}</span>
+  `;
+  li.appendChild(row);
+  return li;
+}
+</script>
+</body>
+</html>
