@@ -17,11 +17,34 @@ from app.domains.audit.repository import (
 from app.domains.auth.repository import AuthorizationRepository
 from app.domains.projects.models import Project, ProjectStatus
 from app.domains.projects.repository import ProjectRepository
-from app.domains.projects.schemas import ProjectCreate, ProjectDetail, ProjectUpdate
+from app.domains.projects.schemas import (
+    PlanLockState,
+    ProjectCreate,
+    ProjectDetail,
+    ProjectUpdate,
+)
 from app.security.authorization import AuthorizationService
 from app.security.principal import AuthenticatedUser, PermissionCode
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def is_added_after_plan_lock(
+    card_planned_at: datetime | None, plan_locked_at: datetime | None
+) -> bool:
+    """V3 5.1 "new" chip: a card that entered Planned after the plan was locked.
+
+    Uses ``ContentCard.planned_at`` (last entry into Planned), not ``created_at``,
+    so a card created earlier and moved backlog → planned after the lock is new.
+    Derived, never stored. Strict ``>``: entering at the lock instant is not new.
+    Before any lock, or for a card never stamped, nothing is new. Callers apply
+    it to cards in the Planned state; the state filter is theirs.
+    """
+    return (
+        plan_locked_at is not None
+        and card_planned_at is not None
+        and card_planned_at > plan_locked_at
+    )
 
 
 class ProjectService:
@@ -229,6 +252,46 @@ class ProjectService:
             raise ConflictError(
                 "PROJECT_SLUG_CONFLICT", "An active project already uses this slug."
             ) from exc
+
+    async def lock_plan(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        organization_id: UUID,
+        project_id: UUID,
+        request_id: str,
+    ) -> PlanLockState:
+        """Lock the Content Hub plan once (V3 5.1). Safe to repeat; never moves the time."""
+        async with session.begin():
+            await set_actor_context(session, actor.user_id)
+            project = await self.get_model(
+                session,
+                actor=actor,
+                project_id=project_id,
+                permission=PermissionCode.PROJECT_UPDATE,
+            )
+            if project.organization_id != organization_id:
+                raise ResourceNotFound("project")
+            locked_at, locked_now = await self._projects.lock_plan(
+                session, organization_id=organization_id, project_id=project_id
+            )
+            if locked_at is None:  # the scoped row vanished between the two reads
+                raise ResourceNotFound("project")
+            if locked_now:
+                self._audit.add(
+                    session,
+                    actor_user_id=actor.user_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    action="project.plan_locked",
+                    resource_type="project",
+                    resource_id=project_id,
+                    request_id=request_id,
+                )
+            return PlanLockState(
+                project_id=project_id, plan_locked_at=locked_at, locked_now=locked_now
+            )
 
     async def archive(
         self,

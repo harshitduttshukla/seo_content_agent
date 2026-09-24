@@ -651,3 +651,13 @@ export interface PlanResult extends PlanPreview {
   created_card_ids: string[];
   job_run_id: string;
 }
+
+// ── V3 Content Hub "Lock plan" (handoff §5.1) ────────────────────────
+
+export interface PlanLockState {
+  project_id: string;
+  /** Set once by the server's clock; repeat locks return the original. */
+  plan_locked_at: string;
+  locked_now: boolean;
+}
+

@@ -1,11 +1,12 @@
 """Tenant- and assignment-scoped project persistence."""
 
+from datetime import datetime
 from uuid import UUID
 
 from app.core.cursor import Cursor
 from app.domains.auth.models import OrganizationMember, ProjectMember, Role
 from app.domains.projects.models import Project
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -69,3 +70,32 @@ class ProjectRepository:
             )
         )
         return result
+
+    async def lock_plan(
+        self, session: AsyncSession, *, organization_id: UUID, project_id: UUID
+    ) -> tuple[datetime | None, bool]:
+        """Set plan_locked_at once, from the database clock; return (value, locked_now).
+
+        The conditional UPDATE is the whole concurrency story: PostgreSQL row-locks
+        the project, so a second concurrent request waits, re-checks
+        ``plan_locked_at IS NULL`` after the first commits, matches nothing, and
+        reads back the first timestamp. No other column changes — ``updated_at``
+        is pinned to itself so the ORM ``onupdate`` does not move it.
+        """
+        scope = (
+            Project.id == project_id,
+            Project.organization_id == organization_id,
+        )
+        locked_at: datetime | None = await session.scalar(
+            update(Project)
+            .where(*scope, Project.plan_locked_at.is_(None))
+            .values(plan_locked_at=func.now(), updated_at=Project.updated_at)
+            .returning(Project.plan_locked_at)
+            .execution_options(synchronize_session=False)
+        )
+        if locked_at is not None:
+            return locked_at, True
+        existing: datetime | None = await session.scalar(
+            select(Project.plan_locked_at).where(*scope)
+        )
+        return existing, False
