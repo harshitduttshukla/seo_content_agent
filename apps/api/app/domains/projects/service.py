@@ -29,13 +29,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def is_added_after_plan_lock(card_created_at: datetime, plan_locked_at: datetime | None) -> bool:
-    """V3 5.1 "new" chip: a Planned card created after the plan was locked.
+def is_added_after_plan_lock(
+    card_planned_at: datetime | None, plan_locked_at: datetime | None
+) -> bool:
+    """V3 5.1 "new" chip: a card that entered Planned after the plan was locked.
 
-    Derived, never stored. Before any lock nothing is "new". Callers apply it to
-    cards in the Planned state; the state filter is theirs, not this function's.
+    Uses ``ContentCard.planned_at`` (last entry into Planned), not ``created_at``,
+    so a card created earlier and moved backlog → planned after the lock is new.
+    Derived, never stored. Strict ``>``: entering at the lock instant is not new.
+    Before any lock, or for a card never stamped, nothing is new. Callers apply
+    it to cards in the Planned state; the state filter is theirs.
     """
-    return plan_locked_at is not None and card_created_at > plan_locked_at
+    return (
+        plan_locked_at is not None
+        and card_planned_at is not None
+        and card_planned_at > plan_locked_at
+    )
 
 
 class ProjectService:

@@ -19,6 +19,7 @@ V3 §5.2 State Machine:
 Origin values: plan, import, insight, manual
 """
 
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -32,6 +33,8 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    event,
+    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -190,6 +193,10 @@ class ContentCard(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
 
     # V3 §5.2 state machine
     state: Mapped[str] = mapped_column(String(16), nullable=False, default=ContentCardState.BACKLOG)
+    # V3 5.1: when the card most recently entered Planned; set by the listener
+    # below, never by callers. NULL for cards never planned or planned before
+    # this column existed. The board derives "new" from it; nothing is stored.
+    planned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     owner: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     due: Mapped[object | None] = mapped_column(Date, nullable=True)
@@ -251,3 +258,19 @@ class ContentCardClaim(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     content_card_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     claim_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+
+
+@event.listens_for(ContentCard.state, "set")
+def _stamp_planned_entry(
+    target: ContentCard, value: str, oldvalue: object, _initiator: object
+) -> None:
+    """Record entry into Planned, whatever path sets the state.
+
+    Fires on construction (``ContentCard(state="planned")``) and on every later
+    assignment. Only a move *into* planned stamps; leaving planned, or setting
+    planned on a card already planned, keeps the existing time. The value is
+    the database's ``now()``, evaluated at flush. Bulk SQL UPDATEs bypass ORM
+    events, so state changes must go through the model to be stamped.
+    """
+    if value == ContentCardState.PLANNED and oldvalue != ContentCardState.PLANNED:
+        target.planned_at = func.now()
