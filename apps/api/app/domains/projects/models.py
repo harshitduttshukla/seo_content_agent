@@ -59,3 +59,7 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
     )
 
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # V3 5.1: when "Lock plan" first confirmed the Planned set. NULL = not locked.
+    # Operational state, deliberately not part of workspace_config.
+    plan_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

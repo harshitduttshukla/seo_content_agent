@@ -60,3 +60,17 @@ class ProjectList(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[ProjectDetail]
+
+
+class PlanLockState(BaseModel):
+    """V3 5.1 "Lock plan": when the Planned set was first confirmed.
+
+    ``locked_now`` is true only for the request that set the timestamp; a repeat
+    or concurrent request returns the original ``plan_locked_at`` with false.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    plan_locked_at: datetime
+    locked_now: bool

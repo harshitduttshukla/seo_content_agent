@@ -22,6 +22,7 @@ import type {
   SiteImportResponse,
   SiteImportStatusResponse,
   SocialProof,
+  PlanLockState,
   PlanPreview,
   PlanResult,
   StrategyMap,
@@ -154,6 +155,11 @@ export const V3API = {
       }),
     getStatus: (scope: V3Scope, jobId: string): Promise<SiteImportStatusResponse> =>
       clientApi(scopedPath(scope, `/site-import/${jobId}/status`)),
+  },
+  planLock: {
+    /** Lock the Content Hub plan. No body: the server sets the time, once. */
+    lock: (scope: V3Scope): Promise<PlanLockState> =>
+      clientApi(scopedPath(scope, "/plan/lock"), { method: "POST" }),
   },
   strategyMap: {
     get: (scope: V3Scope): Promise<StrategyMap> => clientApi(scopedPath(scope, "/strategy/map")),
