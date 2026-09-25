@@ -1,4 +1,6 @@
 import type {
+  BoardCard,
+  BoardFilters,
   BulkUpdateResponse,
   BrandKit,
   BrandKitDetail,
@@ -16,6 +18,7 @@ import type {
   ClaimEditConfirm,
   ClaimEditConfirmResponse,
   ContentCardStub,
+  ContentHubBoard,
   DemandImportItem,
   DemandImportResponse,
   DemandListResponse,
@@ -160,6 +163,32 @@ export const V3API = {
     /** Lock the Content Hub plan. No body: the server sets the time, once. */
     lock: (scope: V3Scope): Promise<PlanLockState> =>
       clientApi(scopedPath(scope, "/plan/lock"), { method: "POST" }),
+  },
+  contentHub: {
+    board: (scope: V3Scope, filters: BoardFilters = {}): Promise<ContentHubBoard> => {
+      const path = scopedPath(scope, "/content-hub/board");
+      const query = new URLSearchParams(
+        Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1])),
+      );
+      return clientApi(query.size ? `${path}&${query.toString()}` : path);
+    },
+    /** Backlog ↔ Planned only; the server refuses every other move. */
+    moveCard: (
+      scope: V3Scope,
+      cardId: string,
+      targetState: "backlog" | "planned",
+      revision: number,
+    ): Promise<BoardCard> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/move`), {
+        method: "POST",
+        body: JSON.stringify({ target_state: targetState, revision }),
+      }),
+    /** The whole Planned column, top first; returns the refreshed unfiltered board. */
+    reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>
+      clientApi(scopedPath(scope, "/content-hub/planned/order"), {
+        method: "PUT",
+        body: JSON.stringify({ card_ids: cardIds }),
+      }),
   },
   strategyMap: {
     get: (scope: V3Scope): Promise<StrategyMap> => clientApi(scopedPath(scope, "/strategy/map")),

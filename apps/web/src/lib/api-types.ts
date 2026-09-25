@@ -661,3 +661,83 @@ export interface PlanLockState {
   locked_now: boolean;
 }
 
+
+// ── V3 Content Hub plan board (handoff §5.1) ─────────────────────────
+// Mirrors app/domains/content_cards/schemas.py (ContentHubBoard and friends).
+
+export type BoardColumnKey = "backlog" | "planned" | "outline" | "draft" | "review" | "approved" | "live";
+
+export interface BoardRef {
+  id: string;
+  name: string;
+}
+
+export interface BoardDemandRef {
+  id: string;
+  text: string;
+  volume: number | null;
+  citation_gap: number | null;
+  platform_count: number;
+}
+
+export interface BoardCard {
+  id: string;
+  title: string;
+  kind: string;
+  /** Stored §5.2 state, e.g. qa_passed; `column` is where the board shows it. */
+  state: string;
+  column: BoardColumnKey;
+  origin: string;
+  area: BoardRef | null;
+  argument: BoardRef | null;
+  owner: BoardRef | null;
+  market: string | null;
+  due: string | null;
+  priority: number;
+  primary_demand: BoardDemandRef | null;
+  primary_prompt: BoardDemandRef | null;
+  secondary_demand_count: number;
+  score: number | null;
+  has_qa_report: boolean;
+  url: string | null;
+  cms_id: string | null;
+  published_at: string | null;
+  stale_claim_count: number;
+  planned_at: string | null;
+  /** Server-derived "new" chip: planned_at strictly after plan_locked_at. */
+  is_new_after_plan_lock: boolean;
+  revision: number;
+  updated_at: string;
+}
+
+export interface BoardColumnView {
+  key: BoardColumnKey;
+  label: string;
+  tone: "rest" | "system" | "human";
+  count: number;
+  cards: BoardCard[];
+}
+
+export interface BoardFilterOptions {
+  areas: BoardRef[];
+  kinds: string[];
+  owners: BoardRef[];
+  arguments: BoardRef[];
+  markets: string[];
+}
+
+export interface ContentHubBoard {
+  project_id: string;
+  plan_locked_at: string | null;
+  total_count: number;
+  columns: BoardColumnView[];
+  filter_options: BoardFilterOptions;
+}
+
+export interface BoardFilters {
+  area_id?: string;
+  kind?: string;
+  owner_id?: string;
+  argument_id?: string;
+  market?: string;
+}

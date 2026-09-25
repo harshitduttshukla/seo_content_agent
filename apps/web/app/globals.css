@@ -267,3 +267,8 @@ textarea {
   gap: 7px;
   flex-wrap: wrap;
 }
+.chip.o {
+  background: #fff;
+  color: #5c666c;
+  border-color: var(--line);
+}

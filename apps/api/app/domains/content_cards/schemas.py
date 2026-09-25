@@ -5,11 +5,12 @@ V3 Reference: seo-geo-system-handoff-v3.md §3.1, §5.1, §5.2, §5.5
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 
 class ContentCardKind(StrEnum):
@@ -120,3 +121,122 @@ class ContentCardImportResult(BaseModel):
     content_card_id: UUID | None
     status: str
     error: str | None = None
+
+
+# Content Hub plan board (V3 §5.1)
+
+
+class BoardRef(BaseModel):
+    """A named reference shown on the card face (area, argument, owner)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    name: str
+
+
+class BoardDemandRef(BaseModel):
+    """The card's primary keyword or prompt, with what the face shows for it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    text: str
+    volume: int | None = None
+    citation_gap: float | None = None
+    platform_count: int = 0
+
+
+class BoardCard(BaseModel):
+    """One card as the board renders it. Read-only projection; no ORM object."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    title: str
+    kind: str
+    state: str
+    column: str
+    origin: str
+    area: BoardRef | None
+    argument: BoardRef | None
+    owner: BoardRef | None
+    market: str | None
+    due: date | None
+    priority: int
+    primary_demand: BoardDemandRef | None
+    primary_prompt: BoardDemandRef | None
+    secondary_demand_count: int
+    # The primary demand's score, else the primary prompt's; None when unscored.
+    score: float | None
+    has_qa_report: bool
+    url: str | None
+    cms_id: str | None
+    published_at: datetime | None
+    stale_claim_count: int
+    planned_at: datetime | None
+    # §5.1 "new" chip: entered Planned strictly after the plan lock. Server-derived.
+    is_new_after_plan_lock: bool
+    revision: int
+    updated_at: datetime
+
+
+class BoardColumnView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    label: str
+    tone: Literal["rest", "system", "human"]
+    count: int
+    cards: list[BoardCard]
+
+
+class BoardFilterOptions(BaseModel):
+    """Values present on this project's cards, for the filter row."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    areas: list[BoardRef]
+    kinds: list[str]
+    owners: list[BoardRef]
+    arguments: list[BoardRef]
+    markets: list[str]
+
+
+class ContentHubBoard(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    plan_locked_at: datetime | None
+    total_count: int
+    columns: list[BoardColumnView]
+    filter_options: BoardFilterOptions
+
+
+class BoardFilters(BaseModel):
+    """Allowlisted board filters; all optional and combined with AND."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    area_id: UUID | None = None
+    kind: ContentCardKind | None = None
+    owner_id: UUID | None = None
+    argument_id: UUID | None = None
+    market: str | None = Field(default=None, pattern=r"^[a-z]{2,10}-[A-Z]{2}$")
+
+
+class BoardMoveRequest(BaseModel):
+    """Backlog ↔ Planned only. ``revision`` is the card revision the client saw."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_state: Literal["backlog", "planned"]
+    revision: int = Field(ge=1)
+
+
+class PlannedOrderRequest(BaseModel):
+    """The full Planned column, top first. Must match the server's set exactly."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    card_ids: list[UUID] = Field(min_length=1, max_length=1000)
