@@ -57,6 +57,9 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gemini-flash-latest}
+      AI_MODEL_OPTIONS: ${AI_MODEL_OPTIONS:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-gemini-embedding-001}
       AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       CELERY_BROKER_URL: redis://redis:6379/1

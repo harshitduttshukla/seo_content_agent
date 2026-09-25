@@ -77,7 +77,7 @@ function Body({ body, claims, id }: { body: string; claims: Map<string, ClaimOpt
         }
         if (lines.every((line) => /^\s*[-*]\s/.test(line))) {
           return (
-            <ul key={key} className="m-[0_0_8px] pl-[18px]">
+            <ul key={key} className="m-[0_0_8px] list-disc pl-[18px]">
               {lines.map((line, j) => (
                 <li key={j}>{inline(line.replace(/^\s*[-*]\s+/, ""), claims, `${key}-${j}`)}</li>
               ))}

@@ -200,10 +200,10 @@ export const V3API = {
         body: JSON.stringify({ revision }),
       }),
     /** A proposal only: the card is not changed until saveOutline. */
-    generateOutline: (scope: V3Scope, cardId: string): Promise<OutlineProposal> =>
+    generateOutline: (scope: V3Scope, cardId: string, model?: string): Promise<OutlineProposal> =>
       clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline/generate`), {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify(model ? { model } : {}),
       }),
     /** First valid save moves bundled → outlined. 409 when `revision` is stale. */
     saveOutline: (scope: V3Scope, cardId: string, outline: OutlineV3, revision: number): Promise<OutlineSaveResponse> =>
@@ -230,10 +230,15 @@ export const V3API = {
         body: JSON.stringify({ revision, reason, feedback }),
       }),
     /** Drafts a G1-approved card from its stored, current bundle; stores only a valid draft. */
-    generateDraft: (scope: V3Scope, cardId: string, revision: number): Promise<DraftGenerateResponse> =>
+    generateDraft: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      model?: string,
+    ): Promise<DraftGenerateResponse> =>
       clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/draft/generate`), {
         method: "POST",
-        body: JSON.stringify({ revision }),
+        body: JSON.stringify(model ? { revision, model } : { revision }),
       }),
     /** The whole Planned column, top first; returns the refreshed unfiltered board. */
     reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>

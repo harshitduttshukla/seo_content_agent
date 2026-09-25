@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncIterator, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
@@ -636,31 +637,137 @@ class MockAIProvider(AIProvider):
         )
 
 
-def get_ai_provider() -> AIProvider:
-    """Returns the configured AI provider based on process settings."""
+_DEFAULT_MODEL_OPTIONS: dict[str, tuple[str, ...]] = {
+    "gemini": ("gemini-flash-latest", "gemini-3.5-flash"),
+    "anthropic": ("claude-sonnet-5", "claude-opus-5-5", "claude-haiku-4-5-20251001"),
+}
+_PROVIDER_ALIASES = {"claude": "anthropic", "google": "gemini", "gemini_api_key": "gemini"}
+
+
+@dataclass(frozen=True, slots=True)
+class ModelOption:
+    provider: str  # "gemini" | "anthropic"
+    model: str
+
+
+def _normalise_provider(name: str) -> str:
+    name = (name or "").lower().strip()
+    return _PROVIDER_ALIASES.get(name, name)
+
+
+def _provider_of(model: str) -> str | None:
+    if model.startswith("claude"):
+        return "anthropic"
+    if model.startswith("gemini"):
+        return "gemini"
+    return None
+
+
+def _provider_key(provider: str) -> str:
+    """The API key for one provider: its own setting, else AI_API_KEY when it is the default."""
+    from app.config.settings import get_settings
+
+    settings = get_settings()
+    own = settings.GEMINI_API_KEY if provider == "gemini" else settings.ANTHROPIC_API_KEY
+    if own:
+        return own
+    return settings.AI_API_KEY if _normalise_provider(settings.AI_PROVIDER) == provider else ""
+
+
+def generation_model_options() -> tuple[ModelOption | None, list[ModelOption]]:
+    """(default, selectable models) across every provider that has an API key.
+
+    The default is AI_PROVIDER/AI_MODEL and comes first. ``AI_MODEL_OPTIONS`` may
+    replace the per-provider lists with ``provider:model`` or bare model names.
+    """
+    from app.config.settings import get_settings
+
+    settings = get_settings()
+    configured: list[ModelOption] = []
+    for entry in (e.strip() for e in settings.AI_MODEL_OPTIONS.split(",") if e.strip()):
+        prefix, _, rest = entry.partition(":")
+        provider, model = (
+            (_normalise_provider(prefix), rest) if rest else (_provider_of(entry), entry)
+        )
+        if provider in _DEFAULT_MODEL_OPTIONS and model:
+            configured.append(ModelOption(provider, model))
+    candidates = configured or [
+        ModelOption(provider, model)
+        for provider, models in _DEFAULT_MODEL_OPTIONS.items()
+        for model in models
+    ]
+    default_provider = _normalise_provider(settings.AI_PROVIDER)
+    default = (
+        ModelOption(default_provider, settings.AI_MODEL)
+        if default_provider in _DEFAULT_MODEL_OPTIONS and settings.AI_MODEL
+        else None
+    )
+    ordered = ([default] if default else []) + [c for c in candidates if c != default]
+    options = [o for o in ordered if _provider_key(o.provider)]
+    if default is not None and default not in options:
+        default = options[0] if options else None
+    return default, options
+
+
+def _build_provider(provider: str, model: str) -> AIProvider:
+    from app.config.settings import get_settings
+
+    settings = get_settings()
+    key = _provider_key(provider)
+    if not key:
+        return MockAIProvider()
+    if provider == "gemini":
+        from app.integrations.gemini import GeminiAIProvider
+
+        base_url = settings.AI_BASE_URL
+        if "googleapis" not in base_url:
+            base_url = "https://generativelanguage.googleapis.com/v1beta"
+        return GeminiAIProvider(
+            api_key=key,
+            model=model,
+            embedding_model=settings.AI_EMBEDDING_MODEL or "gemini-embedding-001",
+            base_url=base_url,
+        )
+    if provider == "anthropic":
+        from app.integrations.anthropic import DEFAULT_BASE_URL, AnthropicAIProvider
+
+        base_url = settings.AI_BASE_URL if "anthropic" in settings.AI_BASE_URL else DEFAULT_BASE_URL
+        return AnthropicAIProvider(api_key=key, model=model, base_url=base_url)
+    return MockAIProvider()
+
+
+def _testing() -> bool:
     import os
 
     from app.config.settings import get_settings
-    from app.integrations.gemini import GeminiAIProvider
+
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("APP_ENV") in ("test", "testing"):
+        return True
+    return get_settings().APP_ENV in ("test", "testing")
+
+
+def get_ai_provider() -> AIProvider:
+    """Returns the configured default AI provider (AI_PROVIDER / AI_MODEL)."""
+    from app.config.settings import get_settings
 
     # Always use deterministic test double during test runs
-    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("APP_ENV") in ("test", "testing"):
+    if _testing():
         return MockAIProvider()
-
     settings = get_settings()
-    if settings.APP_ENV in ("test", "testing"):
-        return MockAIProvider()
+    provider = _normalise_provider(settings.AI_PROVIDER)
+    default_models = _DEFAULT_MODEL_OPTIONS.get(provider, ("default",))
+    return _build_provider(provider, settings.AI_MODEL or default_models[0])
 
-    provider_name = (settings.AI_PROVIDER or "").lower().strip()
-    if provider_name in ("gemini", "gemini_api_key", "google") and settings.AI_API_KEY:
-        return GeminiAIProvider(
-            api_key=settings.AI_API_KEY,
-            model=settings.AI_MODEL or "gemini-flash-latest",
-            embedding_model=settings.AI_EMBEDDING_MODEL or "gemini-embedding-001",
-            base_url=settings.AI_BASE_URL,
-        )
 
-    return MockAIProvider()
+def get_ai_provider_for_model(model: str | None) -> AIProvider:
+    """The provider that serves ``model`` (one of generation_model_options), else the default."""
+    if model is None or _testing():
+        return get_ai_provider()
+    _, options = generation_model_options()
+    match = next((o for o in options if o.model == model), None)
+    if match is None:
+        return get_ai_provider()
+    return _build_provider(match.provider, match.model)
 
 
 class ContentAIService:

@@ -335,3 +335,78 @@ def test_bundle_claim_import_is_the_shared_type() -> None:
     # Draft input claims are the same BundleClaim the bundle carries: one claim shape.
     assert isinstance(source().claims[0], BundleClaim)
     assert isinstance(source().bundle, CardContextBundle)
+
+
+# ── Model selection ───────────────────────────────────────────────
+
+
+def test_model_options_span_every_provider_with_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config.settings import get_settings
+    from app.domains.ai import service as ai
+
+    keys = ("AI_PROVIDER", "AI_MODEL", "AI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY",
+            "AI_MODEL_OPTIONS")  # fmt: skip
+
+    def configure(**env: str) -> tuple[ai.ModelOption | None, list[ai.ModelOption]]:
+        for key in keys:
+            monkeypatch.setenv(key, env.get(key, ""))
+        get_settings.cache_clear()
+        return ai.generation_model_options()
+
+    try:
+        # Both keys: Gemini and Claude side by side, the configured default first.
+        default, options = configure(
+            AI_PROVIDER="anthropic",
+            AI_MODEL="claude-sonnet-5",
+            GEMINI_API_KEY="g",
+            ANTHROPIC_API_KEY="a",
+        )
+        assert default == ai.ModelOption("anthropic", "claude-sonnet-5") == options[0]
+        assert {o.provider for o in options} == {"anthropic", "gemini"}
+        assert ai.ModelOption("gemini", "gemini-flash-latest") in options
+        # Only the default provider's AI_API_KEY: only its models.
+        _, only = configure(AI_PROVIDER="anthropic", AI_MODEL="claude-sonnet-5", AI_API_KEY="a")
+        assert {o.provider for o in only} == {"anthropic"}
+        # AI_API_KEY for Gemini plus a Claude key.
+        _, both = configure(AI_PROVIDER="gemini", AI_MODEL="gemini-flash-latest", AI_API_KEY="g",
+                            ANTHROPIC_API_KEY="a")  # fmt: skip
+        assert both[0].model == "gemini-flash-latest" and {o.provider for o in both} == {
+            "gemini",
+            "anthropic",
+        }
+        # Custom list, provider-prefixed or inferred; models without a key are dropped.
+        _, custom = configure(
+            AI_PROVIDER="gemini", AI_MODEL="gemini-flash-latest", AI_API_KEY="g",
+            AI_MODEL_OPTIONS="anthropic:claude-x, gemini-2-pro",
+        )  # fmt: skip
+        assert [o.model for o in custom] == ["gemini-flash-latest", "gemini-2-pro"]
+        # No keys at all: nothing to offer.
+        assert configure(AI_PROVIDER="gemini", AI_MODEL="gemini-flash-latest") == (None, [])
+    finally:
+        get_settings.cache_clear()
+
+
+def test_generation_routes_each_model_to_its_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config.settings import get_settings
+    from app.domains.ai import service as ai
+    from app.integrations.anthropic import AnthropicAIProvider
+    from app.integrations.gemini import GeminiAIProvider
+
+    monkeypatch.setattr(ai, "_testing", lambda: False)
+    env = {"AI_PROVIDER": "anthropic", "AI_MODEL": "claude-sonnet-5", "AI_API_KEY": "",
+           "GEMINI_API_KEY": "g", "ANTHROPIC_API_KEY": "a", "AI_MODEL_OPTIONS": ""}  # fmt: skip
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    get_settings.cache_clear()
+    try:
+        gemini = ai.get_ai_provider_for_model("gemini-3.5-flash")
+        claude = ai.get_ai_provider_for_model("claude-haiku-4-5-20251001")
+        assert isinstance(gemini, GeminiAIProvider) and gemini._model == "gemini-3.5-flash"
+        assert gemini._api_key == "g" and "googleapis" in gemini._base_url
+        assert (
+            isinstance(claude, AnthropicAIProvider) and claude._model == "claude-haiku-4-5-20251001"
+        )
+        assert claude._api_key == "a" and claude._base_url == "https://api.anthropic.com"
+        assert isinstance(ai.get_ai_provider_for_model(None), AnthropicAIProvider)  # the default
+    finally:
+        get_settings.cache_clear()

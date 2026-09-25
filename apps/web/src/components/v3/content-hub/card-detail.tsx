@@ -14,6 +14,8 @@ import { OutlineEditor, blankOutline, type PageOption } from "./outline-editor";
 
 const CONFLICT_MESSAGE = "Your version is out of date. Reload before saving.";
 
+const PROVIDER_LABEL: Record<string, string> = { gemini: "Google Gemini", anthropic: "Anthropic Claude" };
+
 type Busy = "bundle" | "generate" | "save" | "approve" | "sendback" | "draft";
 const btn =
   "rounded-[5px] border border-[var(--line)] bg-white px-[10px] py-[4px] text-[12.5px] text-[#12171A] hover:bg-[#F0F2F1] focus-visible:outline-2 focus-visible:outline-[var(--teal)] disabled:opacity-50";
@@ -177,6 +179,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<Busy | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [model, setModel] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; issues: Issue[] } | null>(null);
   const seq = useRef(0);
 
@@ -244,6 +247,10 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   }
 
   const { card, actions, context, review } = detail;
+  const modelOptions = detail.generation?.options ?? [];
+  const models = modelOptions.map((o) => o.model);
+  const chosenModel = model && models.includes(model) ? model : (detail.generation?.default_model ?? models[0]);
+  const providers = [...new Set(modelOptions.map((o) => o.provider))];
   const gate: GateHandlers = {
     busy: busy === "approve" || busy === "sendback",
     onApprove: () =>
@@ -323,13 +330,37 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
                 <TabsTrigger value="outline">Outline</TabsTrigger>
                 <TabsTrigger value="draft">Draft</TabsTrigger>
               </TabsList>
-              <span className="ml-auto flex gap-[6px]">
+              <span className="ml-auto flex items-center gap-[6px]">
+                {models.length > 1 && (actions.can_generate_outline || card.state === "drafting") ? (
+                  <label className="flex items-center gap-[5px] text-[11.5px] text-[var(--ink3)]">
+                    Model
+                    <select
+                      aria-label="Generation model"
+                      className="rounded-[5px] border border-[var(--line)] bg-white px-[6px] py-[3px] text-[12.5px] text-[#12171A]"
+                      value={chosenModel}
+                      disabled={busy !== null}
+                      onChange={(event) => setModel(event.target.value)}
+                    >
+                      {providers.map((provider) => (
+                        <optgroup key={provider} label={PROVIDER_LABEL[provider] ?? provider}>
+                          {modelOptions
+                            .filter((o) => o.provider === provider)
+                            .map((o) => (
+                              <option key={o.model} value={o.model}>
+                                {o.model}
+                              </option>
+                            ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 {card.state !== "drafting" ? (
                 <>
                 <button type="button" className={btn} disabled={!actions.can_generate_outline || busy !== null}
                   title={actions.can_generate_outline ? "" : "Needs a current bundle"}
                   onClick={() => run("generate", async () => {
-                    const proposal = await V3API.contentHub.generateOutline(scope, cardId);
+                    const proposal = await V3API.contentHub.generateOutline(scope, cardId, chosenModel);
                     setDraft(proposal.outline);
                     setDirty(true);
                     setNotice(`Proposal from ${proposal.model} (${proposal.prompt_version}). Review, edit and save.`);
@@ -352,7 +383,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
                     title={actions.can_generate_draft ? "" : "Needs a current bundle"}
                     onClick={() => run("draft", async () => {
                       try {
-                        const result = await V3API.contentHub.generateDraft(scope, cardId, card.revision);
+                        const result = await V3API.contentHub.generateDraft(scope, cardId, card.revision, chosenModel);
                         await reload();
                         setNotice(`Draft v${result.draft.version} stored from ${result.draft.model} (${result.draft.prompt_version}).`);
                       } catch (cause) {

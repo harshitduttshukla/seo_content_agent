@@ -112,6 +112,7 @@ function detail(overrides: Partial<CardDetail> = {}): CardDetail {
     draft: null,
     draft_unreadable: false,
     last_draft_run: null,
+    generation: null,
     ...overrides,
   };
 }
@@ -448,7 +449,7 @@ describe("V3 G1 review and draft", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
     expect(await screen.findByText(/Generating the draft from the stored bundle/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generating draft…" })).toBeDisabled();
-    expect(V3API.contentHub.generateDraft).toHaveBeenCalledWith(scope, "card-1", 7);
+    expect(V3API.contentHub.generateDraft).toHaveBeenCalledWith(scope, "card-1", 7, undefined);
     resolve({ card: { ...draftingFace, revision: 8 }, draft: storedDraft });
     expect(await screen.findByText(/Draft v2 stored from gemini-flash/)).toBeInTheDocument();
 
@@ -505,5 +506,48 @@ describe("V3 G1 review and draft", () => {
     for (const name of [/publish/i, /^qa/i, /G2/, /export/i]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
+  });
+});
+
+describe("V3 generation model select", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const generation = {
+    default_model: "claude-sonnet-5",
+    options: [
+      { provider: "anthropic", model: "claude-sonnet-5" },
+      { provider: "anthropic", model: "claude-opus-5-5" },
+      { provider: "gemini", model: "gemini-flash-latest" },
+      { provider: "gemini", model: "gemini-3.5-flash" },
+    ],
+  };
+
+  it("groups Gemini and Claude models and sends the chosen one for outline generation", async () => {
+    await renderDetail(detail({ generation }));
+    const select = screen.getByRole("combobox", { name: "Generation model" });
+    expect(select).toHaveValue("claude-sonnet-5");
+    const groups = [...select.querySelectorAll("optgroup")].map((g) => [g.label, [...g.querySelectorAll("option")].map((o) => o.value)]);
+    expect(groups).toEqual([
+      ["Anthropic Claude", ["claude-sonnet-5", "claude-opus-5-5"]],
+      ["Google Gemini", ["gemini-flash-latest", "gemini-3.5-flash"]],
+    ]);
+    vi.mocked(V3API.contentHub.generateOutline).mockResolvedValue({
+      outline, job_run_id: "j", prompt_version: "v3.outline.v1", provider: "gemini", model: "gemini-3.5-flash", attempts: 1, bundle_ref: "run-1",
+    });
+    fireEvent.change(select, { target: { value: "gemini-3.5-flash" } });
+    fireEvent.click(screen.getByRole("button", { name: "Generate outline" }));
+    await waitFor(() => expect(V3API.contentHub.generateOutline).toHaveBeenCalledWith(scope, "card-1", "gemini-3.5-flash"));
+  });
+
+  it("passes the selected model to draft generation", async () => {
+    await renderDetail(draftingDetail({ generation }));
+    vi.mocked(V3API.contentHub.generateDraft).mockReturnValue(new Promise(() => {}));
+    fireEvent.change(screen.getByRole("combobox", { name: "Generation model" }), { target: { value: "gemini-flash-latest" } });
+    fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
+    expect(V3API.contentHub.generateDraft).toHaveBeenCalledWith(scope, "card-1", 7, "gemini-flash-latest");
+  });
+
+  it("shows no select when only one model is available", async () => {
+    await renderDetail(detail({ generation: { default_model: "claude-sonnet-5", options: [generation.options[0]] } }));
+    expect(screen.queryByRole("combobox", { name: "Generation model" })).not.toBeInTheDocument();
   });
 });

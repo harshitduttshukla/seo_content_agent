@@ -22,7 +22,7 @@ from app.core.errors import ConflictError, DomainError, PermissionDenied, Resour
 from app.db.session import set_actor_context, transactional_session
 from app.domains.ai.context import BundleClaim, CardContextBundle
 from app.domains.ai.context_builder import ContentAgentContextBuilder, bundle_hash
-from app.domains.ai.service import get_ai_provider
+from app.domains.ai.service import generation_model_options, get_ai_provider_for_model
 from app.domains.audit.repository import AuditWriter
 from app.domains.canvas.schemas import WorkspaceConfig
 from app.domains.content_cards.draft import DraftInput, StoredDraft, unresolved_needs
@@ -58,6 +58,8 @@ from app.domains.content_cards.workflow_schemas import (
     G1SendBackRequest,
     G1Status,
     GateDecision,
+    GenerationModel,
+    GenerationOptions,
     OutlineGenerateRequest,
     OutlineProposal,
     OutlineSaveRequest,
@@ -344,6 +346,21 @@ class CardWorkflowService:
         )
 
     @staticmethod
+    def _require_allowed_model(model: str | None) -> None:
+        """Only models offered for the configured provider may be requested."""
+        if model is None:
+            return
+        _, options = generation_model_options()
+        models = [option.model for option in options]
+        if model not in models:
+            raise DomainError(
+                "MODEL_NOT_ALLOWED",
+                "That model is not available for generation.",
+                422,
+                details={"model": model, "allowed": models},
+            )
+
+    @staticmethod
     def _require_revision(card: ContentCard, revision: int) -> None:
         if card.revision != revision:
             raise ConflictError(
@@ -416,6 +433,7 @@ class CardWorkflowService:
             can_review = await self._may_review_g1(project, actor)
             config = WorkspaceConfig.model_validate(project.workspace_config or {})
             draft, draft_unreadable = _stored_draft(card)
+            default_option, model_options = generation_model_options()
             draft_runs = await self._repository.list_card_job_runs(
                 organization_id, project_id, card.id, DRAFT_JOB_TYPE, 1
             )
@@ -461,6 +479,12 @@ class CardWorkflowService:
                 draft=draft,
                 draft_unreadable=draft_unreadable,
                 last_draft_run=_draft_run_status(draft_runs[0]) if draft_runs else None,
+                generation=GenerationOptions(
+                    default_model=default_option.model if default_option else None,
+                    options=[
+                        GenerationModel(provider=o.provider, model=o.model) for o in model_options
+                    ],
+                ),
             )
 
     async def _project_refs(self, card: ContentCard, outline: OutlineV3 | None) -> ReferenceSet:
@@ -570,6 +594,7 @@ class CardWorkflowService:
         actor: AuthenticatedUser,
     ) -> OutlineProposal:
         """Generate from the stored, current bundle. Records a JobRun; never edits the card."""
+        self._require_allowed_model(payload.model)
         async with transactional_session(self._session):
             await set_actor_context(self._session, actor.user_id)
             await self._authorize(
@@ -596,7 +621,7 @@ class CardWorkflowService:
                 )
 
         # The model call runs outside any database transaction.
-        provider = self._provider or get_ai_provider()
+        provider = self._provider or get_ai_provider_for_model(payload.model)
         started = datetime.now(UTC)
         result = await OutlineGenerator(provider).generate(bundle, model=payload.model)
         completed = datetime.now(UTC)
@@ -951,6 +976,7 @@ class CardWorkflowService:
         The card stays ``drafting``. Only a validated draft is stored, and only when
         the card did not change during generation; every attempt is a JobRun.
         """
+        self._require_allowed_model(payload.model)
         async with transactional_session(self._session):
             await set_actor_context(self._session, actor.user_id)
             await self._authorize(
@@ -979,7 +1005,7 @@ class CardWorkflowService:
             source = await self.draft_input(card, bundle)
 
         # The model call runs outside any database transaction.
-        provider = self._provider or get_ai_provider()
+        provider = self._provider or get_ai_provider_for_model(payload.model)
         started = datetime.now(UTC)
         result = await DraftGenerator(provider).generate(source, model=payload.model)
         completed = datetime.now(UTC)

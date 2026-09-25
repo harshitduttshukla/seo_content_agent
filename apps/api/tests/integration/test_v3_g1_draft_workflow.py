@@ -559,3 +559,40 @@ async def test_harness_runs_the_production_draft_contract_without_touching_the_c
     assert harness.requests[0].messages == production.requests[0].messages
     card_after = await _card(owner_factory, alpha["card_id"])
     assert (card_after.revision, card_after.draft) == (card_before.revision, card_before.draft)
+
+
+# ── Model selection ───────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_detail_offers_models_and_generation_rejects_others(
+    session_factory: Factory, owner_factory: Factory, pair: Pair
+) -> None:
+    alpha, _ = pair
+    rev = await _approved(session_factory, alpha)
+    generation = (await phase2._detail(session_factory, alpha)).generation
+    assert generation is not None
+    models = [o.model for o in generation.options]
+    assert not models or models[0] == generation.default_model
+
+    provider = ScriptedProvider(draft_text(alpha))
+    async with session_factory() as session:
+        with pytest.raises(DomainError) as raised:
+            await CardWorkflowService(session, provider=provider).generate_draft(
+                alpha["org_id"], alpha["project_id"], alpha["card_id"],
+                DraftGenerateRequest(revision=rev, model="gpt-made-up"),
+                actor=alpha["actor"], request_id="test",
+            )  # fmt: skip
+    assert raised.value.code == "MODEL_NOT_ALLOWED" and provider.requests == []
+    assert await _runs(owner_factory, alpha["card_id"], "v3_draft_generation") == []
+    if not models:  # no provider key configured where the tests run
+        return
+
+    async with session_factory() as session:
+        result = await CardWorkflowService(session, provider=provider).generate_draft(
+            alpha["org_id"], alpha["project_id"], alpha["card_id"],
+            DraftGenerateRequest(revision=rev, model=models[-1]),
+            actor=alpha["actor"], request_id="test",
+        )  # fmt: skip
+    assert result.draft.version == 1
+    assert provider.requests[0].model == models[-1]

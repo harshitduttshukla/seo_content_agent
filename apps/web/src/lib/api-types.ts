@@ -813,6 +813,13 @@ export interface CardDetail {
   draft: StoredDraft | null;
   draft_unreadable: boolean;
   last_draft_run: DraftRunStatus | null;
+  /** Models offered across every provider with a key; the default is first. */
+  generation: GenerationOptions | null;
+}
+
+export interface GenerationOptions {
+  default_model: string | null;
+  options: { provider: "gemini" | "anthropic" | string; model: string }[];
 }
 
 export interface CardActions {

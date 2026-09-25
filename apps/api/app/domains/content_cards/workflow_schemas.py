@@ -155,6 +155,22 @@ class DraftGenerateResponse(BaseModel):
     draft: StoredDraft
 
 
+class GenerationModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str  # "gemini" | "anthropic"
+    model: str
+
+
+class GenerationOptions(BaseModel):
+    """Models offered for outline and draft generation, across every provider with a key."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_model: str | None
+    options: list[GenerationModel]
+
+
 class CardDetail(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -173,6 +189,7 @@ class CardDetail(BaseModel):
     # A stored draft that no longer parses is reported, not silently dropped.
     draft_unreadable: bool = False
     last_draft_run: DraftRunStatus | None = None
+    generation: GenerationOptions | None = None
 
 
 class BundleBuildRequest(BaseModel):
