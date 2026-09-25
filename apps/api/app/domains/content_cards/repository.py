@@ -11,7 +11,7 @@ from app.domains.content_cards.schemas import BoardFilters
 from app.domains.demand.models import DemandNode
 from app.domains.job_runs.models import JobRun
 from app.domains.users.models import User
-from sqlalchemy import delete, desc, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -121,19 +121,6 @@ class ContentCardRepository:
                 JobRun.id == job_run_id,
                 JobRun.job_type == "site_import",
             )
-        )
-        return result.scalar_one_or_none()
-
-    async def get_last_import_job(self, organization_id: UUID, project_id: UUID) -> JobRun | None:
-        result = await self._session.execute(
-            select(JobRun)
-            .where(
-                JobRun.organization_id == organization_id,
-                JobRun.project_id == project_id,
-                JobRun.job_type == "site_import",
-            )
-            .order_by(desc(JobRun.created_at))
-            .limit(1)
         )
         return result.scalar_one_or_none()
 
@@ -408,29 +395,29 @@ class ContentCardRepository:
             )
         return claims, demand, prompts, pages
 
-    async def sync_card_claims(
+    async def add_card_claims(
         self, organization_id: UUID, project_id: UUID, card_id: UUID, claim_ids: set[UUID]
-    ) -> tuple[set[UUID], set[UUID]]:
-        """Make the card's ContentCardClaim rows exactly ``claim_ids``; return (added, removed).
+    ) -> set[UUID]:
+        """Add ContentCardClaim rows for ``claim_ids`` the card lacks; return the added ids.
 
-        The caller has already validated every id as an approved, current claim of
-        this project. Rows are only ever added once (the unique card/claim index
-        backs this up); the caller's transaction makes the change all-or-nothing.
+        Additive only: existing rows (for example citations added manually through
+        Strategy) are never removed here. The caller has already validated every id
+        as an approved, current claim of this project. The unique card/claim index
+        backs up de-duplication; the caller's transaction makes the change
+        all-or-nothing.
         """
-        scope = (
-            ContentCardClaim.organization_id == organization_id,
-            ContentCardClaim.project_id == project_id,
-            ContentCardClaim.content_card_id == card_id,
-        )
         existing = set(
-            (await self._session.execute(select(ContentCardClaim.claim_id).where(*scope))).scalars()
+            (
+                await self._session.execute(
+                    select(ContentCardClaim.claim_id).where(
+                        ContentCardClaim.organization_id == organization_id,
+                        ContentCardClaim.project_id == project_id,
+                        ContentCardClaim.content_card_id == card_id,
+                    )
+                )
+            ).scalars()
         )
-        removed = existing - claim_ids
         added = claim_ids - existing
-        if removed:
-            await self._session.execute(
-                delete(ContentCardClaim).where(*scope, ContentCardClaim.claim_id.in_(removed))
-            )
         for claim_id in sorted(added, key=str):
             self._session.add(
                 ContentCardClaim(
@@ -441,4 +428,4 @@ class ContentCardRepository:
                     claim_id=claim_id,
                 )
             )
-        return added, removed
+        return added

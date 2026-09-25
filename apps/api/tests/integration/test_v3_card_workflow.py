@@ -17,6 +17,8 @@ from app.core.errors import ConflictError, DomainError, PermissionDenied, Resour
 from app.domains.brand_kit.models import BrandKit, SocialProof
 from app.domains.canvas.models import Claim
 from app.domains.canvas.repository import CanvasRepository
+from app.domains.canvas.schemas import ClaimCitationCreateRequest
+from app.domains.canvas.service import CanvasService
 from app.domains.content.models import ContentPage
 from app.domains.content_cards.models import ContentCard, ContentCardClaim
 from app.domains.content_cards.outline import OutlineV3
@@ -522,7 +524,7 @@ async def test_harness_runs_the_production_contract_on_the_card(
     assert (card.outline, card.state) == (None, "bundled")  # the Harness never edits cards
 
 
-# ── ContentCardClaim sync (Strategy citation projection) ──────────
+# ── ContentCardClaim projection (additive; Strategy citations survive) ──
 
 
 async def _links(factory: async_sessionmaker[AsyncSession], card_id: UUID) -> list[UUID]:
@@ -543,6 +545,17 @@ async def _second_claim(factory: async_sessionmaker[AsyncSession], t: dict[str, 
         )  # fmt: skip
         await session.commit()
     return claim_id
+
+
+async def _strategy_cite(
+    factory: async_sessionmaker[AsyncSession], t: dict[str, Any], claim_id: UUID
+) -> None:
+    """Cite ``claim_id`` on the card manually, through Strategy's own service."""
+    async with factory() as session:
+        await CanvasService(session).add_citation(
+            t["org_id"], t["project_id"], claim_id,
+            ClaimCitationCreateRequest(content_card_id=t["card_id"]), actor=t["actor"],
+        )  # fmt: skip
 
 
 async def _strategy_counts(
@@ -586,23 +599,87 @@ async def test_first_save_creates_card_claim_rows_without_duplicates(
 
 
 @pytest.mark.asyncio
-async def test_editing_the_outline_adds_and_removes_card_claim_rows(
+async def test_editing_the_outline_adds_but_never_removes_card_claim_rows(
     session_factory: async_sessionmaker[AsyncSession],
     owner_factory: async_sessionmaker[AsyncSession],
     pair: tuple[dict[str, Any], dict[str, Any]],
 ) -> None:
     alpha, _ = pair
     second = await _second_claim(owner_factory, alpha)
+    approved = alpha["approved_id"]
     await _bundle(session_factory, alpha, 1)
-    await _save(session_factory, alpha, _multi(alpha, [alpha["approved_id"]]), 2)
+    await _save(session_factory, alpha, _multi(alpha, [approved]), 2)
     await _save(session_factory, alpha, _multi(alpha, [second]), 3)
-    assert await _links(owner_factory, alpha["card_id"]) == [second]
+    assert await _links(owner_factory, alpha["card_id"]) == sorted([approved, second], key=str)
     await _save(session_factory, alpha, _multi(alpha, []), 4)
-    assert await _links(owner_factory, alpha["card_id"]) == []
+    assert await _links(owner_factory, alpha["card_id"]) == sorted([approved, second], key=str)
 
 
 @pytest.mark.asyncio
-async def test_sync_leaves_other_cards_citations_and_strategy_counts_intact(
+async def test_manual_strategy_citation_survives_outline_save(
+    session_factory: async_sessionmaker[AsyncSession],
+    owner_factory: async_sessionmaker[AsyncSession],
+    pair: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    alpha, _ = pair
+    manual = await _second_claim(owner_factory, alpha)
+    await _strategy_cite(owner_factory, alpha, manual)
+    await _bundle(session_factory, alpha, 1)
+
+    # The outline does not reference the manual claim; it adds its own.
+    await _save(session_factory, alpha, _multi(alpha, [alpha["approved_id"]]), 2)
+    assert await _links(owner_factory, alpha["card_id"]) == sorted(
+        [alpha["approved_id"], manual], key=str
+    )
+
+
+@pytest.mark.asyncio
+async def test_outline_claim_creates_missing_card_claim_row(
+    session_factory: async_sessionmaker[AsyncSession],
+    owner_factory: async_sessionmaker[AsyncSession],
+    pair: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    alpha, _ = pair
+    await _bundle(session_factory, alpha, 1)
+    assert await _links(owner_factory, alpha["card_id"]) == []
+    await _save(session_factory, alpha, _multi(alpha, [alpha["approved_id"]]), 2)
+    assert await _links(owner_factory, alpha["card_id"]) == [alpha["approved_id"]]
+
+
+@pytest.mark.asyncio
+async def test_claim_in_strategy_and_outline_stays_one_row(
+    session_factory: async_sessionmaker[AsyncSession],
+    owner_factory: async_sessionmaker[AsyncSession],
+    pair: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    alpha, _ = pair
+    approved = alpha["approved_id"]
+    await _strategy_cite(owner_factory, alpha, approved)
+    await _bundle(session_factory, alpha, 1)
+    await _save(session_factory, alpha, _multi(alpha, [approved], [approved]), 2)
+    await _strategy_cite(owner_factory, alpha, approved)  # Strategy re-cite is a no-op too
+    assert await _links(owner_factory, alpha["card_id"]) == [approved]
+    assert await _strategy_counts(owner_factory, alpha, [approved]) == {approved: 1}
+
+
+@pytest.mark.asyncio
+async def test_removing_claim_from_outline_keeps_manual_strategy_citation(
+    session_factory: async_sessionmaker[AsyncSession],
+    owner_factory: async_sessionmaker[AsyncSession],
+    pair: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    alpha, _ = pair
+    approved = alpha["approved_id"]
+    await _strategy_cite(owner_factory, alpha, approved)
+    await _bundle(session_factory, alpha, 1)
+    await _save(session_factory, alpha, _multi(alpha, [approved]), 2)
+    await _save(session_factory, alpha, _multi(alpha, []), 3)  # claim dropped from outline
+    assert await _links(owner_factory, alpha["card_id"]) == [approved]
+    assert await _strategy_counts(owner_factory, alpha, [approved]) == {approved: 1}
+
+
+@pytest.mark.asyncio
+async def test_save_leaves_other_cards_citations_and_strategy_counts_intact(
     session_factory: async_sessionmaker[AsyncSession],
     owner_factory: async_sessionmaker[AsyncSession],
     pair: tuple[dict[str, Any], dict[str, Any]],
@@ -628,7 +705,7 @@ async def test_sync_leaves_other_cards_citations_and_strategy_counts_intact(
     await _save(session_factory, alpha, _multi(alpha, [approved]), 2)
     assert await _strategy_counts(owner_factory, alpha, [approved]) == {approved: 2}
     await _save(session_factory, alpha, _multi(alpha, []), 3)
-    assert await _strategy_counts(owner_factory, alpha, [approved]) == {approved: 1}
+    assert await _strategy_counts(owner_factory, alpha, [approved]) == {approved: 2}
     assert await _links(owner_factory, other_card) == [approved]
     assert await _strategy_counts(owner_factory, bravo, [bravo["approved_id"]]) == {}
 
@@ -666,8 +743,15 @@ async def test_revision_conflict_leaves_card_claim_rows_untouched(
 ) -> None:
     alpha, _ = pair
     second = await _second_claim(owner_factory, alpha)
+    manual = await _second_claim(owner_factory, alpha)
+    await _strategy_cite(owner_factory, alpha, manual)
     await _bundle(session_factory, alpha, 1)
     await _save(session_factory, alpha, _multi(alpha, [alpha["approved_id"]]), 2)
+    before = await _card(owner_factory, alpha["card_id"])
     with pytest.raises(ConflictError):
         await _save(session_factory, alpha, _multi(alpha, [second]), 2)  # stale revision
-    assert await _links(owner_factory, alpha["card_id"]) == [alpha["approved_id"]]
+    assert await _links(owner_factory, alpha["card_id"]) == sorted(
+        [alpha["approved_id"], manual], key=str
+    )
+    after = await _card(owner_factory, alpha["card_id"])
+    assert (after.revision, after.outline) == (before.revision, before.outline)

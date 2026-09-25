@@ -482,8 +482,9 @@ class CardWorkflowService:
             previous = card.state
             card.outline = payload.outline.model_dump(mode="json")
             # ContentCardClaim is the relational projection Strategy counts citations
-            # from; the outline JSON stays the structural source of truth.
-            added, removed = await self._repository.sync_card_claims(
+            # from; the outline JSON stays the structural source of truth. Saving only
+            # adds citations: manual Strategy citations are never removed here.
+            added = await self._repository.add_card_claims(
                 organization_id,
                 project_id,
                 card.id,
@@ -511,7 +512,6 @@ class CardWorkflowService:
                 metadata={
                     "sections": len(payload.outline.sections),
                     "claims_added": sorted(str(c) for c in added),
-                    "claims_removed": sorted(str(c) for c in removed),
                     "from": previous,
                     "to": card.state,
                 },
