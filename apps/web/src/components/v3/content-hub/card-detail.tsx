@@ -4,19 +4,35 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { CardCheck, CardDetail, G1Reason, OutlineV3 } from "@/lib/api-types";
+import type { CardCheck, CardDetail, G1Reason, G2Reason, OutlineV3 } from "@/lib/api-types";
 import { ApiError } from "@/lib/client-api";
 import { V3API, type V3Scope } from "@/lib/v3-api";
 
 import { DraftView } from "./draft-view";
 import { G1ReviewPanel, G1StatusChip, decisionLine, formatWhen } from "./g1-review";
+import { G2ReviewPanel, G2StatusChip } from "./g2-review";
+import { QAChip, QAPanel, qaChipState } from "./qa-panel";
 import { OutlineEditor, blankOutline, type PageOption } from "./outline-editor";
 
 const CONFLICT_MESSAGE = "Your version is out of date. Reload before saving.";
 
 const PROVIDER_LABEL: Record<string, string> = { gemini: "Google Gemini", anthropic: "Anthropic Claude" };
 
-type Busy = "bundle" | "generate" | "save" | "approve" | "sendback" | "draft";
+type Busy =
+  | "bundle"
+  | "generate"
+  | "save"
+  | "approve"
+  | "sendback"
+  | "draft"
+  | "qa"
+  | "repair"
+  | "regen"
+  | "dismiss"
+  | "g2approve"
+  | "g2sendback";
+
+const PRODUCTION_STATES = ["drafting", "qa_failed", "qa_passed", "approved", "live"];
 const btn =
   "rounded-[5px] border border-[var(--line)] bg-white px-[10px] py-[4px] text-[12.5px] text-[#12171A] hover:bg-[#F0F2F1] focus-visible:outline-2 focus-visible:outline-[var(--teal)] disabled:opacity-50";
 const btnPrimary =
@@ -144,8 +160,20 @@ interface GateHandlers {
   onSendBack: (reason: G1Reason, feedback: string) => Promise<boolean>;
 }
 
-function ChecksPane({ detail, gate }: { detail: CardDetail; gate: GateHandlers }) {
-  const failing = detail.checks.filter((c) => c.status === "fail").length;
+interface ProductionHandlers {
+  busy: boolean;
+  qaRunning: boolean;
+  g2Busy: boolean;
+  onRunQA: () => Promise<boolean>;
+  onRepair: () => Promise<boolean>;
+  onDismiss: (findingId: string, reason: string) => Promise<boolean>;
+  onApproveG2: () => Promise<boolean>;
+  onSendBackG2: (reason: G2Reason, feedback: string) => Promise<boolean>;
+}
+
+function ChecksPane({ detail, gate, production }: { detail: CardDetail; gate: GateHandlers; production: ProductionHandlers }) {
+  const qaErrors = detail.qa && !detail.qa.stale ? (detail.qa.report?.error_count ?? 0) : 0;
+  const failing = detail.checks.filter((c) => c.status === "fail").length + qaErrors;
   return (
     <Pane title="Checks and gate" chip={<span className={`chip ${failing ? "c" : "t"}`}>{failing ? `${failing} failing` : "all passing"}</span>}>
       <ul className="m-0 list-none p-0 text-[12.6px]" aria-label="Checks">
@@ -159,6 +187,15 @@ function ChecksPane({ detail, gate }: { detail: CardDetail; gate: GateHandlers }
         ))}
       </ul>
       <G1ReviewPanel detail={detail} busy={gate.busy} onApprove={gate.onApprove} onSendBack={gate.onSendBack} />
+      <QAPanel
+        detail={detail}
+        running={production.qaRunning}
+        busy={production.busy}
+        onRun={production.onRunQA}
+        onRepair={production.onRepair}
+        onDismiss={production.onDismiss}
+      />
+      <G2ReviewPanel detail={detail} busy={production.g2Busy} onApprove={production.onApproveG2} onSendBack={production.onSendBackG2} />
       <div className="mt-[10px] border-t border-[var(--line2)] pt-[10px] text-[11.5px] text-[var(--ink3)]">
         State · {detail.card.state}
         {detail.bundle ? (
@@ -166,7 +203,7 @@ function ChecksPane({ detail, gate }: { detail: CardDetail; gate: GateHandlers }
             <br />Bundle {detail.bundle.content_hash.slice(0, 10)} · {new Date(detail.bundle.built_at).toLocaleString("en-GB")}
           </>
         ) : null}
-        <br />QA and G2 arrive in a later production phase.
+        <br />Publishing arrives in a later phase.
       </div>
     </Pane>
   );
@@ -180,6 +217,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   const [busy, setBusy] = useState<Busy | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [model, setModel] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; issues: Issue[] } | null>(null);
   const seq = useRef(0);
 
@@ -267,6 +305,68 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
       }, "The outline could not be sent back."),
   };
   const lastSendBack = review.last_decision?.action === "send_back" ? review.last_decision : null;
+  const failAndReload = async <T,>(action: () => Promise<T>): Promise<T> => {
+    try {
+      return await action();
+    } catch (cause) {
+      // Failed runs are recorded server-side; show them alongside the error.
+      await reload().catch(() => undefined);
+      throw cause;
+    }
+  };
+  const production: ProductionHandlers = {
+    busy: busy !== null,
+    qaRunning: busy === "qa",
+    g2Busy: busy === "g2approve" || busy === "g2sendback",
+    onRunQA: () =>
+      run("qa", async () => {
+        const result = await failAndReload(() => V3API.contentHub.runQA(scope, cardId, card.revision, chosenModel));
+        await reload();
+        setNotice(
+          result.report.status === "passed"
+            ? `QA passed with ${result.report.warning_count} warning(s).`
+            : `QA failed: ${result.report.error_count} error(s).`,
+        );
+      }, "QA could not run."),
+    onRepair: () =>
+      run("repair", async () => {
+        const result = await failAndReload(() => V3API.contentHub.repairDraft(scope, cardId, card.revision, chosenModel));
+        await reload();
+        setNotice(`Draft v${result.draft.version} repaired. Run QA again.`);
+      }, "The draft could not be repaired."),
+    onDismiss: (findingId, reason) =>
+      run("dismiss", async () => {
+        await V3API.contentHub.dismissWarning(scope, cardId, card.revision, findingId, reason);
+        await reload();
+        setNotice("Warning dismissed.");
+      }, "The warning could not be dismissed."),
+    onApproveG2: () =>
+      run("g2approve", async () => {
+        await V3API.contentHub.approveG2(scope, cardId, card.revision);
+        await reload();
+        setNotice("Draft approved at G2.");
+      }, "The draft could not be approved."),
+    onSendBackG2: (reason, feedback) =>
+      run("g2sendback", async () => {
+        await V3API.contentHub.sendBackG2(scope, cardId, card.revision, reason, feedback);
+        await reload();
+        setNotice("Draft sent back to drafting with feedback.");
+      }, "The draft could not be sent back."),
+  };
+  const onRegenerate = async (sectionId: string, feedback: string) => {
+    setRegenerating(sectionId);
+    try {
+      return await run("regen", async () => {
+        const result = await failAndReload(() =>
+          V3API.contentHub.regenerateSection(scope, cardId, sectionId, card.revision, feedback, chosenModel),
+        );
+        await reload();
+        setNotice(`Section regenerated (draft v${result.draft.version}). Run QA again.`);
+      }, "The section could not be regenerated.");
+    } finally {
+      setRegenerating(null);
+    }
+  };
   const promptId = context.demand.find((d) => d.role === "prompt")?.id ?? null;
   const primary = context.demand.find((d) => d.role === "primary") ?? context.demand.find((d) => d.role === "prompt");
 
@@ -282,6 +382,8 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
         </div>
         <span className="chip c" data-testid="card-state">{card.state}</span>
         <G1StatusChip status={review.status} />
+        {PRODUCTION_STATES.includes(card.state) ? <QAChip state={qaChipState(detail, busy === "qa")} /> : null}
+        {detail.g2 && detail.g2.status !== "not_ready" ? <G2StatusChip status={detail.g2.status} /> : null}
         {card.argument ? <span className="chip t">{card.argument.name}</span> : null}
         {primary ? (
           <span className="chip r">
@@ -324,14 +426,15 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
         <ContextPane detail={detail} />
 
         <section aria-label="Document" className="min-w-0 rounded-[8px] border border-[var(--line)] bg-white">
-          <Tabs defaultValue={card.state === "drafting" ? "draft" : "outline"}>
+          <Tabs defaultValue={PRODUCTION_STATES.includes(card.state) ? "draft" : "outline"}>
             <header className="flex flex-wrap items-center gap-[8px] border-b border-[var(--line2)] px-[13px] py-[6px]">
               <TabsList variant="line" className="justify-start rounded-none bg-transparent p-0">
                 <TabsTrigger value="outline">Outline</TabsTrigger>
                 <TabsTrigger value="draft">Draft</TabsTrigger>
               </TabsList>
               <span className="ml-auto flex items-center gap-[6px]">
-                {models.length > 1 && (actions.can_generate_outline || card.state === "drafting") ? (
+                {models.length > 1 &&
+                (actions.can_generate_outline || card.state === "drafting" || actions.can_run_qa || actions.can_repair || actions.can_regenerate_section) ? (
                   <label className="flex items-center gap-[5px] text-[11.5px] text-[var(--ink3)]">
                     Model
                     <select
@@ -355,7 +458,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
                     </select>
                   </label>
                 ) : null}
-                {card.state !== "drafting" ? (
+                {!PRODUCTION_STATES.includes(card.state) ? (
                 <>
                 <button type="button" className={btn} disabled={!actions.can_generate_outline || busy !== null}
                   title={actions.can_generate_outline ? "" : "Needs a current bundle"}
@@ -455,7 +558,16 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
                       The bundle is out of date. Rebuild it before drafting.
                     </p>
                   ) : null}
-                  <DraftView draft={detail.draft} unreadable={detail.draft_unreadable} lastRun={detail.last_draft_run} claims={detail.claim_options} />
+                  <DraftView
+                    draft={detail.draft}
+                    unreadable={detail.draft_unreadable}
+                    lastRun={detail.last_draft_run}
+                    claims={detail.claim_options}
+                    findings={detail.qa && !detail.qa.stale ? (detail.qa.report?.findings ?? []) : []}
+                    canRegenerate={actions.can_regenerate_section && busy === null}
+                    regenerating={regenerating}
+                    onRegenerate={onRegenerate}
+                  />
                 </>
               ) : (
                 <p className="m-0 text-[12.8px] text-[var(--ink3)]">Drafting starts after the outline passes G1.</p>
@@ -464,7 +576,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
           </Tabs>
         </section>
 
-        <ChecksPane detail={detail} gate={gate} />
+        <ChecksPane detail={detail} gate={gate} production={production} />
       </div>
     </section>
   );

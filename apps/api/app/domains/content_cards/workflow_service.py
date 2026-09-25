@@ -39,6 +39,14 @@ from app.domains.content_cards.outline_generation import (
     V3_OUTLINE_PROMPT_VERSION,
     OutlineGenerator,
 )
+from app.domains.content_cards.production_state import (
+    QA_STATES,
+    REGENERATE_STATES,
+    g2_blockers,
+    g2_status,
+    qa_is_current,
+    stored_qa_report,
+)
 from app.domains.content_cards.repository import ContentCardRepository
 from app.domains.content_cards.schemas import BoardCard, BoardFilters, ContentCardState
 from app.domains.content_cards.workflow_schemas import (
@@ -57,6 +65,7 @@ from app.domains.content_cards.workflow_schemas import (
     G1Review,
     G1SendBackRequest,
     G1Status,
+    G2Review,
     GateDecision,
     GenerationModel,
     GenerationOptions,
@@ -64,6 +73,7 @@ from app.domains.content_cards.workflow_schemas import (
     OutlineProposal,
     OutlineSaveRequest,
     OutlineSaveResponse,
+    QAState,
 )
 from app.domains.job_runs.models import JobRun, JobRunStatus
 from app.domains.projects.models import Project
@@ -283,19 +293,27 @@ class CardWorkflowService:
         project = await self._authorized_project(organization_id, project_id, actor, *permissions)
         return project.plan_locked_at
 
-    async def _authorize_g1(
-        self, organization_id: UUID, project_id: UUID, actor: AuthenticatedUser
+    async def _authorize_gate(
+        self, organization_id: UUID, project_id: UUID, actor: AuthenticatedUser, gate: str
     ) -> Project:
-        """content.review, then the workspace's named G1 reviewers when configured."""
+        """content.review, then the workspace's named reviewers for ``gate`` when configured."""
         project = await self._authorized_project(
             organization_id, project_id, actor, PermissionCode.CONTENT_REVIEW
         )
         config = WorkspaceConfig.model_validate(project.workspace_config or {})
-        if not is_named_reviewer(config, "G1", actor):
-            raise PermissionDenied("You are not a G1 reviewer for this project.")
+        if not is_named_reviewer(config, gate, actor):
+            raise PermissionDenied(f"You are not a {gate} reviewer for this project.")
         return project
 
+    async def _authorize_g1(
+        self, organization_id: UUID, project_id: UUID, actor: AuthenticatedUser
+    ) -> Project:
+        return await self._authorize_gate(organization_id, project_id, actor, "G1")
+
     async def _may_review_g1(self, project: Project, actor: AuthenticatedUser) -> bool:
+        return await self._may_review(project, actor, "G1")
+
+    async def _may_review(self, project: Project, actor: AuthenticatedUser, gate: str) -> bool:
         try:
             await self._projects.get_model(
                 self._session,
@@ -306,7 +324,7 @@ class CardWorkflowService:
         except PermissionDenied:
             return False
         config = WorkspaceConfig.model_validate(project.workspace_config or {})
-        return is_named_reviewer(config, "G1", actor)
+        return is_named_reviewer(config, gate, actor)
 
     async def _card(
         self, organization_id: UUID, project_id: UUID, card_id: UUID, *, lock: bool = False
@@ -427,10 +445,13 @@ class CardWorkflowService:
             options = await self._repository.list_current_claim_options(
                 organization_id, project_id, CLAIM_OPTION_LIMIT
             )
-            history = await self._gate_history(card)
+            gate_history = await self._gate_history(card)
+            history = [d for d in gate_history if d.gate == "G1"]
+            g2_history = [d for d in gate_history if d.gate == "G2"]
             last = history[0] if history else None
             ready = g1_ready(outline, checks)
             can_review = await self._may_review_g1(project, actor)
+            can_review_g2 = await self._may_review(project, actor, "G2")
             config = WorkspaceConfig.model_validate(project.workspace_config or {})
             draft, draft_unreadable = _stored_draft(card)
             default_option, model_options = generation_model_options()
@@ -439,6 +460,16 @@ class CardWorkflowService:
             )
             state = ContentCardState(card.state)
             bundle_current = status is not None and status.is_current
+            report = stored_qa_report(card)
+            qa_current = qa_is_current(card, report, draft)
+            blockers = g2_blockers(
+                card,
+                report,
+                draft,
+                status,
+                warnings_require_dismissal=config.soft_warnings_require_dismissal,
+            )
+            pending = report.undismissed_warnings() if report and qa_current else []
             return CardDetail(
                 card=await self._face(card, project.plan_locked_at),
                 outline=outline,
@@ -467,6 +498,21 @@ class CardWorkflowService:
                     can_generate_draft=state == ContentCardState.DRAFTING
                     and bundle_current
                     and outline is not None,
+                    can_run_qa=state in QA_STATES and draft is not None and bundle_current,
+                    can_repair=state == ContentCardState.QA_FAILED
+                    and qa_current
+                    and report is not None
+                    and report.status == "failed"
+                    and bundle_current,
+                    can_regenerate_section=state in REGENERATE_STATES
+                    and draft is not None
+                    and bundle_current,
+                    can_review_g2=state == ContentCardState.QA_PASSED
+                    and not blockers
+                    and can_review_g2,
+                    can_dismiss_warnings=state == ContentCardState.QA_PASSED
+                    and qa_current
+                    and can_review_g2,
                 ),
                 review=G1Review(
                     status=self._g1_status(card, ready, last),
@@ -475,6 +521,18 @@ class CardWorkflowService:
                     reviewers_restricted=bool(config.reviewers.get("G1")),
                     last_decision=last,
                     history=history,
+                ),
+                qa=QAState(report=report, stale=report is not None and not qa_current),
+                g2=G2Review(
+                    status=g2_status(card, gate_history),
+                    ready=not blockers,
+                    blockers=blockers,
+                    can_review=can_review_g2,
+                    reviewers_restricted=bool(config.reviewers.get("G2")),
+                    warnings_require_dismissal=config.soft_warnings_require_dismissal,
+                    pending_warning_ids=[f.id for f in pending],
+                    last_decision=g2_history[0] if g2_history else None,
+                    history=g2_history,
                 ),
                 draft=draft,
                 draft_unreadable=draft_unreadable,
@@ -919,12 +977,12 @@ class CardWorkflowService:
 
     # ── Draft ──────────────────────────────────────────────────────
 
-    async def draft_input(self, card: ContentCard, bundle: CardContextBundle) -> DraftInput:
-        """Resolve the approved outline against the project for drafting.
-
-        Shared with the Harness. Raises when the outline no longer resolves, e.g. a
-        cited claim was superseded after G1: drafting must not run on it.
-        """
+    async def resolve_draft_input(
+        self, card: ContentCard, bundle: CardContextBundle
+    ) -> tuple[DraftInput, list[OutlineIssue]]:
+        """The approved outline resolved against the project, plus any references that
+        no longer resolve (e.g. a cited claim superseded after G1). Shared with QA and
+        the Harness; callers decide whether stale references block or are findings."""
         outline, unreadable = _stored_outline(card)
         if outline is None:
             raise ConflictError(
@@ -933,18 +991,12 @@ class CardWorkflowService:
             )
         refs = await self._project_refs(card, outline)
         issues = validate_references(outline, refs)
-        if issues:
-            raise ConflictError(
-                "OUTLINE_REFERENCES_STALE",
-                "The approved outline references data that is no longer current.",
-                details={"issues": [issue.model_dump(mode="json") for issue in issues]},
-            )
         claims = await self._repository.get_current_claims(
             card.organization_id,
             card.project_id,
             {cid for section in outline.sections for cid in section.claim_ids},
         )
-        return DraftInput(
+        source = DraftInput(
             bundle=bundle,
             outline=outline,
             claims=tuple(
@@ -960,6 +1012,18 @@ class CardWorkflowService:
             ),
             pages=dict(refs.pages),
         )
+        return source, issues
+
+    async def draft_input(self, card: ContentCard, bundle: CardContextBundle) -> DraftInput:
+        """Resolve the approved outline for drafting; raises when it no longer resolves."""
+        source, issues = await self.resolve_draft_input(card, bundle)
+        if issues:
+            raise ConflictError(
+                "OUTLINE_REFERENCES_STALE",
+                "The approved outline references data that is no longer current.",
+                details={"issues": [issue.model_dump(mode="json") for issue in issues]},
+            )
+        return source
 
     async def generate_draft(
         self,

@@ -74,9 +74,10 @@ VALID_STATE_TRANSITIONS: dict[ContentCardState, list[ContentCardState]] = {
     ContentCardState.OUTLINED: [ContentCardState.DRAFTING],  # G1 pass
     # G1 send-back: remains at OUTLINED with FEEDBACK
     ContentCardState.DRAFTING: [ContentCardState.QA_FAILED, ContentCardState.QA_PASSED],
-    ContentCardState.QA_FAILED: [ContentCardState.DRAFTING],  # repair cycle
-    ContentCardState.QA_PASSED: [ContentCardState.APPROVED],  # G2 pass
-    # G2 send-back: → DRAFTING with FEEDBACK
+    # Repair or section regeneration → DRAFTING; a clean QA re-run → QA_PASSED.
+    ContentCardState.QA_FAILED: [ContentCardState.DRAFTING, ContentCardState.QA_PASSED],
+    # G2 pass → APPROVED; G2 send-back (or a section regeneration) → DRAFTING with FEEDBACK.
+    ContentCardState.QA_PASSED: [ContentCardState.APPROVED, ContentCardState.DRAFTING],
     ContentCardState.APPROVED: [ContentCardState.LIVE],
     ContentCardState.LIVE: [],  # terminal; refresh creates a new card at BUNDLED
 }

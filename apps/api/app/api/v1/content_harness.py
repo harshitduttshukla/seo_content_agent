@@ -17,6 +17,7 @@ from app.domains.content_harness.schemas import (
     HarnessScorecard,
     V3DraftHarnessInput,
     V3OutlineHarnessInput,
+    V3ProductionHarnessInput,
 )
 from app.domains.content_harness.service import ContentHarnessService
 from app.schemas.common import ApiResponse
@@ -193,4 +194,22 @@ async def create_v3_draft_run(
 ) -> ApiResponse[ContentHarnessRunDetail]:
     """Runs the production V3 draft contract on a ContentCard's saved outline and scores it."""
     detail = await ContentHarnessService().run_v3_draft(session, actor=actor, input_data=payload)
+    return success(request, detail)
+
+
+@router.post(
+    "/v3-production-runs",
+    response_model=ApiResponse[ContentHarnessRunDetail],
+    status_code=201,
+)
+async def create_v3_production_run(
+    payload: V3ProductionHarnessInput,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[ContentHarnessRunDetail]:
+    """Runs production QA, repair or section regeneration on a drafted card and scores it."""
+    detail = await ContentHarnessService().run_v3_production(
+        session, actor=actor, input_data=payload
+    )
     return success(request, detail)

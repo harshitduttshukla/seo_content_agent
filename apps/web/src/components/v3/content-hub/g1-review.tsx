@@ -29,7 +29,7 @@ const REASONS: { value: G1Reason; label: string }[] = [
   { value: "tone_rule", label: "tone rule" },
   { value: "plan", label: "plan" },
 ];
-const REASON_LABEL = Object.fromEntries(REASONS.map((r) => [r.value, r.label])) as Record<G1Reason, string>;
+export const REASON_LABEL: Record<string, string> = { ...Object.fromEntries(REASONS.map((r) => [r.value, r.label])), qa_rule: "QA rule" };
 
 export function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -38,7 +38,7 @@ export function formatWhen(iso: string): string {
 export function decisionLine(decision: GateDecision): string {
   const who = decision.reviewer_name ?? "a reviewer";
   const what = decision.action === "approve" ? "approved" : "sent back";
-  return `G1 ${what} by ${who} · ${formatWhen(decision.decided_at)} · revision ${decision.card_revision}`;
+  return `${decision.gate} ${what} by ${who} · ${formatWhen(decision.decided_at)} · revision ${decision.card_revision}`;
 }
 
 export function G1StatusChip({ status }: { status: G1Status }) {

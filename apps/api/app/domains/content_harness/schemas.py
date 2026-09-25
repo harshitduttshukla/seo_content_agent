@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -210,3 +211,17 @@ class V3DraftHarnessInput(BaseModel):
 
 # Same scorecard shape as the outline evaluation (score, status, findings).
 V3DraftEvaluation = V3OutlineEvaluation
+
+
+class V3ProductionHarnessInput(BaseModel):
+    """Run production QA, repair or section regeneration on a drafted card."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    mode: Literal["qa", "repair", "section"]
+    section_id: str | None = Field(default=None, max_length=64)
+    feedback: str | None = Field(default=None, max_length=4000)
+    name: str = Field(default="V3 production run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)

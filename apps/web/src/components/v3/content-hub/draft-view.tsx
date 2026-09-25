@@ -1,8 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
-import type { ClaimOption, DraftRunStatus, StoredDraft } from "@/lib/api-types";
+import type { ClaimOption, DraftRunStatus, QAFinding, StoredDraft } from "@/lib/api-types";
 
 import { formatWhen } from "./g1-review";
 
@@ -99,10 +99,92 @@ interface DraftViewProps {
   unreadable: boolean;
   lastRun: DraftRunStatus | null;
   claims: ClaimOption[];
+  /** Findings of the current QA report, shown on their sections. */
+  findings?: QAFinding[];
+  canRegenerate?: boolean;
+  regenerating?: string | null;
+  onRegenerate?: (sectionId: string, feedback: string) => Promise<boolean>;
+}
+
+const GENERATION_LABEL: Record<string, string> = {
+  generate: "generated",
+  repair: "QA repair",
+  section_regeneration: "section regenerated",
+};
+
+function RegenerateSection({
+  sectionId,
+  heading,
+  busy,
+  onRegenerate,
+}: {
+  sectionId: string;
+  heading: string;
+  busy: boolean;
+  onRegenerate: (sectionId: string, feedback: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="ml-auto rounded-[5px] border border-[var(--line)] bg-white px-[8px] py-[2px] text-[11.5px] hover:bg-[#F0F2F1] disabled:opacity-50"
+        disabled={busy}
+        onClick={() => setOpen(true)}
+      >
+        Regenerate section
+      </button>
+    );
+  }
+  return (
+    <form
+      className="mt-[4px] w-full"
+      aria-label={`Regenerate ${heading}`}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (feedback.trim() && (await onRegenerate(sectionId, feedback.trim()))) {
+          setFeedback("");
+          setOpen(false);
+        }
+      }}
+    >
+      <textarea
+        aria-label={`Feedback for ${heading}`}
+        rows={2}
+        maxLength={4000}
+        className="mb-[4px] w-full rounded-[5px] border border-[var(--line)] px-[6px] py-[4px] text-[12.4px]"
+        placeholder="What should change in this section only"
+        value={feedback}
+        onChange={(event) => setFeedback(event.target.value)}
+      />
+      <span className="flex gap-[6px]">
+        <button
+          type="submit"
+          className="rounded-[5px] border border-[var(--teal)] bg-[var(--teal)] px-[8px] py-[3px] text-[11.5px] text-white disabled:opacity-50"
+          disabled={busy || !feedback.trim()}
+        >
+          {busy ? "Regenerating…" : "Regenerate this section"}
+        </button>
+        <button type="button" className="rounded-[5px] border border-[var(--line)] bg-white px-[8px] py-[3px] text-[11.5px]" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </span>
+    </form>
+  );
 }
 
 /** The Draft tab: the stored draft with visible claim markers (handoff §6.1). */
-export function DraftView({ draft, unreadable, lastRun, claims }: DraftViewProps) {
+export function DraftView({
+  draft,
+  unreadable,
+  lastRun,
+  claims,
+  findings = [],
+  canRegenerate = false,
+  regenerating = null,
+  onRegenerate,
+}: DraftViewProps) {
   const byId = new Map(claims.map((c) => [c.id, c]));
   const failedSince = lastRun && !lastRun.stored && (!draft || lastRun.created_at > draft.generated_at);
   return (
@@ -121,8 +203,9 @@ export function DraftView({ draft, unreadable, lastRun, claims }: DraftViewProps
       ) : (
         <article aria-label="Draft">
           <p className="m-[0_0_10px] text-[11.5px] text-[var(--ink3)]">
-            Draft v{draft.version} · {draft.model} ({draft.prompt_version}) · {formatWhen(draft.generated_at)}. Claim markers are shown here and
-            stripped on export.
+            Draft v{draft.version}
+            {draft.generation_type && draft.generation_type !== "generate" ? ` (${GENERATION_LABEL[draft.generation_type]} from v${draft.previous_version})` : ""} ·{" "}
+            {draft.model} ({draft.prompt_version}) · {formatWhen(draft.generated_at)}. Claim markers are shown here and stripped on export.
           </p>
           <h2 className="m-[0_0_8px] font-serif text-[19px] font-medium">{draft.draft.title}</h2>
           {draft.draft.direct_answer ? (
@@ -132,7 +215,32 @@ export function DraftView({ draft, unreadable, lastRun, claims }: DraftViewProps
           ) : null}
           {draft.draft.sections.map((section) => (
             <section key={section.section_id} aria-label={`Draft section ${section.order}`}>
-              <h4 className="m-[14px_0_6px] text-[14.5px] font-medium">{section.heading}</h4>
+              <div className="m-[14px_0_6px] flex flex-wrap items-center gap-[8px]">
+                <h4 className="m-0 text-[14.5px] font-medium">{section.heading}</h4>
+                {findings
+                  .filter((f) => f.section_id === section.section_id && f.severity !== "info")
+                  .map((f) => (
+                    <span
+                      key={f.id}
+                      title={f.message}
+                      className={`chip ${f.severity === "error" ? "c" : "r"}`}
+                      data-testid="section-finding"
+                    >
+                      {f.severity === "error" ? "✕" : "!"} {f.code.toLowerCase().replaceAll("_", " ")}
+                    </span>
+                  ))}
+                {canRegenerate && onRegenerate ? (
+                  <RegenerateSection
+                    sectionId={section.section_id}
+                    heading={section.heading}
+                    busy={regenerating !== null}
+                    onRegenerate={onRegenerate}
+                  />
+                ) : null}
+              </div>
+              {regenerating === section.section_id ? (
+                <p aria-busy="true" className="m-[0_0_6px] text-[12.4px] text-[var(--teal)]">Regenerating this section…</p>
+              ) : null}
               <Body body={section.body} claims={byId} id={section.section_id} />
             </section>
           ))}

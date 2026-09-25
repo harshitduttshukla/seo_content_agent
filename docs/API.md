@@ -128,7 +128,7 @@ The V3 strategy workspace currently exposes its canvas slice under `/api/v3`:
 
 ### V3 Content Hub card workflow
 
-All paths are under `/api/v3/content-hub` and take `organization_id` and `project_id` query parameters. Mutations carry the card `revision` and return `409 VERSION_CONFLICT` when it is stale. States change only through the V3 state machine: `planned → bundled → outlined → [G1] → drafting`.
+All paths are under `/api/v3/content-hub` and take `organization_id` and `project_id` query parameters. Mutations carry the card `revision` and return `409 VERSION_CONFLICT` when it is stale. States change only through the V3 state machine: `planned → bundled → outlined → [G1] → drafting ⇄ qa_failed → qa_passed → [G2] → approved`.
 
 | Method/path | Input -> output | Permission / notes |
 |---|---|---|
@@ -140,7 +140,14 @@ All paths are under `/api/v3/content-hub` and take `organization_id` and `projec
 | `POST /cards/{card_id}/g1/send-back` | `G1SendBackRequest` (reason + required feedback) -> `G1DecisionResponse` | `content.review` as above; the card stays outlined; feedback is stored on the gate JobRun and shown in the detail |
 | `POST /cards/{card_id}/draft/generate` | `DraftGenerateRequest` -> `DraftGenerateResponse` | `content.write` + `ai.use`; drafting only (`409 G1_APPROVAL_REQUIRED`); stored bundle must be current (`409 BUNDLE_STALE`); prompt `v3.draft.v1`; only a validated draft is stored (`422 DRAFT_INVALID`, `502 AI_PROVIDER_ERROR` otherwise); every attempt is a `v3_draft_generation` JobRun |
 
-The Content Harness runs the same outline and draft contracts without changing the card: `POST /api/v1/content-harness/v3-outline-runs` and `POST /api/v1/content-harness/v3-draft-runs` (`ai.use`).
+| `POST /cards/{card_id}/qa/run` | `QARunRequest` -> `QARunResponse` | `content.write` + `ai.use`; drafting/qa_failed; stored bundle must be current; deterministic checks first, model checks (`v3.qa.v1`) only when they pass; stores `ContentCard.qa_report` and moves to qa_passed or qa_failed; `v3_qa` JobRun |
+| `POST /cards/{card_id}/qa/repair` | `RepairRequest` -> `DraftRevisionResponse` | `content.write` + `ai.use`; qa_failed with a current report; rewrites only sections with errors (`v3.repair.v1`); new draft version; → drafting; `v3_draft_repair` JobRun |
+| `POST /cards/{card_id}/sections/{section_id}/regenerate` | `SectionRegenerateRequest` (feedback required) -> `DraftRevisionResponse` | `content.write` + `ai.use`; drafting/qa_failed/qa_passed; rewrites one section (`v3.section.v1`); QA becomes stale; `v3_section_regeneration` JobRun |
+| `POST /cards/{card_id}/g2/approve` | `G2ApproveRequest` -> `G1DecisionResponse` | `content.review` (+ `workspace_config.reviewers.G2`); qa_passed → approved only on a current passed QA report, a current bundle and, when `soft_warnings_require_dismissal`, every warning dismissed (`409 G2_BLOCKED`); records QA and draft snapshots; nothing is published |
+| `POST /cards/{card_id}/g2/send-back` | `G2SendBackRequest` (reason + feedback) -> `G1DecisionResponse` | `content.review` as above; qa_passed → drafting |
+| `POST /cards/{card_id}/g2/warning-dismiss` | `WarningDismissRequest` (finding + reason) -> `WarningDismissResponse` | `content.review` as above; warnings only (`409 NOT_DISMISSIBLE` for errors); the dismissal is kept on the report and audited |
+
+The Content Harness runs the same outline, draft and production contracts without changing the card: `POST /api/v1/content-harness/v3-outline-runs`, `/v3-draft-runs` and `/v3-production-runs` (`mode`: `qa`, `repair` or `section`; `ai.use`).
 
 ### Keywords and content architecture
 

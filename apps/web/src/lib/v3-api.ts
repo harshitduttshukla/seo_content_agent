@@ -5,7 +5,11 @@ import type {
   CardDetail,
   DraftGenerateResponse,
   G1DecisionResponse,
+  DraftRevisionResponse,
   G1Reason,
+  G2Reason,
+  QARunResponse,
+  WarningDismissResponse,
   OutlineProposal,
   OutlineSaveResponse,
   OutlineV3,
@@ -239,6 +243,61 @@ export const V3API = {
       clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/draft/generate`), {
         method: "POST",
         body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Deterministic QA, then model QA; drafting/qa_failed → qa_passed | qa_failed. */
+    runQA: (scope: V3Scope, cardId: string, revision: number, model?: string): Promise<QARunResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/qa/run`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Rewrites only the sections the current QA errors point at; qa_failed → drafting. */
+    repairDraft: (scope: V3Scope, cardId: string, revision: number, model?: string): Promise<DraftRevisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/qa/repair`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Rewrites one section from feedback; every other section is kept; QA becomes stale. */
+    regenerateSection: (
+      scope: V3Scope,
+      cardId: string,
+      sectionId: string,
+      revision: number,
+      feedback: string,
+      model?: string,
+    ): Promise<DraftRevisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/sections/${encodeURIComponent(sectionId)}/regenerate`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, feedback, model } : { revision, feedback }),
+      }),
+    /** G2 pass: qa_passed → approved. Nothing is published. */
+    approveG2: (scope: V3Scope, cardId: string, revision: number): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/approve`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** G2 send-back: qa_passed → drafting; feedback is required. */
+    sendBackG2: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      reason: G2Reason,
+      feedback: string,
+    ): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/send-back`), {
+        method: "POST",
+        body: JSON.stringify({ revision, reason, feedback }),
+      }),
+    /** Dismiss one QA warning with a reason (errors cannot be dismissed). */
+    dismissWarning: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      findingId: string,
+      reason: string,
+    ): Promise<WarningDismissResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/warning-dismiss`), {
+        method: "POST",
+        body: JSON.stringify({ revision, finding_id: findingId, reason }),
       }),
     /** The whole Planned column, top first; returns the refreshed unfiltered board. */
     reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>

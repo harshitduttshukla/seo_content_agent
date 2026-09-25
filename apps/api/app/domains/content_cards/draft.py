@@ -117,6 +117,11 @@ class StoredDraft(BaseModel):
     source_revision: int
     generated_at: datetime
     generated_by: UUID
+    # History (Phase 4): how this version was made and from what. Every version's full
+    # draft also stays on its JobRun, so earlier versions are never lost.
+    generation_type: Literal["generate", "repair", "section_regeneration"] = "generate"
+    previous_version: int | None = None
+    trigger: dict[str, object] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,7 +161,7 @@ def body_urls(body: str) -> list[str]:
 
 
 def validate_draft(
-    output: DraftModelOutput, source: DraftInput
+    output: DraftModelOutput, source: DraftInput, *, compose_with_issues: bool = False
 ) -> tuple[DraftV3 | None, list[OutlineIssue]]:
     """Check model output against the approved outline; compose the stored draft.
 
@@ -304,7 +309,7 @@ def validate_draft(
                 _issue("DIRECT_ANSWER_MARKUP", "the direct answer carries no markers or links")
             )
 
-    if issues:
+    if issues and not compose_with_issues:
         return None, issues
     return (
         DraftV3(
@@ -314,7 +319,7 @@ def validate_draft(
             direct_answer=direct_answer,
             sections=sections,
         ),
-        [],
+        issues,
     )
 
 

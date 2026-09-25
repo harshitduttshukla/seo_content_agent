@@ -2,19 +2,22 @@
 
 Read the board; move a card Backlog ↔ Planned; reorder Planned. Locking the plan
 stays on ``POST /plan/lock``. Card detail and the Bundle → Outline → G1 → Draft
-workflow (planned → bundled → outlined → drafting) live under ``/cards/{card_id}``;
-the detail read carries the review state and the stored draft. No route here
+workflow (planned → bundled → outlined → drafting), QA, repair, section regeneration
+and G2 (→ qa_failed / qa_passed → approved) live under ``/cards/{card_id}``; the
+detail read carries review state, the stored draft and the QA report. Nothing here
+publishes. No route here
 sets an arbitrary state.
 """
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Path, Request
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.api.responses import success
 from app.domains.content_cards.hub_service import ContentHubService
+from app.domains.content_cards.production_service import ProductionService
 from app.domains.content_cards.schemas import (
     BoardCard,
     BoardFilters,
@@ -28,13 +31,22 @@ from app.domains.content_cards.workflow_schemas import (
     CardDetail,
     DraftGenerateRequest,
     DraftGenerateResponse,
+    DraftRevisionResponse,
     G1ApproveRequest,
     G1DecisionResponse,
     G1SendBackRequest,
+    G2ApproveRequest,
+    G2SendBackRequest,
     OutlineGenerateRequest,
     OutlineProposal,
     OutlineSaveRequest,
     OutlineSaveResponse,
+    QARunRequest,
+    QARunResponse,
+    RepairRequest,
+    SectionRegenerateRequest,
+    WarningDismissRequest,
+    WarningDismissResponse,
 )
 from app.domains.content_cards.workflow_service import CardWorkflowService
 from app.schemas.common import ApiResponse
@@ -222,6 +234,139 @@ async def generate_draft(
         organization_id,
         project_id,
         card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/qa/run", response_model=ApiResponse[QARunResponse])
+async def run_qa(
+    card_id: UUID,
+    payload: QARunRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[QARunResponse]:
+    result = await ProductionService(session).run_qa(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/qa/repair", response_model=ApiResponse[DraftRevisionResponse])
+async def repair_draft(
+    card_id: UUID,
+    payload: RepairRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[DraftRevisionResponse]:
+    result = await ProductionService(session).repair_draft(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/g2/approve", response_model=ApiResponse[G1DecisionResponse])
+async def approve_g2(
+    card_id: UUID,
+    payload: G2ApproveRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[G1DecisionResponse]:
+    result = await ProductionService(session).approve_g2(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/g2/send-back", response_model=ApiResponse[G1DecisionResponse])
+async def send_back_g2(
+    card_id: UUID,
+    payload: G2SendBackRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[G1DecisionResponse]:
+    result = await ProductionService(session).send_back_g2(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post(
+    "/cards/{card_id}/g2/warning-dismiss", response_model=ApiResponse[WarningDismissResponse]
+)
+async def dismiss_warning(
+    card_id: UUID,
+    payload: WarningDismissRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[WarningDismissResponse]:
+    result = await ProductionService(session).dismiss_warning(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post(
+    "/cards/{card_id}/sections/{section_id}/regenerate",
+    response_model=ApiResponse[DraftRevisionResponse],
+)
+async def regenerate_section(
+    card_id: UUID,
+    section_id: Annotated[str, Path(min_length=1, max_length=64)],
+    payload: SectionRegenerateRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[DraftRevisionResponse]:
+    result = await ProductionService(session).regenerate_section(
+        organization_id,
+        project_id,
+        card_id,
+        section_id,
         payload,
         actor=actor,
         request_id=request.state.request_id,

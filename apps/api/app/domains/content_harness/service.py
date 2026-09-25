@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from app.ai.provider import AIMessage, AIProvider, GenerationRequest
-from app.core.errors import ResourceNotFound
+from app.core.errors import ConflictError, ResourceNotFound
 from app.db.session import set_actor_context
 from app.domains.ai.context_builder import ContentAgentContextBuilder, bundle_hash
 from app.domains.ai.service import get_ai_provider
@@ -42,6 +42,7 @@ from app.domains.content_harness.schemas import (
     HarnessScorecard,
     V3DraftHarnessInput,
     V3OutlineHarnessInput,
+    V3ProductionHarnessInput,
 )
 from app.domains.projects.service import ProjectService
 from app.security.principal import AuthenticatedUser, PermissionCode
@@ -366,6 +367,142 @@ class ContentHarnessService:
             evaluation_data=evaluation.model_dump(mode="json"),
             score=evaluation.score,
             error_message=result.error_code,
+            started_at=started_at,
+            completed_at=completed_at,
+            created_at=completed_at,
+            updated_at=completed_at,
+        )
+        await self._repo.create(session, run)
+        return ContentHarnessRunDetail.model_validate(run)
+
+    async def run_v3_production(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        input_data: V3ProductionHarnessInput,
+    ) -> ContentHarnessRunDetail:
+        """Evaluate production QA, repair or section regeneration on a drafted card.
+
+        Same bundle builder, draft input, deterministic QA, QAExtractor, DraftReviser,
+        prompts and validators as the Content Hub. Scored and stored as a Harness run;
+        the card is never modified.
+        """
+        from app.domains.content_cards.draft_revision import DraftReviser
+        from app.domains.content_cards.production_service import (
+            ProductionService,
+            qa_deterministic,
+        )
+        from app.domains.content_cards.qa import V3_QA_VERSION, QAExtractor
+        from app.domains.content_cards.workflow_service import _stored_draft
+        from app.domains.content_harness.v3_production_evaluator import (
+            context_text,
+            evaluate_v3_qa,
+            evaluate_v3_revision,
+        )
+
+        await set_actor_context(session, actor.user_id)
+        project = await self._projects.get_model(
+            session, actor=actor, project_id=input_data.project_id, permission=PermissionCode.AI_USE
+        )
+        card = await ContentCardRepository(session).get_scoped(
+            project.organization_id, project.id, input_data.card_id
+        )
+        if card is None:
+            raise ResourceNotFound("content_card")
+        stored, _ = _stored_draft(card)
+        if stored is None:
+            raise ConflictError("DRAFT_REQUIRED", "This card has no draft yet.")
+        bundle = await ContentAgentContextBuilder(project_service=self._projects).build_card_bundle(
+            session, card=card
+        )
+        workflow = ProductionService(session, provider=self._provider)
+        source, reference_issues = await workflow.resolve_draft_input(card, bundle)
+        deterministic = qa_deterministic(card, project, stored, source, reference_issues)
+        text = context_text(bundle.model_dump(mode="json"), stored.draft.model_dump(mode="json"))
+        started_at = datetime.now(UTC)
+        output: dict[str, Any]
+        prompt_version: str
+        if input_data.mode == "qa":
+            blocking = any(f.severity == "error" for f in deterministic)
+            extractor = QAExtractor(self._provider)
+            model = (
+                None
+                if blocking
+                else await extractor.extract(stored, source, model=input_data.model)
+            )
+            evaluation = evaluate_v3_qa(deterministic, model, text)
+            prompt_version, provider, model_name = (
+                V3_QA_VERSION,
+                model.provider if model else "internal",
+                model.model if model else "deterministic",
+            )
+            ok = model is None or model.ok
+            output = {
+                "deterministic": [f.model_dump(mode="json") for f in deterministic],
+                "model": model.model_dump(mode="json") if model else None,
+            }
+        else:
+            if input_data.mode == "repair":
+                targeted = [f for f in deterministic if f.severity == "error"]
+                targets = sorted({f.section_id for f in targeted if f.section_id})
+                instructions: list[dict[str, object]] = [
+                    {"id": f.id, "code": f.code, "section_id": f.section_id, "message": f.message}
+                    for f in targeted
+                ]
+            else:
+                if not input_data.section_id or not input_data.feedback:
+                    raise ConflictError(
+                        "SECTION_REQUIRED", "Section runs need section_id and feedback."
+                    )
+                targets = [input_data.section_id]
+                targeted = [f for f in deterministic if f.section_id == input_data.section_id]
+                instructions = [{"feedback": input_data.feedback}]
+            result = await DraftReviser(self._provider).revise(
+                "repair" if input_data.mode == "repair" else "section",
+                source,
+                stored,
+                targets,
+                instructions,
+                model=input_data.model,
+            )
+            evaluation = evaluate_v3_revision(
+                stored,
+                result,
+                targets,
+                targeted,
+                lambda d: qa_deterministic(card, project, d, source, reference_issues),
+                text,
+            )
+            prompt_version, provider, model_name = (
+                result.prompt_version,
+                result.provider,
+                result.model,
+            )
+            ok = result.ok
+            output = {"targets": targets, "result": result.model_dump(mode="json")}
+        completed_at = datetime.now(UTC)
+        run = ContentHarnessRun(
+            id=uuid4(),
+            organization_id=project.organization_id,
+            project_id=project.id,
+            created_by_id=actor.user_id,
+            name=input_data.name,
+            status=HarnessRunStatus.COMPLETED.value if ok else HarnessRunStatus.FAILED.value,
+            prompt_version=prompt_version,
+            model=model_name,
+            provider=provider,
+            input_data={**input_data.model_dump(mode="json"), "mode": f"v3_{input_data.mode}"},
+            context_data={
+                "bundle_hash": bundle_hash(bundle),
+                "draft_version": stored.version,
+                "draft": stored.draft.model_dump(mode="json"),
+            },
+            prompt_data={"prompt_version": prompt_version},
+            output_data=output,
+            evaluation_data=evaluation.model_dump(mode="json"),
+            score=evaluation.score,
+            error_message=None if ok else "invalid output",
             started_at=started_at,
             completed_at=completed_at,
             created_at=completed_at,

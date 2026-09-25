@@ -7,6 +7,7 @@ from uuid import UUID
 from app.domains.ai.context import CardContextBundle
 from app.domains.content_cards.draft import StoredDraft
 from app.domains.content_cards.outline import OutlineIssue, OutlineV3
+from app.domains.content_cards.qa import QAReport
 from app.domains.content_cards.schemas import BoardCard
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -52,12 +53,20 @@ class CardActions(BaseModel):
     # G1: the card is outlined, every check passes and the viewer may review.
     can_review_g1: bool = False
     can_generate_draft: bool = False
+    # Phase 4: QA, repair, section regeneration and G2.
+    can_run_qa: bool = False
+    can_repair: bool = False
+    can_regenerate_section: bool = False
+    can_review_g2: bool = False
+    can_dismiss_warnings: bool = False
 
 
 # ── G1 outline review (handoff §5.2-5.3, §6.3) ────────────────────────
 
 # "This is about", as in the writer view's send-back form.
 G1Reason = Literal["writer", "claim", "tone_rule", "plan"]
+# G2 adds "QA rule", as in the writer view's G2 send-back form.
+G2Reason = Literal["writer", "claim", "tone_rule", "plan", "qa_rule"]
 G1Status = Literal["not_ready", "awaiting_review", "sent_back", "approved"]
 
 
@@ -67,14 +76,14 @@ class GateDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: UUID
-    gate: Literal["G1"]
+    gate: Literal["G1", "G2"]
     action: Literal["approve", "send_back"]
     reviewer_id: UUID | None
     reviewer_name: str | None
     decided_at: datetime
     # The card revision the reviewer saw when deciding.
     card_revision: int
-    reason: G1Reason | None = None
+    reason: G2Reason | None = None
     feedback: str | None = None
 
 
@@ -185,6 +194,8 @@ class CardDetail(BaseModel):
     checks: list[CardCheck]
     actions: CardActions
     review: G1Review
+    qa: "QAState | None" = None
+    g2: "G2Review | None" = None
     draft: StoredDraft | None = None
     # A stored draft that no longer parses is reported, not silently dropped.
     draft_unreadable: bool = False
@@ -238,3 +249,122 @@ class OutlineSaveResponse(BaseModel):
 
     card: BoardCard
     outline: OutlineV3
+
+
+# ── QA, repair, section regeneration and G2 (handoff §5.2, §6.4, §6.8 calls 3-5) ──
+
+
+def _required_text(value: str, what: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{what} is required")
+    return text
+
+
+class QAState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    report: QAReport | None
+    # The card changed after this report (revision or draft version moved).
+    stale: bool
+
+
+G2Status = Literal["not_ready", "awaiting_review", "sent_back", "approved"]
+
+
+class G2Review(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: G2Status
+    # QA passed on the current revision, the bundle is current and warnings are handled.
+    ready: bool
+    blockers: list[str]
+    can_review: bool
+    reviewers_restricted: bool
+    warnings_require_dismissal: bool
+    pending_warning_ids: list[str]
+    last_decision: GateDecision | None
+    history: list[GateDecision]
+
+
+class QARunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    model: str | None = Field(default=None, max_length=128)
+
+
+class QARunResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    card: BoardCard
+    report: QAReport
+
+
+class RepairRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    model: str | None = Field(default=None, max_length=128)
+
+
+class SectionRegenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    feedback: str = Field(max_length=4000)
+    model: str | None = Field(default=None, max_length=128)
+
+    @field_validator("feedback")
+    @classmethod
+    def _feedback(cls, value: str) -> str:
+        return _required_text(value, "feedback")
+
+
+class DraftRevisionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    card: BoardCard
+    draft: StoredDraft
+
+
+class G2ApproveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+
+
+class G2SendBackRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    reason: G2Reason
+    feedback: str = Field(max_length=4000)
+
+    @field_validator("feedback")
+    @classmethod
+    def _feedback(cls, value: str) -> str:
+        return _required_text(value, "feedback")
+
+
+class WarningDismissRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    finding_id: str = Field(min_length=1, max_length=64)
+    reason: str = Field(max_length=1000)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _required_text(value, "a reason")
+
+
+class WarningDismissResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    card: BoardCard
+    report: QAReport
+
+
+CardDetail.model_rebuild()

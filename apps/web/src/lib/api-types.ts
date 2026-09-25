@@ -815,6 +815,92 @@ export interface CardDetail {
   last_draft_run: DraftRunStatus | null;
   /** Models offered across every provider with a key; the default is first. */
   generation: GenerationOptions | null;
+  qa: QAState | null;
+  g2: G2Review | null;
+}
+
+// ── V3 Production QA, repair and G2 (handoff §5.2, §6.4) ──────────────
+// Mirrors content_cards/qa.py and workflow_schemas.py.
+
+export type QASeverity = "error" | "warning" | "info";
+
+export interface QAFinding {
+  id: string;
+  code: string;
+  severity: QASeverity;
+  layer: "deterministic" | "model";
+  message: string;
+  section_id: string | null;
+  claim_id: string | null;
+  url: string | null;
+  evidence: string | null;
+  suggested_repair: string;
+  blocking: boolean;
+}
+
+export interface WarningDismissal {
+  finding_id: string;
+  reviewer_id: string;
+  reviewer_name: string | null;
+  dismissed_at: string;
+  reason: string;
+  card_revision: number;
+}
+
+export interface QAReport {
+  schema_version: "v3.qa.v1";
+  status: "passed" | "failed";
+  run_at: string;
+  job_run_id: string;
+  card_revision: number;
+  draft_version: number;
+  bundle_ref: string;
+  bundle_hash: string;
+  findings: QAFinding[];
+  model_layer: "ran" | "skipped";
+  model_note: string;
+  provider: string | null;
+  model: string | null;
+  dismissals: WarningDismissal[];
+  error_count: number;
+  warning_count: number;
+  affected_sections: string[];
+  affected_claim_ids: string[];
+  affected_urls: string[];
+}
+
+export interface QAState {
+  report: QAReport | null;
+  stale: boolean;
+}
+
+export type G2Status = "not_ready" | "awaiting_review" | "sent_back" | "approved";
+
+export interface G2Review {
+  status: G2Status;
+  ready: boolean;
+  blockers: string[];
+  can_review: boolean;
+  reviewers_restricted: boolean;
+  warnings_require_dismissal: boolean;
+  pending_warning_ids: string[];
+  last_decision: GateDecision | null;
+  history: GateDecision[];
+}
+
+export interface QARunResponse {
+  card: BoardCard;
+  report: QAReport;
+}
+
+export interface DraftRevisionResponse {
+  card: BoardCard;
+  draft: StoredDraft;
+}
+
+export interface WarningDismissResponse {
+  card: BoardCard;
+  report: QAReport;
 }
 
 export interface GenerationOptions {
@@ -828,23 +914,29 @@ export interface CardActions {
   can_save_outline: boolean;
   can_review_g1: boolean;
   can_generate_draft: boolean;
+  can_run_qa: boolean;
+  can_repair: boolean;
+  can_regenerate_section: boolean;
+  can_review_g2: boolean;
+  can_dismiss_warnings: boolean;
 }
 
 // ── V3 G1 review and draft (handoff §5.2-5.3, §6.3) ──────────────────
 // Mirrors content_cards/workflow_schemas.py and content_cards/draft.py.
 
 export type G1Reason = "writer" | "claim" | "tone_rule" | "plan";
+export type G2Reason = G1Reason | "qa_rule";
 export type G1Status = "not_ready" | "awaiting_review" | "sent_back" | "approved";
 
 export interface GateDecision {
   id: string;
-  gate: "G1";
+  gate: "G1" | "G2";
   action: "approve" | "send_back";
   reviewer_id: string | null;
   reviewer_name: string | null;
   decided_at: string;
   card_revision: number;
-  reason: G1Reason | null;
+  reason: G2Reason | null;
   feedback: string | null;
 }
 
@@ -896,6 +988,9 @@ export interface StoredDraft {
   source_revision: number;
   generated_at: string;
   generated_by: string;
+  generation_type?: "generate" | "repair" | "section_regeneration";
+  previous_version?: number | null;
+  trigger?: Record<string, unknown>;
 }
 
 export interface DraftRunStatus {

@@ -42,16 +42,30 @@ def test_phase3_openapi_contract_contains_expected_resources() -> None:
     )
 
 
-def test_v3_card_workflow_contract_stops_at_the_draft() -> None:
+def test_v3_card_workflow_contract_stops_at_approval() -> None:
     schema = create_app(Settings(_env_file=None)).openapi()
     paths = set(schema["paths"])
     card = "/api/v3/content-hub/cards/{card_id}"
-    for suffix in ("", "/bundle", "/outline", "/outline/generate", "/g1/approve", "/g1/send-back",
-                   "/draft/generate"):  # fmt: skip
+    for suffix in (
+        "",
+        "/bundle",
+        "/outline",
+        "/outline/generate",
+        "/g1/approve",
+        "/g1/send-back",
+        "/draft/generate",
+        "/qa/run",
+        "/qa/repair",
+        "/sections/{section_id}/regenerate",
+        "/g2/approve",
+        "/g2/send-back",
+        "/g2/warning-dismiss",
+    ):
         assert card + suffix in paths
-    assert "/api/v1/content-harness/v3-draft-runs" in paths
-    # QA, G2, final approval and publishing belong to later phases.
+    for run in ("v3-outline-runs", "v3-draft-runs", "v3-production-runs"):
+        assert f"/api/v1/content-harness/{run}" in paths
+    # Publishing, CMS and the live transition belong to later phases.
     hub = [p for p in paths if p.startswith("/api/v3/content-hub/")]
-    assert not any(word in p for p in hub for word in ("/qa", "/g2", "/publish", "/approve-final"))
-    send_back = schema["components"]["schemas"]["G1SendBackRequest"]
+    assert not any(word in p for p in hub for word in ("/publish", "/cms", "/live", "/export"))
+    send_back = schema["components"]["schemas"]["G2SendBackRequest"]
     assert {"revision", "reason", "feedback"} <= set(send_back["required"])
