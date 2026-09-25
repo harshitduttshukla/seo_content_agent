@@ -741,3 +741,171 @@ export interface BoardFilters {
   argument_id?: string;
   market?: string;
 }
+
+// ── V3 card detail, context bundle and outline (handoff §6.1–6.2) ────
+// Mirrors app/domains/ai/context.py (CardContextBundle), content_cards/outline.py
+// (OutlineV3) and content_cards/workflow_schemas.py.
+
+export interface PlannedInternalLink {
+  page_id: string;
+  url: string;
+  anchor_text: string;
+}
+
+export interface OutlineSection {
+  section_id: string;
+  order: number;
+  heading: string;
+  purpose: string;
+  claim_ids: string[];
+  target_demand_id: string | null;
+  planned_internal_links: PlannedInternalLink[];
+  citable_statement: string | null;
+  notes: string;
+  needs_claim: string[];
+}
+
+export interface OutlineV3 {
+  schema_version: "v3.outline.v1";
+  primary_mode: "keyword" | "prompt";
+  title: string;
+  prompt_target_id: string | null;
+  direct_answer: string | null;
+  sections: OutlineSection[];
+}
+
+export interface BundleDemand {
+  id: string;
+  role: "primary" | "prompt" | "secondary";
+  type: string;
+  text: string;
+  volume: number | null;
+  intent: string | null;
+  citation_gap: number | null;
+  platforms: string[];
+}
+
+export interface BundleClaim {
+  id: string;
+  text: string;
+  evidence: string;
+  row: string;
+  argument_id: string | null;
+  version: number;
+}
+
+export interface BundleSource {
+  section: string;
+  source_type: string;
+  source_id: string;
+  version: number | null;
+}
+
+export interface CardContextBundle {
+  card: {
+    id: string;
+    title: string;
+    kind: string;
+    origin: string;
+    market: string | null;
+    word_budget: number | null;
+    url: string | null;
+    primary_mode: "keyword" | "prompt";
+  };
+  rules: {
+    brand: {
+      tone: string | null;
+      voice: string | null;
+      style: string | null;
+      words_to_avoid: string[];
+      formatting_rules: string[];
+    };
+    claim_policy: string;
+  };
+  claims: BundleClaim[];
+  demand: BundleDemand[];
+  tone: { tone: string | null; voice_snippets: string[]; social_proof: string[] };
+  siblings: { id: string; title: string; kind: string; state: string; url: string | null }[];
+  references: {
+    existing_pages: { pages: { page_id: string | null; url: string; title: string | null; relationship: string }[] };
+    website: {
+      crawled_pages: {
+        page_id: string | null;
+        url: string;
+        title: string | null;
+        headings: string[];
+        content_snippet: string | null;
+        word_count: number;
+      }[];
+    };
+    internal_linking: { opportunities: Record<string, string>[] };
+  };
+  pitch: {
+    argument_id: string | null;
+    differentiation_pillar: string;
+    sub_problem: string;
+    capability: string;
+    benefit: string;
+    problem_summary: string;
+    differentiation_summary: string;
+  };
+  sources: BundleSource[];
+  budget: { max_tokens: number; used_tokens: number; truncated_sections: string[] };
+}
+
+export interface BundleStatus {
+  bundle_ref: string;
+  content_hash: string;
+  built_at: string;
+  is_current: boolean;
+}
+
+export interface ClaimOption {
+  id: string;
+  text: string;
+  evidence: string;
+  row: string;
+  argument_id: string | null;
+  argument_name: string | null;
+  version: number;
+  approved: boolean;
+}
+
+export interface CardCheck {
+  key: string;
+  label: string;
+  status: "pass" | "fail" | "not_applicable";
+  detail: string;
+}
+
+export interface CardDetail {
+  card: BoardCard;
+  outline: OutlineV3 | null;
+  outline_unreadable: boolean;
+  bundle: BundleStatus | null;
+  context: CardContextBundle;
+  claim_options: ClaimOption[];
+  checks: CardCheck[];
+  actions: { can_build_bundle: boolean; can_generate_outline: boolean; can_save_outline: boolean };
+}
+
+export interface BundleBuildResponse {
+  card: BoardCard;
+  bundle: BundleStatus;
+  reused: boolean;
+}
+
+export interface OutlineProposal {
+  outline: OutlineV3;
+  job_run_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  attempts: number;
+  bundle_ref: string;
+}
+
+export interface OutlineSaveResponse {
+  card: BoardCard;
+  outline: OutlineV3;
+}

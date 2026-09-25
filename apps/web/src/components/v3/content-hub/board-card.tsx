@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { DragEvent } from "react";
 
 import type { BoardCard } from "@/lib/api-types";
@@ -44,6 +45,7 @@ function stateNote(card: BoardCard): string | null {
 
 export function BoardCardView({
   card,
+  href,
   draggable,
   busy,
   actions,
@@ -53,6 +55,8 @@ export function BoardCardView({
   onDrop,
 }: {
   card: BoardCard;
+  /** The card's detail page; the title links there. */
+  href?: string;
   draggable: boolean;
   busy: boolean;
   actions: CardActions;
@@ -85,7 +89,15 @@ export function BoardCardView({
         draggable ? "cursor-grab active:cursor-grabbing" : ""
       } ${busy ? "opacity-60" : ""}`}
     >
-      <b className="mb-[4px] block text-[13px] font-medium">{card.title || card.url || "Untitled card"}</b>
+      <b className="mb-[4px] block text-[13px] font-medium">
+        {href ? (
+          <Link href={href} draggable={false} className="hover:underline focus-visible:outline-2 focus-visible:outline-[var(--teal)]">
+            {card.title || card.url || "Untitled card"}
+          </Link>
+        ) : (
+          card.title || card.url || "Untitled card"
+        )}
+      </b>
       <div className="text-[11.2px] leading-[1.45] text-[var(--ink3)]">
         {meta}
         {detail ? (

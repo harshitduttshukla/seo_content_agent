@@ -2,15 +2,16 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from app.domains.canvas.models import Area, Argument
-from app.domains.content_cards.models import ContentCard, ContentCardOrigin
+from app.domains.canvas.models import Area, Argument, Claim
+from app.domains.content.models import ContentPage
+from app.domains.content_cards.models import ContentCard, ContentCardClaim, ContentCardOrigin
 from app.domains.content_cards.schemas import BoardFilters
 from app.domains.demand.models import DemandNode
 from app.domains.job_runs.models import JobRun
 from app.domains.users.models import User
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import delete, desc, func, or_, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -256,6 +257,18 @@ class ContentCardRepository:
         result = await self._session.execute(statement)
         return [BoardFacet(*row) for row in result.tuples().all()]
 
+    async def get_scoped(
+        self, organization_id: UUID, project_id: UUID, card_id: UUID
+    ) -> ContentCard | None:
+        result = await self._session.execute(
+            select(ContentCard).where(
+                ContentCard.organization_id == organization_id,
+                ContentCard.project_id == project_id,
+                ContentCard.id == card_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_for_update(
         self, organization_id: UUID, project_id: UUID, card_id: UUID
     ) -> ContentCard | None:
@@ -298,3 +311,134 @@ class ContentCardRepository:
         )
         value = result.scalar_one_or_none()
         return int(value) if value is not None else None
+
+    async def get_job_run_of_type(
+        self, organization_id: UUID, project_id: UUID, job_run_id: UUID, job_type: str
+    ) -> JobRun | None:
+        result = await self._session.execute(
+            select(JobRun).where(
+                JobRun.organization_id == organization_id,
+                JobRun.project_id == project_id,
+                JobRun.id == job_run_id,
+                JobRun.job_type == job_type,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_current_claim_options(
+        self, organization_id: UUID, project_id: UUID, limit: int
+    ) -> list[tuple[Claim, str | None]]:
+        """Approved, not superseded claims with their argument pillar, one query."""
+        result = await self._session.execute(
+            select(Claim, Argument.differentiation_pillar)
+            .outerjoin(
+                Argument,
+                (Argument.id == Claim.argument_id)
+                & (Argument.organization_id == organization_id)
+                & (Argument.project_id == project_id),
+            )
+            .where(
+                Claim.organization_id == organization_id,
+                Claim.project_id == project_id,
+                Claim.approved.is_(True),
+                Claim.superseded_by.is_(None),
+            )
+            .order_by(Claim.row, Claim.created_at, Claim.id)
+            .limit(limit)
+        )
+        return [(claim, name) for claim, name in result.tuples().all()]
+
+    async def resolve_outline_refs(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        *,
+        claim_ids: set[UUID],
+        demand_ids: set[UUID],
+        page_ids: set[UUID],
+    ) -> tuple[set[UUID], set[UUID], set[UUID], dict[UUID, str]]:
+        """Which referenced ids exist in this project: at most three queries.
+
+        Returns (current approved claim ids, demand ids, prompt ids, page id → url).
+        """
+        claims: set[UUID] = set()
+        demand: set[UUID] = set()
+        prompts: set[UUID] = set()
+        pages: dict[UUID, str] = {}
+        if claim_ids:
+            claims = set(
+                (
+                    await self._session.execute(
+                        select(Claim.id).where(
+                            Claim.organization_id == organization_id,
+                            Claim.project_id == project_id,
+                            Claim.id.in_(claim_ids),
+                            Claim.approved.is_(True),
+                            Claim.superseded_by.is_(None),
+                        )
+                    )
+                ).scalars()
+            )
+        if demand_ids:
+            for node_id, node_type in (
+                await self._session.execute(
+                    select(DemandNode.id, DemandNode.type).where(
+                        DemandNode.organization_id == organization_id,
+                        DemandNode.project_id == project_id,
+                        DemandNode.id.in_(demand_ids),
+                    )
+                )
+            ).tuples():
+                demand.add(node_id)
+                if node_type == "prompt":
+                    prompts.add(node_id)
+        if page_ids:
+            pages = dict(
+                (
+                    await self._session.execute(
+                        select(ContentPage.id, ContentPage.url).where(
+                            ContentPage.organization_id == organization_id,
+                            ContentPage.project_id == project_id,
+                            ContentPage.id.in_(page_ids),
+                        )
+                    )
+                )
+                .tuples()
+                .all()
+            )
+        return claims, demand, prompts, pages
+
+    async def sync_card_claims(
+        self, organization_id: UUID, project_id: UUID, card_id: UUID, claim_ids: set[UUID]
+    ) -> tuple[set[UUID], set[UUID]]:
+        """Make the card's ContentCardClaim rows exactly ``claim_ids``; return (added, removed).
+
+        The caller has already validated every id as an approved, current claim of
+        this project. Rows are only ever added once (the unique card/claim index
+        backs this up); the caller's transaction makes the change all-or-nothing.
+        """
+        scope = (
+            ContentCardClaim.organization_id == organization_id,
+            ContentCardClaim.project_id == project_id,
+            ContentCardClaim.content_card_id == card_id,
+        )
+        existing = set(
+            (await self._session.execute(select(ContentCardClaim.claim_id).where(*scope))).scalars()
+        )
+        removed = existing - claim_ids
+        added = claim_ids - existing
+        if removed:
+            await self._session.execute(
+                delete(ContentCardClaim).where(*scope, ContentCardClaim.claim_id.in_(removed))
+            )
+        for claim_id in sorted(added, key=str):
+            self._session.add(
+                ContentCardClaim(
+                    id=uuid4(),
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    content_card_id=card_id,
+                    claim_id=claim_id,
+                )
+            )
+        return added, removed

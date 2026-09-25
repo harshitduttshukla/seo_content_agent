@@ -172,3 +172,25 @@ class EvaluateContentRequest(BaseModel):
     project_id: UUID
     input_data: ContentHarnessInput
     content: HarnessGeneratedContent
+
+
+# V3 outline mode (prompt v3.outline.v1): the same generation contract as the
+# Content Hub, run against a real ContentCard's bundle.
+
+
+class V3OutlineHarnessInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    name: str = Field(default="V3 outline run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+
+
+class V3OutlineEvaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    score: float = Field(ge=0.0, le=100.0)
+    status: str  # PASS / NEEDS IMPROVEMENT
+    findings: list[HarnessFinding] = Field(default_factory=list)

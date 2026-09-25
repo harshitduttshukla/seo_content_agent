@@ -7,10 +7,19 @@ from uuid import UUID, uuid4
 
 from app.ai.provider import AIMessage, AIProvider, GenerationRequest
 from app.core.errors import ResourceNotFound
+from app.db.session import set_actor_context
+from app.domains.ai.context_builder import ContentAgentContextBuilder, bundle_hash
 from app.domains.ai.service import get_ai_provider
 from app.domains.audit.repository import AuditWriter
 from app.domains.content.editor_models import ContentBrief
+from app.domains.content_cards.outline_generation import (
+    V3_OUTLINE_PROMPT_VERSION,
+    OutlineGenerator,
+    build_outline_messages,
+)
+from app.domains.content_cards.repository import ContentCardRepository
 from app.domains.content_harness.evaluator import evaluate_content, evaluate_with_ai
+from app.domains.content_harness.v3_outline_evaluator import evaluate_v3_outline
 
 GOLDEN_TEST_CASES = {}
 from app.domains.content_harness.models import ContentHarnessRun, HarnessRunStatus
@@ -25,6 +34,7 @@ from app.domains.content_harness.schemas import (
     FindingStatus,
     HarnessGeneratedContent,
     HarnessScorecard,
+    V3OutlineHarnessInput,
 )
 from app.domains.projects.service import ProjectService
 from app.security.principal import AuthenticatedUser, PermissionCode
@@ -206,6 +216,77 @@ class ContentHarnessService:
 
         await self._repo.create(session, run)
 
+        return ContentHarnessRunDetail.model_validate(run)
+
+    async def run_v3_outline(
+        self,
+        session: AsyncSession,
+        *,
+        actor: AuthenticatedUser,
+        input_data: V3OutlineHarnessInput,
+    ) -> ContentHarnessRunDetail:
+        """Evaluate the production V3 outline contract on a real ContentCard.
+
+        Same bundle builder, prompt, generator and validation as the Content Hub;
+        the only difference is that the result is scored and stored as a Harness
+        run instead of being offered for saving. The card is never modified.
+        """
+        await set_actor_context(session, actor.user_id)
+        project = await self._projects.get_model(
+            session,
+            actor=actor,
+            project_id=input_data.project_id,
+            permission=PermissionCode.AI_USE,
+        )
+        card = await ContentCardRepository(session).get_scoped(
+            project.organization_id, project.id, input_data.card_id
+        )
+        if card is None:
+            raise ResourceNotFound("content_card")
+        bundle = await ContentAgentContextBuilder(project_service=self._projects).build_card_bundle(
+            session, card=card
+        )
+        started_at = datetime.now(UTC)
+        result = await OutlineGenerator(self._provider).generate(
+            bundle, model=input_data.model, temperature=input_data.temperature
+        )
+        evaluation = evaluate_v3_outline(result, bundle)
+        completed_at = datetime.now(UTC)
+        run = ContentHarnessRun(
+            id=uuid4(),
+            organization_id=project.organization_id,
+            project_id=project.id,
+            created_by_id=actor.user_id,
+            name=input_data.name,
+            status=HarnessRunStatus.COMPLETED.value if result.ok else HarnessRunStatus.FAILED.value,
+            prompt_version=V3_OUTLINE_PROMPT_VERSION,
+            model=result.model,
+            provider=result.provider,
+            input_data={"mode": "v3_outline", **input_data.model_dump(mode="json")},
+            context_data={
+                "bundle_hash": bundle_hash(bundle),
+                "bundle": bundle.model_dump(mode="json"),
+            },
+            prompt_data={
+                "prompt_version": V3_OUTLINE_PROMPT_VERSION,
+                "messages": [m.model_dump() for m in build_outline_messages(bundle)],
+            },
+            output_data={
+                "outline": result.outline.model_dump(mode="json") if result.outline else None,
+                "attempts": [a.model_dump(mode="json") for a in result.attempts],
+                "issues": [i.model_dump(mode="json") for i in result.issues],
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
+            },
+            evaluation_data=evaluation.model_dump(mode="json"),
+            score=evaluation.score,
+            error_message=result.error_code,
+            started_at=started_at,
+            completed_at=completed_at,
+            created_at=completed_at,
+            updated_at=completed_at,
+        )
+        await self._repo.create(session, run)
         return ContentHarnessRunDetail.model_validate(run)
 
     async def get_run(

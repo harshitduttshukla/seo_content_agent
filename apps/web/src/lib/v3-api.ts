@@ -1,6 +1,11 @@
 import type {
   BoardCard,
   BoardFilters,
+  BundleBuildResponse,
+  CardDetail,
+  OutlineProposal,
+  OutlineSaveResponse,
+  OutlineV3,
   BulkUpdateResponse,
   BrandKit,
   BrandKitDetail,
@@ -182,6 +187,26 @@ export const V3API = {
       clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/move`), {
         method: "POST",
         body: JSON.stringify({ target_state: targetState, revision }),
+      }),
+    card: (scope: V3Scope, cardId: string): Promise<CardDetail> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}`)),
+    /** planned → bundled on first build; reuses the stored bundle while it is current. */
+    buildBundle: (scope: V3Scope, cardId: string, revision: number): Promise<BundleBuildResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/bundle`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** A proposal only: the card is not changed until saveOutline. */
+    generateOutline: (scope: V3Scope, cardId: string): Promise<OutlineProposal> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline/generate`), {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    /** First valid save moves bundled → outlined. 409 when `revision` is stale. */
+    saveOutline: (scope: V3Scope, cardId: string, outline: OutlineV3, revision: number): Promise<OutlineSaveResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline`), {
+        method: "PUT",
+        body: JSON.stringify({ outline, revision }),
       }),
     /** The whole Planned column, top first; returns the refreshed unfiltered board. */
     reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>

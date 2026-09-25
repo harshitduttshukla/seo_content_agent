@@ -318,6 +318,7 @@ export function PlanBoard({ scope }: { scope: V3Scope }) {
                       <BoardCardView
                         key={card.id}
                         card={card}
+                        href={`/projects/${scope.projectId}/v3/content-hub/${card.id}`}
                         busy={busyCardId === card.id}
                         draggable={movable && busyCardId === null}
                         actions={busyCardId === null ? actions : {}}
