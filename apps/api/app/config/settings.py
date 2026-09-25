@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     AI_MODEL: str = "gemini-flash-latest"
     AI_EMBEDDING_MODEL: str = "gemini-embedding-001"
     AI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    # Per-provider keys so generation can use Gemini and Claude side by side. AI_API_KEY
+    # still serves AI_PROVIDER when its own key is not set.
+    GEMINI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    # Comma-separated models users may pick (``provider:model`` or a bare model name);
+    # empty offers the default models of every provider that has a key.
+    AI_MODEL_OPTIONS: str = ""
 
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"

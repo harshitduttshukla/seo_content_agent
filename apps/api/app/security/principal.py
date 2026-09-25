@@ -34,6 +34,8 @@ class PermissionCode(StrEnum):
     KEYWORD_WRITE = "keyword.write"
     CONTENT_READ = "content.read"
     CONTENT_WRITE = "content.write"
+    # V3 gates (G1 outline review): approve or send back. Writers and viewers lack it.
+    CONTENT_REVIEW = "content.review"
     SEO_READ = "seo.read"
     SEO_WRITE = "seo.write"
     AI_USE = "ai.use"

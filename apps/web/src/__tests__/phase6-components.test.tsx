@@ -253,19 +253,7 @@ describe("Phase 6 — WorkflowActivity Component", () => {
 describe("Phase 6 — EditorSidebar Agent Tab Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (clientApi as any).mockImplementation((endpoint: string) => {
-      if (endpoint.includes("/quality-check")) {
-        return Promise.resolve({
-          document_id: "doc-001",
-          title: "Zero Trust Architecture Guide",
-          word_count: 50,
-          target_word_count: 2000,
-          score_percentage: 90,
-          checks: [],
-        });
-      }
-      return Promise.resolve({});
-    });
+    (clientApi as any).mockResolvedValue({});
   });
 
   it("switches to Agent tab and renders quick recipes and input box", async () => {

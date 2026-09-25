@@ -17,31 +17,21 @@ export type PageLink = components["schemas"]["PageLinkDetail"];
 export type SEOStrategy = components["schemas"]["StrategyResponse"];
 export type SEOStrategyVersion = components["schemas"]["StrategyVersionResponse"];
 export type StrategyData = components["schemas"]["StrategyDataSchema-Output"];
-export type Keyword = components["schemas"]["KeywordDetail"];
 export type KeywordCluster = components["schemas"]["KeywordClusterDetail"];
 export type KeywordClusterMember = components["schemas"]["KeywordClusterMemberDetail"];
 export type ClusteringRun = components["schemas"]["ClusteringRunResponse"];
 export type KeywordImport = components["schemas"]["KeywordImportResponse"];
-export type ContentPillar = components["schemas"]["ContentPillarDetail"];
-export type Topic = components["schemas"]["TopicDetail"];
 export type KeywordPageMapping = components["schemas"]["KeywordPageMappingDetail"];
 export type CannibalizationWarning = components["schemas"]["CannibalizationWarningDetail"];
-export type ContentOpportunity = components["schemas"]["ContentOpportunityDetail"];
 export type ContentArchitectureGraph = components["schemas"]["ContentArchitectureGraphResponse"];
 
 // Phase 4: Content Map, Planned Pages, SEO Guide, Internal Linking
-export type PlannedContentPage = components["schemas"]["PlannedContentPageDetail"];
-export type PlannedContentPageList = components["schemas"]["PlannedContentPageList"];
-export type PageKeyword = components["schemas"]["PageKeywordDetail"];
 export type ContentMapNode = components["schemas"]["ContentMapNodeDTO"];
 export type ContentMapEdge = components["schemas"]["ContentMapEdgeDTO"];
 export type ContentMapGraph = components["schemas"]["ContentMapGraphResponse"];
 export type ValidationIssue = components["schemas"]["ValidationIssue"];
 export type ContentMapValidation = components["schemas"]["ContentMapValidationResponse"];
 export type ContentArchitectureVersion = components["schemas"]["ContentArchitectureVersionDetail"];
-export type SEOGuide = components["schemas"]["SEOGuideDetail"];
-export type SEOGuideOutlineSection = components["schemas"]["SEOGuideOutlineSection"];
-export type SEOGuideVersion = components["schemas"]["SEOGuideVersionDetail"];
 export type PageRelationship = components["schemas"]["PageRelationshipDetail"];
 export type LinkOpportunity = components["schemas"]["LinkOpportunityDetail"];
 export type InternalLinksSummary = components["schemas"]["InternalLinksSummary"];
@@ -53,59 +43,7 @@ export type ApiEnvelope<T> = {
   errors: ErrorItem[];
 };
 
-// Phase 5: Content Brief & Block Editor
-export type BriefStatus = "DRAFT" | "PROPOSED" | "REVIEW" | "APPROVED" | "ARCHIVED";
-
-export interface InternalLinkTarget {
-  target_page_id?: string | null;
-  title: string;
-  url: string;
-}
-
-export interface ContentBrief {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  website_id?: string | null;
-  page_id: string;
-  seo_guide_id?: string | null;
-  version: number;
-  status: BriefStatus;
-  primary_keyword: string;
-  secondary_keywords: string[];
-  search_intent: string;
-  target_audience: string;
-  business_goal: string;
-  content_type: string;
-  recommended_title: string;
-  recommended_url: string;
-  meta_title: string;
-  meta_description: string;
-  target_word_count: number;
-  required_topics: string[];
-  key_entities: string[];
-  questions_to_answer: string[];
-  internal_link_targets: InternalLinkTarget[];
-  external_source_requirements: string[];
-  content_requirements: string[];
-  brand_requirements: Record<string, unknown>;
-  created_by_id?: string | null;
-  updated_by_id?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ContentBriefVersion {
-  id: string;
-  brief_id: string;
-  organization_id: string;
-  project_id: string;
-  version: number;
-  snapshot_data: Record<string, unknown>;
-  change_summary: string;
-  created_by_id?: string | null;
-  created_at: string;
-}
+// Phase 5: Block Editor
 
 export type BlockType =
   | "DOCUMENT_TITLE"
@@ -205,22 +143,6 @@ export interface ChatSession {
   created_by_id?: string | null;
   created_at: string;
   messages?: ChatMessage[];
-}
-
-export interface QualityCheckItem {
-  name: string;
-  status: "PASS" | "WARNING" | "FAIL";
-  message: string;
-  recommendation: string;
-}
-
-export interface SEOQualityReport {
-  document_id: string;
-  title: string;
-  word_count: number;
-  target_word_count: number;
-  score_percentage: number;
-  checks: QualityCheckItem[];
 }
 
 // Phase 6: AI Orchestrator & Tool/Action Layer
@@ -661,3 +583,451 @@ export interface PlanLockState {
   locked_now: boolean;
 }
 
+
+// ── V3 Content Hub plan board (handoff §5.1) ─────────────────────────
+// Mirrors app/domains/content_cards/schemas.py (ContentHubBoard and friends).
+
+export type BoardColumnKey = "backlog" | "planned" | "outline" | "draft" | "review" | "approved" | "live";
+
+export interface BoardRef {
+  id: string;
+  name: string;
+}
+
+export interface BoardDemandRef {
+  id: string;
+  text: string;
+  volume: number | null;
+  citation_gap: number | null;
+  platform_count: number;
+}
+
+export interface BoardCard {
+  id: string;
+  title: string;
+  kind: string;
+  /** Stored §5.2 state, e.g. qa_passed; `column` is where the board shows it. */
+  state: string;
+  column: BoardColumnKey;
+  origin: string;
+  area: BoardRef | null;
+  argument: BoardRef | null;
+  owner: BoardRef | null;
+  market: string | null;
+  due: string | null;
+  priority: number;
+  primary_demand: BoardDemandRef | null;
+  primary_prompt: BoardDemandRef | null;
+  secondary_demand_count: number;
+  score: number | null;
+  has_qa_report: boolean;
+  url: string | null;
+  cms_id: string | null;
+  published_at: string | null;
+  stale_claim_count: number;
+  planned_at: string | null;
+  /** Server-derived "new" chip: planned_at strictly after plan_locked_at. */
+  is_new_after_plan_lock: boolean;
+  revision: number;
+  updated_at: string;
+}
+
+export interface BoardColumnView {
+  key: BoardColumnKey;
+  label: string;
+  tone: "rest" | "system" | "human";
+  count: number;
+  cards: BoardCard[];
+}
+
+export interface BoardFilterOptions {
+  areas: BoardRef[];
+  kinds: string[];
+  owners: BoardRef[];
+  arguments: BoardRef[];
+  markets: string[];
+}
+
+export interface ContentHubBoard {
+  project_id: string;
+  plan_locked_at: string | null;
+  total_count: number;
+  columns: BoardColumnView[];
+  filter_options: BoardFilterOptions;
+}
+
+export interface BoardFilters {
+  area_id?: string;
+  kind?: string;
+  owner_id?: string;
+  argument_id?: string;
+  market?: string;
+}
+
+// ── V3 card detail, context bundle and outline (handoff §6.1–6.2) ────
+// Mirrors app/domains/ai/context.py (CardContextBundle), content_cards/outline.py
+// (OutlineV3) and content_cards/workflow_schemas.py.
+
+export interface PlannedInternalLink {
+  page_id: string;
+  url: string;
+  anchor_text: string;
+}
+
+export interface OutlineSection {
+  section_id: string;
+  order: number;
+  heading: string;
+  purpose: string;
+  claim_ids: string[];
+  target_demand_id: string | null;
+  planned_internal_links: PlannedInternalLink[];
+  citable_statement: string | null;
+  notes: string;
+  needs_claim: string[];
+}
+
+export interface OutlineV3 {
+  schema_version: "v3.outline.v1";
+  primary_mode: "keyword" | "prompt";
+  title: string;
+  prompt_target_id: string | null;
+  direct_answer: string | null;
+  sections: OutlineSection[];
+}
+
+export interface BundleDemand {
+  id: string;
+  role: "primary" | "prompt" | "secondary";
+  type: string;
+  text: string;
+  volume: number | null;
+  intent: string | null;
+  citation_gap: number | null;
+  platforms: string[];
+}
+
+export interface BundleClaim {
+  id: string;
+  text: string;
+  evidence: string;
+  row: string;
+  argument_id: string | null;
+  version: number;
+}
+
+export interface BundleSource {
+  section: string;
+  source_type: string;
+  source_id: string;
+  version: number | null;
+}
+
+export interface CardContextBundle {
+  card: {
+    id: string;
+    title: string;
+    kind: string;
+    origin: string;
+    market: string | null;
+    word_budget: number | null;
+    url: string | null;
+    primary_mode: "keyword" | "prompt";
+  };
+  rules: {
+    brand: {
+      tone: string | null;
+      voice: string | null;
+      style: string | null;
+      words_to_avoid: string[];
+      formatting_rules: string[];
+    };
+    claim_policy: string;
+  };
+  claims: BundleClaim[];
+  demand: BundleDemand[];
+  tone: { tone: string | null; voice_snippets: string[]; social_proof: string[] };
+  siblings: { id: string; title: string; kind: string; state: string; url: string | null }[];
+  references: {
+    existing_pages: { pages: { page_id: string | null; url: string; title: string | null; relationship: string }[] };
+    website: {
+      crawled_pages: {
+        page_id: string | null;
+        url: string;
+        title: string | null;
+        headings: string[];
+        content_snippet: string | null;
+        word_count: number;
+      }[];
+    };
+    internal_linking: { opportunities: Record<string, string>[] };
+  };
+  pitch: {
+    argument_id: string | null;
+    differentiation_pillar: string;
+    sub_problem: string;
+    capability: string;
+    benefit: string;
+    problem_summary: string;
+    differentiation_summary: string;
+  };
+  sources: BundleSource[];
+  budget: { max_tokens: number; used_tokens: number; truncated_sections: string[] };
+}
+
+export interface BundleStatus {
+  bundle_ref: string;
+  content_hash: string;
+  built_at: string;
+  is_current: boolean;
+}
+
+export interface ClaimOption {
+  id: string;
+  text: string;
+  evidence: string;
+  row: string;
+  argument_id: string | null;
+  argument_name: string | null;
+  version: number;
+  approved: boolean;
+}
+
+export interface CardCheck {
+  key: string;
+  label: string;
+  status: "pass" | "fail" | "not_applicable";
+  detail: string;
+}
+
+export interface CardDetail {
+  card: BoardCard;
+  outline: OutlineV3 | null;
+  outline_unreadable: boolean;
+  bundle: BundleStatus | null;
+  context: CardContextBundle;
+  claim_options: ClaimOption[];
+  checks: CardCheck[];
+  actions: CardActions;
+  review: G1Review;
+  draft: StoredDraft | null;
+  draft_unreadable: boolean;
+  last_draft_run: DraftRunStatus | null;
+  /** Models offered across every provider with a key; the default is first. */
+  generation: GenerationOptions | null;
+  qa: QAState | null;
+  g2: G2Review | null;
+}
+
+// ── V3 Production QA, repair and G2 (handoff §5.2, §6.4) ──────────────
+// Mirrors content_cards/qa.py and workflow_schemas.py.
+
+export type QASeverity = "error" | "warning" | "info";
+
+export interface QAFinding {
+  id: string;
+  code: string;
+  severity: QASeverity;
+  layer: "deterministic" | "model";
+  message: string;
+  section_id: string | null;
+  claim_id: string | null;
+  url: string | null;
+  evidence: string | null;
+  suggested_repair: string;
+  blocking: boolean;
+}
+
+export interface WarningDismissal {
+  finding_id: string;
+  reviewer_id: string;
+  reviewer_name: string | null;
+  dismissed_at: string;
+  reason: string;
+  card_revision: number;
+}
+
+export interface QAReport {
+  schema_version: "v3.qa.v1";
+  status: "passed" | "failed";
+  run_at: string;
+  job_run_id: string;
+  card_revision: number;
+  draft_version: number;
+  bundle_ref: string;
+  bundle_hash: string;
+  findings: QAFinding[];
+  model_layer: "ran" | "skipped";
+  model_note: string;
+  provider: string | null;
+  model: string | null;
+  dismissals: WarningDismissal[];
+  error_count: number;
+  warning_count: number;
+  affected_sections: string[];
+  affected_claim_ids: string[];
+  affected_urls: string[];
+}
+
+export interface QAState {
+  report: QAReport | null;
+  stale: boolean;
+}
+
+export type G2Status = "not_ready" | "awaiting_review" | "sent_back" | "approved";
+
+export interface G2Review {
+  status: G2Status;
+  ready: boolean;
+  blockers: string[];
+  can_review: boolean;
+  reviewers_restricted: boolean;
+  warnings_require_dismissal: boolean;
+  pending_warning_ids: string[];
+  last_decision: GateDecision | null;
+  history: GateDecision[];
+}
+
+export interface QARunResponse {
+  card: BoardCard;
+  report: QAReport;
+}
+
+export interface DraftRevisionResponse {
+  card: BoardCard;
+  draft: StoredDraft;
+}
+
+export interface WarningDismissResponse {
+  card: BoardCard;
+  report: QAReport;
+}
+
+export interface GenerationOptions {
+  default_model: string | null;
+  options: { provider: "gemini" | "anthropic" | string; model: string }[];
+}
+
+export interface CardActions {
+  can_build_bundle: boolean;
+  can_generate_outline: boolean;
+  can_save_outline: boolean;
+  can_review_g1: boolean;
+  can_generate_draft: boolean;
+  can_run_qa: boolean;
+  can_repair: boolean;
+  can_regenerate_section: boolean;
+  can_review_g2: boolean;
+  can_dismiss_warnings: boolean;
+}
+
+// ── V3 G1 review and draft (handoff §5.2-5.3, §6.3) ──────────────────
+// Mirrors content_cards/workflow_schemas.py and content_cards/draft.py.
+
+export type G1Reason = "writer" | "claim" | "tone_rule" | "plan";
+export type G2Reason = G1Reason | "qa_rule";
+export type G1Status = "not_ready" | "awaiting_review" | "sent_back" | "approved";
+
+export interface GateDecision {
+  id: string;
+  gate: "G1" | "G2";
+  action: "approve" | "send_back";
+  reviewer_id: string | null;
+  reviewer_name: string | null;
+  decided_at: string;
+  card_revision: number;
+  reason: G2Reason | null;
+  feedback: string | null;
+}
+
+export interface G1Review {
+  status: G1Status;
+  ready: boolean;
+  can_review: boolean;
+  reviewers_restricted: boolean;
+  last_decision: GateDecision | null;
+  history: GateDecision[];
+}
+
+export interface G1DecisionResponse {
+  card: BoardCard;
+  decision: GateDecision;
+}
+
+export interface DraftSection {
+  section_id: string;
+  order: number;
+  heading: string;
+  target_demand_id: string | null;
+  /** Markdown-ish text with inline [CLM:<uuid>] and [NEEDS-CLAIM: …] markers. */
+  body: string;
+  claim_ids: string[];
+  needs_claim: string[];
+  internal_links: { page_id: string; url: string; anchor_text: string }[];
+}
+
+export interface DraftV3 {
+  schema_version: "v3.draft.v1";
+  primary_mode: "keyword" | "prompt";
+  title: string;
+  prompt_target_id: string | null;
+  direct_answer: string | null;
+  sections: DraftSection[];
+}
+
+export interface StoredDraft {
+  version: number;
+  draft: DraftV3;
+  unresolved: { section_id: string; text: string }[];
+  job_run_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  bundle_ref: string;
+  bundle_hash: string;
+  source_revision: number;
+  generated_at: string;
+  generated_by: string;
+  generation_type?: "generate" | "repair" | "section_regeneration";
+  previous_version?: number | null;
+  trigger?: Record<string, unknown>;
+}
+
+export interface DraftRunStatus {
+  job_run_id: string;
+  status: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  attempts: number;
+  error: string | null;
+  issues: { code: string; message: string; section_id: string | null; ref: string | null }[];
+  created_at: string;
+  stored: boolean;
+}
+
+export interface DraftGenerateResponse {
+  card: BoardCard;
+  draft: StoredDraft;
+}
+
+export interface BundleBuildResponse {
+  card: BoardCard;
+  bundle: BundleStatus;
+  reused: boolean;
+}
+
+export interface OutlineProposal {
+  outline: OutlineV3;
+  job_run_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  attempts: number;
+  bundle_ref: string;
+}
+
+export interface OutlineSaveResponse {
+  card: BoardCard;
+  outline: OutlineV3;
+}

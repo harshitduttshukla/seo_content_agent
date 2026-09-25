@@ -202,6 +202,8 @@ def test_get_ai_provider_factory(monkeypatch: pytest.MonkeyPatch) -> None:
         mock_settings.APP_ENV = "test"
         mock_settings.AI_PROVIDER = "mock"
         mock_settings.AI_API_KEY = ""
+        mock_settings.GEMINI_API_KEY = ""
+        mock_settings.ANTHROPIC_API_KEY = ""
         provider = get_ai_provider()
         assert isinstance(provider, MockAIProvider)
 

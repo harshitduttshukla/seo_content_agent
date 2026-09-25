@@ -409,3 +409,143 @@ class ContentAgentContext(BaseModel):
     # Provenance and budget metadata
     provenance: ContextProvenance
     budget: ContextBudget
+
+
+# ──────────────────────────────────────────────────────────────────
+# V3 ContentCard context bundle (handoff §6.1)
+# ──────────────────────────────────────────────────────────────────
+# Assembled by ContentAgentContextBuilder.build_card_bundle from project-scoped
+# rows only. Sections are listed in V3 precedence order; the budget trims from
+# the last (pitch) towards the first (rules), never the other way round.
+
+BUNDLE_SECTION_PRECEDENCE: tuple[str, ...] = (
+    "rules",
+    "claims",
+    "demand",
+    "tone",
+    "siblings",
+    "references",
+    "pitch",
+)
+
+
+class BundleSource(BaseModel):
+    """Where one piece of bundle context came from."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    section: str
+    source_type: str  # claim, demand_node, brand_kit, social_proof, content_card, ...
+    source_id: UUID
+    version: int | None = None
+
+
+class BundleCard(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    title: str
+    kind: str
+    origin: str
+    market: str | None
+    word_budget: int | None
+    url: str | None
+    # "prompt" when the card has a primary prompt and no primary keyword.
+    primary_mode: str
+
+
+class BundleRules(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    brand: BrandRulesContext
+    # The V3 claim rule every generation must follow; not configurable here.
+    claim_policy: str
+
+
+class BundleClaim(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    text: str
+    evidence: str
+    row: str
+    argument_id: UUID | None
+    version: int
+
+
+class BundleDemand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    role: str  # primary, prompt, secondary
+    type: str
+    text: str
+    volume: int | None = None
+    intent: str | None = None
+    citation_gap: float | None = None
+    platforms: list[str] = Field(default_factory=list)
+
+
+class BundleTone(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tone: str | None
+    voice_snippets: list[str] = Field(default_factory=list)
+    social_proof: list[str] = Field(default_factory=list)
+
+
+class BundleSibling(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    title: str
+    kind: str
+    state: str
+    url: str | None
+
+
+class BundleReferences(BaseModel):
+    """Stored site evidence; the only source of URLs a generation may use."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    existing_pages: ExistingPagesContext = Field(default_factory=ExistingPagesContext)
+    website: WebsiteCrawlContext = Field(default_factory=WebsiteCrawlContext)
+    internal_linking: InternalLinkingContext = Field(default_factory=InternalLinkingContext)
+
+
+class BundlePitch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    argument_id: UUID | None = None
+    differentiation_pillar: str = ""
+    sub_problem: str = ""
+    capability: str = ""
+    benefit: str = ""
+    problem_summary: str = ""
+    differentiation_summary: str = ""
+
+
+class BundleBudget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    max_tokens: int
+    used_tokens: int
+    truncated_sections: list[str] = Field(default_factory=list)
+
+
+class CardContextBundle(BaseModel):
+    """What exactly the model is given for one ContentCard. Deterministic."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    card: BundleCard
+    rules: BundleRules
+    claims: list[BundleClaim]
+    demand: list[BundleDemand]
+    tone: BundleTone
+    siblings: list[BundleSibling]
+    references: BundleReferences
+    pitch: BundlePitch
+    sources: list[BundleSource]
+    budget: BundleBudget

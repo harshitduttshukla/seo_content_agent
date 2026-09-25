@@ -1,4 +1,18 @@
 import type {
+  BoardCard,
+  BoardFilters,
+  BundleBuildResponse,
+  CardDetail,
+  DraftGenerateResponse,
+  G1DecisionResponse,
+  DraftRevisionResponse,
+  G1Reason,
+  G2Reason,
+  QARunResponse,
+  WarningDismissResponse,
+  OutlineProposal,
+  OutlineSaveResponse,
+  OutlineV3,
   BulkUpdateResponse,
   BrandKit,
   BrandKitDetail,
@@ -16,6 +30,7 @@ import type {
   ClaimEditConfirm,
   ClaimEditConfirmResponse,
   ContentCardStub,
+  ContentHubBoard,
   DemandImportItem,
   DemandImportResponse,
   DemandListResponse,
@@ -160,6 +175,136 @@ export const V3API = {
     /** Lock the Content Hub plan. No body: the server sets the time, once. */
     lock: (scope: V3Scope): Promise<PlanLockState> =>
       clientApi(scopedPath(scope, "/plan/lock"), { method: "POST" }),
+  },
+  contentHub: {
+    board: (scope: V3Scope, filters: BoardFilters = {}): Promise<ContentHubBoard> => {
+      const path = scopedPath(scope, "/content-hub/board");
+      const query = new URLSearchParams(
+        Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1])),
+      );
+      return clientApi(query.size ? `${path}&${query.toString()}` : path);
+    },
+    /** Backlog ↔ Planned only; the server refuses every other move. */
+    moveCard: (
+      scope: V3Scope,
+      cardId: string,
+      targetState: "backlog" | "planned",
+      revision: number,
+    ): Promise<BoardCard> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/move`), {
+        method: "POST",
+        body: JSON.stringify({ target_state: targetState, revision }),
+      }),
+    card: (scope: V3Scope, cardId: string): Promise<CardDetail> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}`)),
+    /** planned → bundled on first build; reuses the stored bundle while it is current. */
+    buildBundle: (scope: V3Scope, cardId: string, revision: number): Promise<BundleBuildResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/bundle`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** A proposal only: the card is not changed until saveOutline. */
+    generateOutline: (scope: V3Scope, cardId: string, model?: string): Promise<OutlineProposal> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline/generate`), {
+        method: "POST",
+        body: JSON.stringify(model ? { model } : {}),
+      }),
+    /** First valid save moves bundled → outlined. 409 when `revision` is stale. */
+    saveOutline: (scope: V3Scope, cardId: string, outline: OutlineV3, revision: number): Promise<OutlineSaveResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline`), {
+        method: "PUT",
+        body: JSON.stringify({ outline, revision }),
+      }),
+    /** G1 pass: outlined → drafting. 409 when checks fail or `revision` is stale. */
+    approveG1: (scope: V3Scope, cardId: string, revision: number): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g1/approve`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** G1 send-back: the card stays outlined; feedback is required. */
+    sendBackG1: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      reason: G1Reason,
+      feedback: string,
+    ): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g1/send-back`), {
+        method: "POST",
+        body: JSON.stringify({ revision, reason, feedback }),
+      }),
+    /** Drafts a G1-approved card from its stored, current bundle; stores only a valid draft. */
+    generateDraft: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      model?: string,
+    ): Promise<DraftGenerateResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/draft/generate`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Deterministic QA, then model QA; drafting/qa_failed → qa_passed | qa_failed. */
+    runQA: (scope: V3Scope, cardId: string, revision: number, model?: string): Promise<QARunResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/qa/run`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Rewrites only the sections the current QA errors point at; qa_failed → drafting. */
+    repairDraft: (scope: V3Scope, cardId: string, revision: number, model?: string): Promise<DraftRevisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/qa/repair`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, model } : { revision }),
+      }),
+    /** Rewrites one section from feedback; every other section is kept; QA becomes stale. */
+    regenerateSection: (
+      scope: V3Scope,
+      cardId: string,
+      sectionId: string,
+      revision: number,
+      feedback: string,
+      model?: string,
+    ): Promise<DraftRevisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/sections/${encodeURIComponent(sectionId)}/regenerate`), {
+        method: "POST",
+        body: JSON.stringify(model ? { revision, feedback, model } : { revision, feedback }),
+      }),
+    /** G2 pass: qa_passed → approved. Nothing is published. */
+    approveG2: (scope: V3Scope, cardId: string, revision: number): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/approve`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** G2 send-back: qa_passed → drafting; feedback is required. */
+    sendBackG2: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      reason: G2Reason,
+      feedback: string,
+    ): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/send-back`), {
+        method: "POST",
+        body: JSON.stringify({ revision, reason, feedback }),
+      }),
+    /** Dismiss one QA warning with a reason (errors cannot be dismissed). */
+    dismissWarning: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      findingId: string,
+      reason: string,
+    ): Promise<WarningDismissResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g2/warning-dismiss`), {
+        method: "POST",
+        body: JSON.stringify({ revision, finding_id: findingId, reason }),
+      }),
+    /** The whole Planned column, top first; returns the refreshed unfiltered board. */
+    reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>
+      clientApi(scopedPath(scope, "/content-hub/planned/order"), {
+        method: "PUT",
+        body: JSON.stringify({ card_ids: cardIds }),
+      }),
   },
   strategyMap: {
     get: (scope: V3Scope): Promise<StrategyMap> => clientApi(scopedPath(scope, "/strategy/map")),

@@ -9,7 +9,7 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
   const navItems = [
     { name: "Strategy", path: `/projects/${projectId}/v3/canvas` },
     { name: "Content Hub", path: `/projects/${projectId}/v3/content-hub` },
-    { name: "Production", path: `/projects/${projectId}/content` },
+    { name: "Production", path: `/projects/${projectId}/v3/production` },
     { name: "Iteration Lab", path: `/projects/${projectId}/content-harness` },
     { name: "Technical SEO", path: `/projects/${projectId}/website` },
   ];

@@ -452,12 +452,3 @@ class PageKeywordList(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     items: list[PageKeywordDetail]
-
-
-class ConvertOpportunityToPageRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: str | None = None
-    slug: str | None = None
-    content_type: PageContentType = PageContentType.GUIDE
-    priority: int | None = None

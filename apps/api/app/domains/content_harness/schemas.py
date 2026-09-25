@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -172,3 +173,55 @@ class EvaluateContentRequest(BaseModel):
     project_id: UUID
     input_data: ContentHarnessInput
     content: HarnessGeneratedContent
+
+
+# V3 outline mode (prompt v3.outline.v1): the same generation contract as the
+# Content Hub, run against a real ContentCard's bundle.
+
+
+class V3OutlineHarnessInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    name: str = Field(default="V3 outline run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+
+
+class V3OutlineEvaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    score: float = Field(ge=0.0, le=100.0)
+    status: str  # PASS / NEEDS IMPROVEMENT
+    findings: list[HarnessFinding] = Field(default_factory=list)
+
+
+class V3DraftHarnessInput(BaseModel):
+    """Run the production draft contract on a card that has a saved outline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    name: str = Field(default="V3 draft run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)
+    temperature: float = Field(default=0.5, ge=0.0, le=2.0)
+
+
+# Same scorecard shape as the outline evaluation (score, status, findings).
+V3DraftEvaluation = V3OutlineEvaluation
+
+
+class V3ProductionHarnessInput(BaseModel):
+    """Run production QA, repair or section regeneration on a drafted card."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    mode: Literal["qa", "repair", "section"]
+    section_id: str | None = Field(default=None, max_length=64)
+    feedback: str | None = Field(default=None, max_length=4000)
+    name: str = Field(default="V3 production run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)

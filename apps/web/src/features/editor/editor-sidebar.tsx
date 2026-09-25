@@ -7,7 +7,6 @@ import type {
   ContentDocumentVersion,
   ChatMessage,
   ChatSession,
-  SEOQualityReport,
   WorkflowDetail,
 } from "@/lib/api-types";
 import { clientApi } from "@/lib/client-api";
@@ -24,7 +23,6 @@ import {
   RotateCcw,
   Send,
   Sparkles,
-  TrendingUp,
   X,
   Zap,
 } from "lucide-react";
@@ -42,7 +40,7 @@ interface EditorSidebarProps {
   lastRejectedProposalId?: string | null;
 }
 
-type SidebarTab = "chat" | "workflows" | "outline" | "seo" | "links" | "history";
+type SidebarTab = "chat" | "workflows" | "outline" | "links" | "history";
 
 function formatDiffContent(content: unknown, isOld: boolean = false): string {
   if (!content) return "";
@@ -190,9 +188,6 @@ export function EditorSidebar({
     }
   };
 
-  // SEO Quality State
-  const [qualityReport, setQualityReport] = useState<SEOQualityReport | null>(null);
-  const [isLoadingQuality, setIsLoadingQuality] = useState(false);
 
   // Versions State
   const [versions, setVersions] = useState<ContentDocumentVersion[]>([]);
@@ -315,24 +310,6 @@ export function EditorSidebar({
       setWorkflowError(msg);
     }
   };
-
-  // Load SEO Quality Report when SEO tab active or document changes
-  useEffect(() => {
-    async function loadQuality() {
-      setIsLoadingQuality(true);
-      try {
-        const report = await clientApi<SEOQualityReport>(
-          `/content-documents/${doc.id}/quality-check`
-        );
-        setQualityReport(report);
-      } catch (err) {
-        console.error("Failed to load SEO quality report:", err);
-      } finally {
-        setIsLoadingQuality(false);
-      }
-    }
-    loadQuality();
-  }, [doc.id, doc.lock_version]);
 
   // Load Versions when History tab active
   useEffect(() => {
@@ -493,23 +470,6 @@ export function EditorSidebar({
           data-testid="tab-outline"
         >
           <ListOrdered className="w-3.5 h-3.5" /> Outline
-        </button>
-
-        <button
-          onClick={() => setActiveTab("seo")}
-          className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-            activeTab === "seo"
-              ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
-              : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-          }`}
-          data-testid="tab-seo"
-        >
-          <TrendingUp className="w-3.5 h-3.5" /> SEO
-          {qualityReport && (
-            <span className="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-bold">
-              {qualityReport.score_percentage}%
-            </span>
-          )}
         </button>
 
         <button
@@ -915,75 +875,6 @@ export function EditorSidebar({
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
               </button>
             ))
-          )}
-        </div>
-      )}
-
-      {/* Tab 3: SEO Quality Checklist */}
-      {activeTab === "seo" && (
-        <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs" data-testid="seo-tab-content">
-          {isLoadingQuality ? (
-            <div className="text-center py-8 text-slate-400">
-              <RotateCcw className="w-5 h-5 animate-spin mx-auto mb-2" />
-              Evaluating SEO quality rules...
-            </div>
-          ) : qualityReport ? (
-            <div className="space-y-4">
-              {/* Score Header */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    Deterministic SEO Score
-                  </p>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                    {qualityReport.score_percentage}%
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[11px] text-slate-400">Word Count Progress</p>
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-0.5">
-                    {qualityReport.word_count.toLocaleString()} / {qualityReport.target_word_count.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Checks List */}
-              <div className="space-y-2">
-                {qualityReport.checks?.map((check, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/40 space-y-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {check.name}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          check.status === "PASS"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                            : check.status === "WARNING"
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
-                            : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
-                        }`}
-                      >
-                        {check.status}
-                      </span>
-                    </div>
-                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                      {check.message}
-                    </p>
-                    {check.recommendation && (
-                      <p className="text-blue-600 dark:text-blue-400 text-[11px] pt-1">
-                        💡 {check.recommendation}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-400 italic">No quality report available.</p>
           )}
         </div>
       )}
