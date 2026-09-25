@@ -17,31 +17,21 @@ export type PageLink = components["schemas"]["PageLinkDetail"];
 export type SEOStrategy = components["schemas"]["StrategyResponse"];
 export type SEOStrategyVersion = components["schemas"]["StrategyVersionResponse"];
 export type StrategyData = components["schemas"]["StrategyDataSchema-Output"];
-export type Keyword = components["schemas"]["KeywordDetail"];
 export type KeywordCluster = components["schemas"]["KeywordClusterDetail"];
 export type KeywordClusterMember = components["schemas"]["KeywordClusterMemberDetail"];
 export type ClusteringRun = components["schemas"]["ClusteringRunResponse"];
 export type KeywordImport = components["schemas"]["KeywordImportResponse"];
-export type ContentPillar = components["schemas"]["ContentPillarDetail"];
-export type Topic = components["schemas"]["TopicDetail"];
 export type KeywordPageMapping = components["schemas"]["KeywordPageMappingDetail"];
 export type CannibalizationWarning = components["schemas"]["CannibalizationWarningDetail"];
-export type ContentOpportunity = components["schemas"]["ContentOpportunityDetail"];
 export type ContentArchitectureGraph = components["schemas"]["ContentArchitectureGraphResponse"];
 
 // Phase 4: Content Map, Planned Pages, SEO Guide, Internal Linking
-export type PlannedContentPage = components["schemas"]["PlannedContentPageDetail"];
-export type PlannedContentPageList = components["schemas"]["PlannedContentPageList"];
-export type PageKeyword = components["schemas"]["PageKeywordDetail"];
 export type ContentMapNode = components["schemas"]["ContentMapNodeDTO"];
 export type ContentMapEdge = components["schemas"]["ContentMapEdgeDTO"];
 export type ContentMapGraph = components["schemas"]["ContentMapGraphResponse"];
 export type ValidationIssue = components["schemas"]["ValidationIssue"];
 export type ContentMapValidation = components["schemas"]["ContentMapValidationResponse"];
 export type ContentArchitectureVersion = components["schemas"]["ContentArchitectureVersionDetail"];
-export type SEOGuide = components["schemas"]["SEOGuideDetail"];
-export type SEOGuideOutlineSection = components["schemas"]["SEOGuideOutlineSection"];
-export type SEOGuideVersion = components["schemas"]["SEOGuideVersionDetail"];
 export type PageRelationship = components["schemas"]["PageRelationshipDetail"];
 export type LinkOpportunity = components["schemas"]["LinkOpportunityDetail"];
 export type InternalLinksSummary = components["schemas"]["InternalLinksSummary"];
@@ -53,59 +43,7 @@ export type ApiEnvelope<T> = {
   errors: ErrorItem[];
 };
 
-// Phase 5: Content Brief & Block Editor
-export type BriefStatus = "DRAFT" | "PROPOSED" | "REVIEW" | "APPROVED" | "ARCHIVED";
-
-export interface InternalLinkTarget {
-  target_page_id?: string | null;
-  title: string;
-  url: string;
-}
-
-export interface ContentBrief {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  website_id?: string | null;
-  page_id: string;
-  seo_guide_id?: string | null;
-  version: number;
-  status: BriefStatus;
-  primary_keyword: string;
-  secondary_keywords: string[];
-  search_intent: string;
-  target_audience: string;
-  business_goal: string;
-  content_type: string;
-  recommended_title: string;
-  recommended_url: string;
-  meta_title: string;
-  meta_description: string;
-  target_word_count: number;
-  required_topics: string[];
-  key_entities: string[];
-  questions_to_answer: string[];
-  internal_link_targets: InternalLinkTarget[];
-  external_source_requirements: string[];
-  content_requirements: string[];
-  brand_requirements: Record<string, unknown>;
-  created_by_id?: string | null;
-  updated_by_id?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ContentBriefVersion {
-  id: string;
-  brief_id: string;
-  organization_id: string;
-  project_id: string;
-  version: number;
-  snapshot_data: Record<string, unknown>;
-  change_summary: string;
-  created_by_id?: string | null;
-  created_at: string;
-}
+// Phase 5: Block Editor
 
 export type BlockType =
   | "DOCUMENT_TITLE"
@@ -205,22 +143,6 @@ export interface ChatSession {
   created_by_id?: string | null;
   created_at: string;
   messages?: ChatMessage[];
-}
-
-export interface QualityCheckItem {
-  name: string;
-  status: "PASS" | "WARNING" | "FAIL";
-  message: string;
-  recommendation: string;
-}
-
-export interface SEOQualityReport {
-  document_id: string;
-  title: string;
-  word_count: number;
-  target_word_count: number;
-  score_percentage: number;
-  checks: QualityCheckItem[];
 }
 
 // Phase 6: AI Orchestrator & Tool/Action Layer
