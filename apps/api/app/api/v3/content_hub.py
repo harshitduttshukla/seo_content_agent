@@ -1,8 +1,9 @@
 """V3 Content Hub plan board routes (handoff §5.1).
 
 Read the board; move a card Backlog ↔ Planned; reorder Planned. Locking the plan
-stays on ``POST /plan/lock``. Card detail and the Bundle → Outline workflow
-(planned → bundled → outlined) live under ``/cards/{card_id}``. No route here
+stays on ``POST /plan/lock``. Card detail and the Bundle → Outline → G1 → Draft
+workflow (planned → bundled → outlined → drafting) live under ``/cards/{card_id}``;
+the detail read carries the review state and the stored draft. No route here
 sets an arbitrary state.
 """
 
@@ -25,6 +26,11 @@ from app.domains.content_cards.workflow_schemas import (
     BundleBuildRequest,
     BundleBuildResponse,
     CardDetail,
+    DraftGenerateRequest,
+    DraftGenerateResponse,
+    G1ApproveRequest,
+    G1DecisionResponse,
+    G1SendBackRequest,
     OutlineGenerateRequest,
     OutlineProposal,
     OutlineSaveRequest,
@@ -150,6 +156,69 @@ async def save_outline(
     actor: CurrentUserDep,
 ) -> ApiResponse[OutlineSaveResponse]:
     result = await CardWorkflowService(session).save_outline(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/g1/approve", response_model=ApiResponse[G1DecisionResponse])
+async def approve_g1(
+    card_id: UUID,
+    payload: G1ApproveRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[G1DecisionResponse]:
+    result = await CardWorkflowService(session).approve_g1(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/g1/send-back", response_model=ApiResponse[G1DecisionResponse])
+async def send_back_g1(
+    card_id: UUID,
+    payload: G1SendBackRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[G1DecisionResponse]:
+    result = await CardWorkflowService(session).send_back_g1(
+        organization_id,
+        project_id,
+        card_id,
+        payload,
+        actor=actor,
+        request_id=request.state.request_id,
+    )
+    return success(request, result)
+
+
+@router.post("/cards/{card_id}/draft/generate", response_model=ApiResponse[DraftGenerateResponse])
+async def generate_draft(
+    card_id: UUID,
+    payload: DraftGenerateRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[DraftGenerateResponse]:
+    result = await CardWorkflowService(session).generate_draft(
         organization_id,
         project_id,
         card_id,

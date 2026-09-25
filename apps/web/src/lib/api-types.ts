@@ -808,7 +808,105 @@ export interface CardDetail {
   context: CardContextBundle;
   claim_options: ClaimOption[];
   checks: CardCheck[];
-  actions: { can_build_bundle: boolean; can_generate_outline: boolean; can_save_outline: boolean };
+  actions: CardActions;
+  review: G1Review;
+  draft: StoredDraft | null;
+  draft_unreadable: boolean;
+  last_draft_run: DraftRunStatus | null;
+}
+
+export interface CardActions {
+  can_build_bundle: boolean;
+  can_generate_outline: boolean;
+  can_save_outline: boolean;
+  can_review_g1: boolean;
+  can_generate_draft: boolean;
+}
+
+// ── V3 G1 review and draft (handoff §5.2-5.3, §6.3) ──────────────────
+// Mirrors content_cards/workflow_schemas.py and content_cards/draft.py.
+
+export type G1Reason = "writer" | "claim" | "tone_rule" | "plan";
+export type G1Status = "not_ready" | "awaiting_review" | "sent_back" | "approved";
+
+export interface GateDecision {
+  id: string;
+  gate: "G1";
+  action: "approve" | "send_back";
+  reviewer_id: string | null;
+  reviewer_name: string | null;
+  decided_at: string;
+  card_revision: number;
+  reason: G1Reason | null;
+  feedback: string | null;
+}
+
+export interface G1Review {
+  status: G1Status;
+  ready: boolean;
+  can_review: boolean;
+  reviewers_restricted: boolean;
+  last_decision: GateDecision | null;
+  history: GateDecision[];
+}
+
+export interface G1DecisionResponse {
+  card: BoardCard;
+  decision: GateDecision;
+}
+
+export interface DraftSection {
+  section_id: string;
+  order: number;
+  heading: string;
+  target_demand_id: string | null;
+  /** Markdown-ish text with inline [CLM:<uuid>] and [NEEDS-CLAIM: …] markers. */
+  body: string;
+  claim_ids: string[];
+  needs_claim: string[];
+  internal_links: { page_id: string; url: string; anchor_text: string }[];
+}
+
+export interface DraftV3 {
+  schema_version: "v3.draft.v1";
+  primary_mode: "keyword" | "prompt";
+  title: string;
+  prompt_target_id: string | null;
+  direct_answer: string | null;
+  sections: DraftSection[];
+}
+
+export interface StoredDraft {
+  version: number;
+  draft: DraftV3;
+  unresolved: { section_id: string; text: string }[];
+  job_run_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  bundle_ref: string;
+  bundle_hash: string;
+  source_revision: number;
+  generated_at: string;
+  generated_by: string;
+}
+
+export interface DraftRunStatus {
+  job_run_id: string;
+  status: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  attempts: number;
+  error: string | null;
+  issues: { code: string; message: string; section_id: string | null; ref: string | null }[];
+  created_at: string;
+  stored: boolean;
+}
+
+export interface DraftGenerateResponse {
+  card: BoardCard;
+  draft: StoredDraft;
 }
 
 export interface BundleBuildResponse {

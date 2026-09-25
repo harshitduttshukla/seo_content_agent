@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { CardCheck, CardDetail, OutlineV3 } from "@/lib/api-types";
+import type { CardCheck, CardDetail, G1Reason, OutlineV3 } from "@/lib/api-types";
 import { ApiError } from "@/lib/client-api";
 import { V3API, type V3Scope } from "@/lib/v3-api";
 
+import { DraftView } from "./draft-view";
+import { G1ReviewPanel, G1StatusChip, decisionLine, formatWhen } from "./g1-review";
 import { OutlineEditor, blankOutline, type PageOption } from "./outline-editor";
 
 const CONFLICT_MESSAGE = "Your version is out of date. Reload before saving.";
+
+type Busy = "bundle" | "generate" | "save" | "approve" | "sendback" | "draft";
 const btn =
   "rounded-[5px] border border-[var(--line)] bg-white px-[10px] py-[4px] text-[12.5px] text-[#12171A] hover:bg-[#F0F2F1] focus-visible:outline-2 focus-visible:outline-[var(--teal)] disabled:opacity-50";
 const btnPrimary =
@@ -26,6 +30,11 @@ function describe(error: unknown, fallback: string): { message: string; issues: 
   if (error instanceof ApiError) {
     if (error.code === "VERSION_CONFLICT") return { message: CONFLICT_MESSAGE, issues: [] };
     const issues = Array.isArray(error.details?.issues) ? (error.details.issues as Issue[]) : [];
+    // G1_CHECKS_FAILED lists the failing checks instead of outline issues.
+    const checks = Array.isArray(error.details?.checks) ? (error.details.checks as CardCheck[]) : [];
+    for (const check of checks) {
+      issues.push({ code: check.key, message: check.detail ? `${check.label}: ${check.detail}` : check.label });
+    }
     return { message: error.message || fallback, issues };
   }
   return { message: error instanceof Error && error.message ? error.message : fallback, issues: [] };
@@ -127,10 +136,16 @@ const CHECK_TONE: Record<CardCheck["status"], string> = {
   not_applicable: "text-[var(--ink3)]",
 };
 
-function ChecksPane({ detail }: { detail: CardDetail }) {
+interface GateHandlers {
+  busy: boolean;
+  onApprove: () => Promise<boolean>;
+  onSendBack: (reason: G1Reason, feedback: string) => Promise<boolean>;
+}
+
+function ChecksPane({ detail, gate }: { detail: CardDetail; gate: GateHandlers }) {
   const failing = detail.checks.filter((c) => c.status === "fail").length;
   return (
-    <Pane title="Checks and status" chip={<span className={`chip ${failing ? "c" : "t"}`}>{failing ? `${failing} failing` : "all passing"}</span>}>
+    <Pane title="Checks and gate" chip={<span className={`chip ${failing ? "c" : "t"}`}>{failing ? `${failing} failing` : "all passing"}</span>}>
       <ul className="m-0 list-none p-0 text-[12.6px]" aria-label="Checks">
         {detail.checks.map((check) => (
           <li key={check.key} className="mb-[6px]" data-status={check.status}>
@@ -141,6 +156,7 @@ function ChecksPane({ detail }: { detail: CardDetail }) {
           </li>
         ))}
       </ul>
+      <G1ReviewPanel detail={detail} busy={gate.busy} onApprove={gate.onApprove} onSendBack={gate.onSendBack} />
       <div className="mt-[10px] border-t border-[var(--line2)] pt-[10px] text-[11.5px] text-[var(--ink3)]">
         State · {detail.card.state}
         {detail.bundle ? (
@@ -148,7 +164,7 @@ function ChecksPane({ detail }: { detail: CardDetail }) {
             <br />Bundle {detail.bundle.content_hash.slice(0, 10)} · {new Date(detail.bundle.built_at).toLocaleString("en-GB")}
           </>
         ) : null}
-        <br />QA and gates arrive in the next production phase.
+        <br />QA and G2 arrive in a later production phase.
       </div>
     </Pane>
   );
@@ -159,7 +175,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<OutlineV3 | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState<"bundle" | "generate" | "save" | null>(null);
+  const [busy, setBusy] = useState<Busy | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; issues: Issue[] } | null>(null);
   const seq = useRef(0);
@@ -192,14 +208,16 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
     apply(await V3API.contentHub.card(scope, cardId));
   }, [apply, scope, cardId]);
 
-  const run = async (kind: "bundle" | "generate" | "save", action: () => Promise<void>, fallback: string) => {
+  const run = async (kind: Busy, action: () => Promise<void>, fallback: string): Promise<boolean> => {
     setBusy(kind);
     setError(null);
     setNotice(null);
     try {
       await action();
+      return true;
     } catch (cause) {
       setError(describe(cause, fallback));
+      return false;
     } finally {
       setBusy(null);
     }
@@ -225,7 +243,23 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
     return <p aria-label="Loading the card" className="h-[320px] animate-pulse rounded-[8px] bg-[#EDF0EF]" />;
   }
 
-  const { card, actions, context } = detail;
+  const { card, actions, context, review } = detail;
+  const gate: GateHandlers = {
+    busy: busy === "approve" || busy === "sendback",
+    onApprove: () =>
+      run("approve", async () => {
+        await V3API.contentHub.approveG1(scope, cardId, card.revision);
+        await reload();
+        setNotice("Outline approved at G1. Drafting can start.");
+      }, "The outline could not be approved."),
+    onSendBack: (reason, feedback) =>
+      run("sendback", async () => {
+        await V3API.contentHub.sendBackG1(scope, cardId, card.revision, reason, feedback);
+        await reload();
+        setNotice("Outline sent back with feedback.");
+      }, "The outline could not be sent back."),
+  };
+  const lastSendBack = review.last_decision?.action === "send_back" ? review.last_decision : null;
   const promptId = context.demand.find((d) => d.role === "prompt")?.id ?? null;
   const primary = context.demand.find((d) => d.role === "primary") ?? context.demand.find((d) => d.role === "prompt");
 
@@ -240,6 +274,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
           </div>
         </div>
         <span className="chip c" data-testid="card-state">{card.state}</span>
+        <G1StatusChip status={review.status} />
         {card.argument ? <span className="chip t">{card.argument.name}</span> : null}
         {primary ? (
           <span className="chip r">
@@ -282,13 +317,15 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
         <ContextPane detail={detail} />
 
         <section aria-label="Document" className="min-w-0 rounded-[8px] border border-[var(--line)] bg-white">
-          <Tabs defaultValue="outline">
+          <Tabs defaultValue={card.state === "drafting" ? "draft" : "outline"}>
             <header className="flex flex-wrap items-center gap-[8px] border-b border-[var(--line2)] px-[13px] py-[6px]">
               <TabsList variant="line" className="justify-start rounded-none bg-transparent p-0">
                 <TabsTrigger value="outline">Outline</TabsTrigger>
                 <TabsTrigger value="draft">Draft</TabsTrigger>
               </TabsList>
               <span className="ml-auto flex gap-[6px]">
+                {card.state !== "drafting" ? (
+                <>
                 <button type="button" className={btn} disabled={!actions.can_generate_outline || busy !== null}
                   title={actions.can_generate_outline ? "" : "Needs a current bundle"}
                   onClick={() => run("generate", async () => {
@@ -308,9 +345,40 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
                   }, "The outline could not be saved.")}>
                   {busy === "save" ? "Saving…" : "Save outline"}
                 </button>
+                </>
+                ) : null}
+                {card.state === "drafting" ? (
+                  <button type="button" className={btnPrimary} disabled={!actions.can_generate_draft || busy !== null}
+                    title={actions.can_generate_draft ? "" : "Needs a current bundle"}
+                    onClick={() => run("draft", async () => {
+                      try {
+                        const result = await V3API.contentHub.generateDraft(scope, cardId, card.revision);
+                        await reload();
+                        setNotice(`Draft v${result.draft.version} stored from ${result.draft.model} (${result.draft.prompt_version}).`);
+                      } catch (cause) {
+                        // The failed run is recorded server-side; show it alongside the error.
+                        await reload().catch(() => undefined);
+                        throw cause;
+                      }
+                    }, "The draft could not be generated.")}>
+                    {busy === "draft" ? "Generating draft…" : detail.draft ? "Regenerate draft" : "Generate draft"}
+                  </button>
+                ) : null}
               </span>
             </header>
             <TabsContent value="outline" className="p-[13px]">
+              {review.status === "approved" && review.last_decision?.action === "approve" ? (
+                <div className="mb-[10px] rounded-[6px] bg-[#E6F2F1] px-[9px] py-[7px] text-[12.4px]" role="note">
+                  <b>Approved at G1 on {formatWhen(review.last_decision.decided_at)}.</b> The draft may not introduce a claim absent from
+                  this outline.
+                </div>
+              ) : null}
+              {card.state === "outlined" && lastSendBack ? (
+                <div className="mb-[10px] rounded-[6px] bg-[#FBEFEC] px-[9px] py-[7px] text-[12.4px]" role="note" data-testid="sent-back-banner">
+                  <div className="text-[11.5px] text-[var(--ink3)]">{decisionLine(lastSendBack)}</div>
+                  <p className="m-[3px_0_0] whitespace-pre-wrap">{lastSendBack.feedback}</p>
+                </div>
+              ) : null}
               {detail.outline_unreadable ? (
                 <p className="mb-[10px] text-[12.6px] text-[var(--coral)]">The stored outline no longer matches the V3 outline schema.</p>
               ) : null}
@@ -344,12 +412,28 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
               )}
             </TabsContent>
             <TabsContent value="draft" className="p-[13px]">
-              <p className="m-0 text-[12.8px] text-[var(--ink3)]">Draft generation will be available in the next production phase.</p>
+              {busy === "draft" ? (
+                <p aria-busy="true" className="m-[0_0_10px] text-[12.8px] text-[var(--teal)]">
+                  Generating the draft from the stored bundle and the approved outline…
+                </p>
+              ) : null}
+              {card.state === "drafting" || detail.draft ? (
+                <>
+                  {card.state === "drafting" && !actions.can_generate_draft ? (
+                    <p className="m-[0_0_10px] text-[12.6px] text-[var(--coral)]">
+                      The bundle is out of date. Rebuild it before drafting.
+                    </p>
+                  ) : null}
+                  <DraftView draft={detail.draft} unreadable={detail.draft_unreadable} lastRun={detail.last_draft_run} claims={detail.claim_options} />
+                </>
+              ) : (
+                <p className="m-0 text-[12.8px] text-[var(--ink3)]">Drafting starts after the outline passes G1.</p>
+              )}
             </TabsContent>
           </Tabs>
         </section>
 
-        <ChecksPane detail={detail} />
+        <ChecksPane detail={detail} gate={gate} />
       </div>
     </section>
   );

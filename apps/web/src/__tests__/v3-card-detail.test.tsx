@@ -15,6 +15,9 @@ vi.mock("@/lib/v3-api", () => ({
       buildBundle: vi.fn(),
       generateOutline: vi.fn(),
       saveOutline: vi.fn(),
+      approveG1: vi.fn(),
+      sendBackG1: vi.fn(),
+      generateDraft: vi.fn(),
       moveCard: vi.fn(),
       reorderPlanned: vi.fn(),
     },
@@ -104,7 +107,11 @@ function detail(overrides: Partial<CardDetail> = {}): CardDetail {
       { key: "bundle_current", label: "Bundle is current", status: "pass", detail: "" },
       { key: "outline_exists", label: "Outline exists", status: "fail", detail: "" },
     ],
-    actions: { can_build_bundle: true, can_generate_outline: true, can_save_outline: true },
+    actions: { can_build_bundle: true, can_generate_outline: true, can_save_outline: true, can_review_g1: false, can_generate_draft: false },
+    review: { status: "not_ready", ready: false, can_review: true, reviewers_restricted: false, last_decision: null, history: [] },
+    draft: null,
+    draft_unreadable: false,
+    last_draft_run: null,
     ...overrides,
   };
 }
@@ -112,7 +119,7 @@ function detail(overrides: Partial<CardDetail> = {}): CardDetail {
 async function renderDetail(data: CardDetail) {
   vi.mocked(V3API.contentHub.card).mockResolvedValue(data);
   render(<CardDetailView scope={scope} cardId="card-1" />);
-  await screen.findByRole("heading", { name: face.title });
+  await screen.findByRole("heading", { name: face.title, level: 1 });
 }
 
 const section = (n: number) => screen.getByRole("region", { name: `Section ${n}` });
@@ -147,14 +154,15 @@ describe("V3 card detail", () => {
     expect(within(checks).getAllByRole("listitem").map((li) => li.getAttribute("data-status"))).toEqual(["pass", "pass", "fail"]);
   });
 
-  it("shows the Draft tab as not yet available", async () => {
+  it("explains that drafting starts after G1", async () => {
     await renderDetail(detail());
     fireEvent.click(screen.getByRole("tab", { name: "Draft" }));
-    expect(await screen.findByText("Draft generation will be available in the next production phase.")).toBeInTheDocument();
+    expect(await screen.findByText("Drafting starts after the outline passes G1.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Generate draft/ })).not.toBeInTheDocument();
   });
 
   it("builds the bundle with the card revision and reloads", async () => {
-    await renderDetail(detail({ bundle: null, actions: { can_build_bundle: true, can_generate_outline: false, can_save_outline: false } }));
+    await renderDetail(detail({ bundle: null, actions: { can_build_bundle: true, can_generate_outline: false, can_save_outline: false, can_review_g1: false, can_generate_draft: false } }));
     expect(screen.getByRole("button", { name: "Generate outline" })).toBeDisabled();
     vi.mocked(V3API.contentHub.buildBundle).mockResolvedValue({ card: face, bundle: detail().bundle!, reused: false });
 
@@ -286,5 +294,216 @@ describe("V3 card detail", () => {
     });
     render(<PlanBoard scope={scope} />);
     expect(await screen.findByRole("link", { name: face.title })).toHaveAttribute("href", "/projects/project-1/v3/content-hub/card-1");
+  });
+});
+
+// ── Phase 3: G1 review and draft ─────────────────────────────────────
+
+const outlinedFace = { ...face, state: "outlined" as const, column: "outline" as const, revision: 5 };
+const passingChecks = detail().checks.map((c) => ({ ...c, status: "pass" as const }));
+
+function g1Detail(overrides: Partial<CardDetail> = {}): CardDetail {
+  return detail({
+    card: outlinedFace,
+    outline,
+    checks: passingChecks,
+    actions: { can_build_bundle: true, can_generate_outline: true, can_save_outline: true, can_review_g1: true, can_generate_draft: false },
+    review: { status: "awaiting_review", ready: true, can_review: true, reviewers_restricted: false, last_decision: null, history: [] },
+    ...overrides,
+  });
+}
+
+const sentBack = {
+  id: "gate-1", gate: "G1" as const, action: "send_back" as const, reviewer_id: "user-9", reviewer_name: "Priya",
+  decided_at: "2026-09-25T09:00:00Z", card_revision: 4, reason: "claim" as const, feedback: "Section one needs the duty claim.",
+};
+
+const storedDraft = {
+  version: 2,
+  draft: {
+    schema_version: "v3.draft.v1" as const, primary_mode: "keyword" as const, title: "Landed cost calculation",
+    prompt_target_id: null, direct_answer: null,
+    sections: [{
+      section_id: "s1", order: 1, heading: "What landed cost includes", target_demand_id: "dem-1",
+      body: "Duty is charged per item [CLM:11111111-2222-3333-4444-555555555555]. See [the guide](https://site.test/duties).\n\n[NEEDS-CLAIM: refund reduction figure]",
+      claim_ids: ["11111111-2222-3333-4444-555555555555"], needs_claim: ["refund reduction figure"],
+      internal_links: [{ page_id: "page-1", url: "https://site.test/duties", anchor_text: "" }],
+    }],
+  },
+  unresolved: [{ section_id: "s1", text: "refund reduction figure" }],
+  job_run_id: "job-9", prompt_version: "v3.draft.v1", provider: "gemini", model: "gemini-flash", bundle_ref: "run-1",
+  bundle_hash: "abc", source_revision: 6, generated_at: "2026-09-25T10:00:00Z", generated_by: "user-1",
+};
+
+const draftingFace = { ...face, state: "drafting" as const, column: "draft" as const, revision: 7 };
+
+function draftingDetail(overrides: Partial<CardDetail> = {}): CardDetail {
+  return g1Detail({
+    card: draftingFace,
+    actions: { can_build_bundle: true, can_generate_outline: false, can_save_outline: false, can_review_g1: false, can_generate_draft: true },
+    review: {
+      status: "approved", ready: true, can_review: true, reviewers_restricted: false,
+      last_decision: { ...sentBack, id: "gate-2", action: "approve", reason: null, feedback: null, card_revision: 5 },
+      history: [],
+    },
+    ...overrides,
+  });
+}
+
+describe("V3 G1 review and draft", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("shows the G1 review state and approves only after confirmation, with the revision", async () => {
+    await renderDetail(g1Detail());
+    expect(screen.getAllByTestId("g1-status")[0]).toHaveTextContent("G1 review");
+    vi.mocked(V3API.contentHub.approveG1).mockResolvedValue({ card: draftingFace, decision: sentBack });
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(V3API.contentHub.approveG1).not.toHaveBeenCalled();
+    const confirm = screen.getByRole("group", { name: "Confirm G1 approval" });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Confirm approval" }));
+
+    await waitFor(() => expect(V3API.contentHub.approveG1).toHaveBeenCalledWith(scope, "card-1", 5));
+    expect(await screen.findByText("Outline approved at G1. Drafting can start.")).toBeInTheDocument();
+    expect(V3API.contentHub.card).toHaveBeenCalledTimes(2);
+  });
+
+  it("requires feedback to send back and sends the typed reason", async () => {
+    await renderDetail(g1Detail());
+    vi.mocked(V3API.contentHub.sendBackG1).mockResolvedValue({ card: outlinedFace, decision: sentBack });
+    fireEvent.click(screen.getByRole("button", { name: "Send back" }));
+    const form = screen.getByRole("form", { name: "Send back to outline" });
+    const submit = within(form).getByRole("button", { name: "Send back to outline" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(within(form).getByLabelText("This is about"), { target: { value: "claim" } });
+    fireEvent.change(within(form).getByLabelText("Reason · required"), { target: { value: "  Needs the duty claim.  " } });
+    fireEvent.click(submit);
+    await waitFor(() =>
+      expect(V3API.contentHub.sendBackG1).toHaveBeenCalledWith(scope, "card-1", 5, "claim", "Needs the duty claim."),
+    );
+    expect(await screen.findByText("Outline sent back with feedback.")).toBeInTheDocument();
+  });
+
+  it("shows sent-back feedback on the outline and keeps it editable", async () => {
+    await renderDetail(g1Detail({
+      review: { status: "sent_back", ready: true, can_review: true, reviewers_restricted: false, last_decision: sentBack, history: [sentBack] },
+    }));
+    expect(screen.getAllByTestId("g1-status")[0]).toHaveTextContent("Sent back");
+    const banner = screen.getByTestId("sent-back-banner");
+    expect(banner).toHaveTextContent("Section one needs the duty claim.");
+    expect(banner).toHaveTextContent("G1 sent back by Priya");
+    expect(screen.getByLabelText("Section 1 heading")).toBeEnabled();
+  });
+
+  it("keeps Approve disabled while a check fails and explains why", async () => {
+    await renderDetail(g1Detail({
+      checks: [{ key: "bundle_current", label: "Bundle is current", status: "fail", detail: "Sources changed; rebuild." }],
+      actions: { can_build_bundle: true, can_generate_outline: false, can_save_outline: true, can_review_g1: false, can_generate_draft: false },
+      review: { status: "not_ready", ready: false, can_review: true, reviewers_restricted: false, last_decision: null, history: [] },
+    }));
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByText("Approve enables when every check above passes.")).toBeInTheDocument();
+  });
+
+  it("shows no gate controls to users who cannot review", async () => {
+    await renderDetail(g1Detail({
+      review: { status: "awaiting_review", ready: true, can_review: false, reviewers_restricted: true, last_decision: null, history: [] },
+      actions: { can_build_bundle: true, can_generate_outline: true, can_save_outline: true, can_review_g1: false, can_generate_draft: false },
+    }));
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send back" })).not.toBeInTheDocument();
+    expect(screen.getByText("Only the named G1 reviewers for this project can decide.")).toBeInTheDocument();
+  });
+
+  it("reports a G1 revision conflict and a failing-check refusal", async () => {
+    await renderDetail(g1Detail());
+    vi.mocked(V3API.contentHub.approveG1).mockRejectedValueOnce(
+      new ApiError("stale", "VERSION_CONFLICT", "r", 409, null, { current_revision: 6 }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm approval" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your version is out of date. Reload before saving.");
+
+    vi.mocked(V3API.contentHub.approveG1).mockRejectedValueOnce(
+      new ApiError("The outline cannot pass G1 until every check passes.", "G1_CHECKS_FAILED", "r", 409, null, {
+        checks: [{ key: "claims_resolve", label: "Claim IDs resolve", status: "fail", detail: "s1 claim is not current" }],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Confirm approval" }));
+    const alert = await screen.findByText(/cannot pass G1/);
+    expect(alert.closest("[role=alert]")).toHaveTextContent("Claim IDs resolve: s1 claim is not current");
+  });
+
+  it("opens drafting cards on the Draft tab, locks the outline and generates with the revision", async () => {
+    await renderDetail(draftingDetail());
+    expect(screen.queryByText("Drafting starts after the outline passes G1.")).not.toBeInTheDocument();
+    expect(screen.getByText("No draft yet.")).toBeInTheDocument();
+    expect(screen.getAllByTestId("g1-status")[0]).toHaveTextContent("G1 approved");
+    for (const name of ["Generate outline", "Save outline"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+    let resolve!: (value: Awaited<ReturnType<typeof V3API.contentHub.generateDraft>>) => void;
+    vi.mocked(V3API.contentHub.generateDraft).mockReturnValue(new Promise((r) => (resolve = r)));
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
+    expect(await screen.findByText(/Generating the draft from the stored bundle/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generating draft…" })).toBeDisabled();
+    expect(V3API.contentHub.generateDraft).toHaveBeenCalledWith(scope, "card-1", 7);
+    resolve({ card: { ...draftingFace, revision: 8 }, draft: storedDraft });
+    expect(await screen.findByText(/Draft v2 stored from gemini-flash/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Outline" }));
+    expect(await screen.findByText(/Approved at G1 on/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Section 1 heading")).toBeDisabled();
+  });
+
+  it("renders the draft with claim markers, links and unresolved claim needs", async () => {
+    await renderDetail(draftingDetail({
+      draft: storedDraft,
+      claim_options: [{ id: "11111111-2222-3333-4444-555555555555", text: "Duty per HS code", evidence: "", row: "pillar", argument_id: null, argument_name: null, version: 3, approved: true }],
+    }));
+    const article = screen.getByRole("article", { name: "Draft" });
+    expect(within(article).getByRole("heading", { name: "What landed cost includes" })).toBeInTheDocument();
+    const marker = within(article).getByTestId("claim-marker");
+    expect(marker).toHaveTextContent("[CLM-11111111]");
+    expect(marker).toHaveAttribute("title", "Duty per HS code · v3 approved");
+    expect(within(article).getByRole("link", { name: "the guide" })).toHaveAttribute("href", "https://site.test/duties");
+    expect(within(article).getByTestId("needs-claim-marker")).toHaveTextContent("[NEEDS-CLAIM: refund reduction figure]");
+    expect(within(article).getByTestId("unresolved")).toHaveTextContent("s1: refund reduction figure");
+    expect(screen.getByRole("button", { name: "Regenerate draft" })).toBeEnabled();
+  });
+
+  it("shows a generation failure and keeps the previous draft", async () => {
+    await renderDetail(draftingDetail({
+      draft: storedDraft,
+      last_draft_run: {
+        job_run_id: "job-10", status: "failed", prompt_version: "v3.draft.v1", provider: "gemini", model: "gemini-flash",
+        attempts: 2, error: "CLAIM_NOT_IN_OUTLINE", issues: [], created_at: "2026-09-25T11:00:00Z", stored: false,
+      },
+    }));
+    expect(screen.getByRole("status")).toHaveTextContent("was not stored: CLAIM_NOT_IN_OUTLINE. The previous draft is unchanged.");
+    expect(screen.getByRole("article", { name: "Draft" })).toBeInTheDocument();
+
+    vi.mocked(V3API.contentHub.generateDraft).mockRejectedValue(
+      new ApiError("The generated draft was rejected and not saved.", "DRAFT_INVALID", "r", 422, null, {
+        issues: [{ code: "INVENTED_URL", message: "links only to stored project pages", section_id: "s1" }],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Regenerate draft" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The generated draft was rejected and not saved.");
+    expect(alert).toHaveTextContent("s1: links only to stored project pages");
+    await waitFor(() => expect(V3API.contentHub.card).toHaveBeenCalledTimes(2)); // failed run reloaded
+  });
+
+  it("blocks drafting on a stale bundle and shows no QA, G2 or publish controls", async () => {
+    await renderDetail(draftingDetail({
+      actions: { can_build_bundle: true, can_generate_outline: false, can_save_outline: false, can_review_g1: false, can_generate_draft: false },
+    }));
+    expect(screen.getByRole("button", { name: "Generate draft" })).toBeDisabled();
+    expect(screen.getByText("The bundle is out of date. Rebuild it before drafting.")).toBeInTheDocument();
+    for (const name of [/publish/i, /^qa/i, /G2/, /export/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
   });
 });

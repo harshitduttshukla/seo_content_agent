@@ -194,3 +194,19 @@ class V3OutlineEvaluation(BaseModel):
     score: float = Field(ge=0.0, le=100.0)
     status: str  # PASS / NEEDS IMPROVEMENT
     findings: list[HarnessFinding] = Field(default_factory=list)
+
+
+class V3DraftHarnessInput(BaseModel):
+    """Run the production draft contract on a card that has a saved outline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: UUID
+    card_id: UUID
+    name: str = Field(default="V3 draft run", max_length=200)
+    model: str | None = Field(default=None, max_length=128)
+    temperature: float = Field(default=0.5, ge=0.0, le=2.0)
+
+
+# Same scorecard shape as the outline evaluation (score, status, findings).
+V3DraftEvaluation = V3OutlineEvaluation

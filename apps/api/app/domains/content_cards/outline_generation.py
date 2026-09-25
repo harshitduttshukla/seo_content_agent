@@ -70,7 +70,7 @@ def build_outline_messages(bundle: CardContextBundle) -> list[AIMessage]:
     ]
 
 
-def _strip_fence(text: str) -> str:
+def strip_code_fence(text: str) -> str:
     clean = text.strip()
     if clean.startswith("```"):
         lines = clean.splitlines()[1:]
@@ -83,7 +83,7 @@ def _strip_fence(text: str) -> str:
 def parse_outline(text: str, refs: ReferenceSet) -> tuple[OutlineV3 | None, list[OutlineIssue]]:
     """Parse, schema-validate and reference-check model text. Pure."""
     try:
-        raw = json.loads(_strip_fence(text))
+        raw = json.loads(strip_code_fence(text))
     except json.JSONDecodeError as exc:
         return None, [OutlineIssue(code="MALFORMED_JSON", message=str(exc))]
     try:

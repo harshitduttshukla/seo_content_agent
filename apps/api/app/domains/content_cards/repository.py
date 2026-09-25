@@ -11,7 +11,7 @@ from app.domains.content_cards.schemas import BoardFilters
 from app.domains.demand.models import DemandNode
 from app.domains.job_runs.models import JobRun
 from app.domains.users.models import User
-from sqlalchemy import func, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -267,6 +267,9 @@ class ContentCardRepository:
                 ContentCard.id == card_id,
             )
             .with_for_update()
+            # Sessions keep objects across commits (expire_on_commit=False); refresh
+            # from the locked row so revision checks never read a stale copy.
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
@@ -311,6 +314,56 @@ class ContentCardRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def list_card_job_runs(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        card_id: UUID,
+        job_type: str,
+        limit: int,
+    ) -> list[JobRun]:
+        """A card's job runs of one type, newest first."""
+        result = await self._session.execute(
+            select(JobRun)
+            .where(
+                JobRun.organization_id == organization_id,
+                JobRun.project_id == project_id,
+                JobRun.entity_type == "content_card",
+                JobRun.entity_id == card_id,
+                JobRun.job_type == job_type,
+            )
+            .order_by(desc(JobRun.created_at), desc(JobRun.id))
+            .limit(limit)
+        )
+        return list(result.scalars())
+
+    async def get_current_claims(
+        self, organization_id: UUID, project_id: UUID, claim_ids: set[UUID]
+    ) -> list[Claim]:
+        """Approved, not superseded claims of this project among ``claim_ids``."""
+        if not claim_ids:
+            return []
+        result = await self._session.execute(
+            select(Claim)
+            .where(
+                Claim.organization_id == organization_id,
+                Claim.project_id == project_id,
+                Claim.id.in_(claim_ids),
+                Claim.approved.is_(True),
+                Claim.superseded_by.is_(None),
+            )
+            .order_by(Claim.id)
+        )
+        return list(result.scalars())
+
+    async def get_user_names(self, user_ids: set[UUID]) -> dict[UUID, str]:
+        if not user_ids:
+            return {}
+        result = await self._session.execute(
+            select(User.id, User.display_name).where(User.id.in_(user_ids))
+        )
+        return dict(result.tuples().all())
 
     async def list_current_claim_options(
         self, organization_id: UUID, project_id: UUID, limit: int

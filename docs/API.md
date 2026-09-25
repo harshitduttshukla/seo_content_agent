@@ -126,6 +126,22 @@ The V3 strategy workspace currently exposes its canvas slice under `/api/v3`:
 | `POST /canvases/{canvas_id}/arguments?organization_id={organization_id}&project_id={project_id}` | `ArgumentCreateRequest` -> `CanvasFullResponse` | `strategy.write`; adds the next ordered argument and claims for supplied cells |
 | `POST /canvases/{canvas_id}/claims?organization_id={organization_id}&project_id={project_id}` | `CanvasClaimCreateRequest` -> `CanvasFullResponse` | `strategy.write`; creates an unapproved v1 claim for a blank summary or argument cell |
 
+### V3 Content Hub card workflow
+
+All paths are under `/api/v3/content-hub` and take `organization_id` and `project_id` query parameters. Mutations carry the card `revision` and return `409 VERSION_CONFLICT` when it is stale. States change only through the V3 state machine: `planned → bundled → outlined → [G1] → drafting`.
+
+| Method/path | Input -> output | Permission / notes |
+|---|---|---|
+| `GET /cards/{card_id}` | -> `CardDetail` | `content.read`; context, stored bundle status, outline, checks, G1 review state and history, stored draft and the latest draft run |
+| `POST /cards/{card_id}/bundle` | `BundleBuildRequest` -> `BundleBuildResponse` | `content.write`; planned → bundled; reuses a current bundle; allowed in drafting so a stale bundle can be rebuilt |
+| `POST /cards/{card_id}/outline/generate` | `OutlineGenerateRequest` -> `OutlineProposal` | `content.write` + `ai.use`; prompt `v3.outline.v1`; proposal only |
+| `PUT /cards/{card_id}/outline` | `OutlineSaveRequest` -> `OutlineSaveResponse` | `content.write`; bundled/outlined only; adds (never removes) card citations |
+| `POST /cards/{card_id}/g1/approve` | `G1ApproveRequest` -> `G1DecisionResponse` | `content.review`, narrowed by `workspace_config.reviewers.G1` when set; outlined → drafting only when every check passes (`409 G1_CHECKS_FAILED`); records a `v3_gate_decision` JobRun and `content_card.g1_approved` audit event |
+| `POST /cards/{card_id}/g1/send-back` | `G1SendBackRequest` (reason + required feedback) -> `G1DecisionResponse` | `content.review` as above; the card stays outlined; feedback is stored on the gate JobRun and shown in the detail |
+| `POST /cards/{card_id}/draft/generate` | `DraftGenerateRequest` -> `DraftGenerateResponse` | `content.write` + `ai.use`; drafting only (`409 G1_APPROVAL_REQUIRED`); stored bundle must be current (`409 BUNDLE_STALE`); prompt `v3.draft.v1`; only a validated draft is stored (`422 DRAFT_INVALID`, `502 AI_PROVIDER_ERROR` otherwise); every attempt is a `v3_draft_generation` JobRun |
+
+The Content Harness runs the same outline and draft contracts without changing the card: `POST /api/v1/content-harness/v3-outline-runs` and `POST /api/v1/content-harness/v3-draft-runs` (`ai.use`).
+
 ### Keywords and content architecture
 
 | Method/path | Input -> output | Permission / notes |

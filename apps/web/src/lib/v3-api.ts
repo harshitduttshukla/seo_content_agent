@@ -3,6 +3,9 @@ import type {
   BoardFilters,
   BundleBuildResponse,
   CardDetail,
+  DraftGenerateResponse,
+  G1DecisionResponse,
+  G1Reason,
   OutlineProposal,
   OutlineSaveResponse,
   OutlineV3,
@@ -207,6 +210,30 @@ export const V3API = {
       clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/outline`), {
         method: "PUT",
         body: JSON.stringify({ outline, revision }),
+      }),
+    /** G1 pass: outlined → drafting. 409 when checks fail or `revision` is stale. */
+    approveG1: (scope: V3Scope, cardId: string, revision: number): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g1/approve`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
+      }),
+    /** G1 send-back: the card stays outlined; feedback is required. */
+    sendBackG1: (
+      scope: V3Scope,
+      cardId: string,
+      revision: number,
+      reason: G1Reason,
+      feedback: string,
+    ): Promise<G1DecisionResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/g1/send-back`), {
+        method: "POST",
+        body: JSON.stringify({ revision, reason, feedback }),
+      }),
+    /** Drafts a G1-approved card from its stored, current bundle; stores only a valid draft. */
+    generateDraft: (scope: V3Scope, cardId: string, revision: number): Promise<DraftGenerateResponse> =>
+      clientApi(scopedPath(scope, `/content-hub/cards/${cardId}/draft/generate`), {
+        method: "POST",
+        body: JSON.stringify({ revision }),
       }),
     /** The whole Planned column, top first; returns the refreshed unfiltered board. */
     reorderPlanned: (scope: V3Scope, cardIds: string[]): Promise<ContentHubBoard> =>
