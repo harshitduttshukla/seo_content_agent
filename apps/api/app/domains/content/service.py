@@ -18,11 +18,9 @@ from app.domains.content.models import (
     MappingType,
     OpportunityAction,
     OpportunityStatus,
-    PageContentType,
     PageKeyword,
     PageType,
     PlannedContentPage,
-    PlannedPageStatus,
 )
 from app.domains.content.repository import ContentRepository
 from app.domains.content.schemas import (
@@ -40,7 +38,6 @@ from app.domains.content.schemas import (
     ContentPillarDetail,
     ContentPillarList,
     ContentPillarUpdate,
-    ConvertOpportunityToPageRequest,
     GraphNodeData,
     KeywordPageMappingDetail,
     KeywordPageMappingList,
@@ -1248,27 +1245,6 @@ class ContentService:
             items = [await self._to_planned_page_detail(session, p) for p in pages]
             return PlannedContentPageList(items=items, total=len(items))
 
-    async def get_planned_page(
-        self,
-        session: AsyncSession,
-        *,
-        actor: AuthenticatedUser,
-        page_id: UUID,
-    ) -> PlannedContentPageDetail:
-        async with session.begin():
-            await set_actor_context(session, actor.user_id)
-            page = await self._content.get_planned_page_by_id(session, page_id=page_id)
-            if not page:
-                raise ResourceNotFound(f"Planned content page {page_id} was not found.")
-
-            await self._projects.get_model(
-                session,
-                actor=actor,
-                project_id=page.project_id,
-                permission=PermissionCode.CONTENT_READ,
-            )
-            return await self._to_planned_page_detail(session, page)
-
     async def update_planned_page(
         self,
         session: AsyncSession,
@@ -1484,114 +1460,3 @@ class ContentService:
             )
 
             await self._content.remove_page_keyword(session, page_id=page.id, keyword_id=keyword_id)
-
-    async def convert_opportunity_to_page(
-        self,
-        session: AsyncSession,
-        *,
-        actor: AuthenticatedUser,
-        project_id: UUID,
-        opportunity_id: UUID,
-        payload: ConvertOpportunityToPageRequest,
-        request_id: str = "",
-    ) -> PlannedContentPageDetail:
-        """Converts an approved or reviewed Opportunity directly into a PlannedContentPage."""
-        async with session.begin():
-            await set_actor_context(session, actor.user_id)
-            project = await self._projects.get_model(
-                session,
-                actor=actor,
-                project_id=project_id,
-                permission=PermissionCode.CONTENT_WRITE,
-            )
-
-            opp = await self._content.get_opportunity_by_id(
-                session, opportunity_id=opportunity_id, project_id=project.id
-            )
-            if not opp:
-                raise ResourceNotFound(f"Opportunity {opportunity_id} was not found.")
-
-            cluster_title = ""
-            primary_kw = ""
-            topic_id = None
-            pillar_id = None
-            intent = "INFORMATIONAL"
-
-            if opp.cluster_id:
-                cluster = await self._keywords.get_cluster_by_id(session, cluster_id=opp.cluster_id)
-                if cluster:
-                    cluster_title = cluster.cluster_name
-                    intent = cluster.intent
-                    topic_id = cluster.topic_id
-                    if cluster.primary_keyword_id:
-                        kw = await self._keywords.get_keyword_by_id(
-                            session, keyword_id=cluster.primary_keyword_id
-                        )
-                        if kw:
-                            primary_kw = kw.keyword
-
-            if opp.keyword_id and not primary_kw:
-                kw = await self._keywords.get_keyword_by_id(session, keyword_id=opp.keyword_id)
-                if kw:
-                    primary_kw = kw.keyword
-                    if not cluster_title:
-                        cluster_title = kw.keyword
-
-            if topic_id:
-                topic = await self._content.get_topic_by_id(session, topic_id=topic_id)
-                if topic:
-                    pillar_id = topic.pillar_id
-
-            title = payload.title or cluster_title or primary_kw or "New Planned Page"
-            raw_slug = payload.slug or normalize_slug(title)
-            slug = raw_slug
-
-            # Check slug uniqueness, disambiguate if needed
-            existing = await self._content.get_planned_page_by_slug(
-                session, project_id=project.id, slug=slug
-            )
-            if existing:
-                slug = f"{raw_slug}-{str(opp.id)[:6]}"
-
-            page = PlannedContentPage(
-                organization_id=project.organization_id,
-                project_id=project.id,
-                website_id=opp.website_id,
-                title=title,
-                slug=slug,
-                url=f"/{slug}",
-                page_type=PageType.EXISTING if opp.existing_page_id else PageType.PLANNED,
-                content_type=payload.content_type or PageContentType.GUIDE,
-                status=PlannedPageStatus.PLANNED,
-                intent=intent,
-                primary_keyword=primary_kw,
-                primary_keyword_id=opp.keyword_id,
-                cluster_id=opp.cluster_id,
-                topic_id=topic_id,
-                pillar_id=pillar_id,
-                priority=payload.priority
-                if payload.priority is not None
-                else int(max(1, min(100, opp.priority * 10))),
-                business_value=opp.business_value_score,
-                existing_page_id=opp.existing_page_id,
-            )
-            created = await self._content.create_planned_page(session, page)
-
-            # Update opportunity status to APPROVED
-            opp.status = OpportunityStatus.APPROVED
-            await self._content.update_opportunity(session, opp)
-
-            self._audit.add(
-                session,
-                organization_id=project.organization_id,
-                project_id=project.id,
-                actor_user_id=actor.user_id,
-                action="content.opportunity.converted_to_page",
-                resource_type="planned_content_page",
-                resource_id=created.id,
-                outcome="success",
-                request_id=request_id,
-                metadata={"opportunity_id": str(opp.id), "title": created.title},
-            )
-
-            return await self._to_planned_page_detail(session, created)
