@@ -209,7 +209,16 @@ function ChecksPane({ detail, gate, production }: { detail: CardDetail; gate: Ga
   );
 }
 
-export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: string }) {
+export function CardDetailView({
+  scope,
+  cardId,
+  backTo = "content-hub",
+}: {
+  scope: V3Scope;
+  cardId: string;
+  /** The Production module opens the same writer view; its back link returns there. */
+  backTo?: "content-hub" | "production";
+}) {
   const [detail, setDetail] = useState<CardDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<OutlineV3 | null>(null);
@@ -275,7 +284,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   if (loadError) {
     return (
       <div>
-        <BackLink projectId={scope.projectId} />
+        <BackLink projectId={scope.projectId} to={backTo} />
         <p role="alert" className="mt-[12px] text-sm text-[var(--coral)]">{loadError}</p>
       </div>
     );
@@ -372,7 +381,7 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
 
   return (
     <section className="animate-in fade-in duration-150">
-      <BackLink projectId={scope.projectId} />
+      <BackLink projectId={scope.projectId} to={backTo} />
       <div className="mt-[10px] mb-[13px] flex flex-wrap items-center gap-[10px] rounded-[8px] border border-[var(--line)] bg-white px-[14px] py-[11px]">
         <div className="min-w-[220px]">
           <h1 className="m-0 font-serif text-[21px] font-medium tracking-tight">{card.title || "Untitled card"}</h1>
@@ -582,10 +591,14 @@ export function CardDetailView({ scope, cardId }: { scope: V3Scope; cardId: stri
   );
 }
 
-function BackLink({ projectId }: { projectId: string }) {
+function BackLink({ projectId, to }: { projectId: string; to: "content-hub" | "production" }) {
+  const production = to === "production";
   return (
-    <Link href={`/projects/${projectId}/v3/content-hub`} className="text-[12.5px] text-[#5C666C] hover:text-[#12171A]">
-      ← Back to Content Hub
+    <Link
+      href={`/projects/${projectId}/v3/${production ? "production" : "content-hub"}`}
+      className="text-[12.5px] text-[#5C666C] hover:text-[#12171A]"
+    >
+      ← Back to {production ? "Production" : "Content Hub"}
     </Link>
   );
 }
