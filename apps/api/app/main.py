@@ -22,6 +22,7 @@ from app.api.v1 import router as v1_router
 from app.api.v3 import router as v3_router
 from app.config.settings import Settings, get_settings
 from app.core.errors import AppError
+from app.db.runtime_role import assert_runtime_role_enforces_rls
 from app.db.session import build_engine, build_session_factory
 from app.observability.logging import configure_logging
 from app.schemas.common import ApiResponse
@@ -42,6 +43,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        if engine is None:
+            # The process's own database connection must be subject to RLS.
+            await assert_runtime_role_enforces_rls(application.state.engine)
         yield
         if engine is None:
             await application.state.engine.dispose()

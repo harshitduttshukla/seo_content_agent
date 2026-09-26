@@ -41,6 +41,7 @@ from app.domains.orchestrator.models import (
 )
 from app.domains.organizations.models import Organization
 from app.domains.projects.models import Project
+from app.domains.search_console.models import GscConnection, GscProperty, GscSearchAnalyticsRow
 from app.domains.strategy.models import SEOStrategy, SEOStrategyVersion
 from app.domains.users.models import User
 from app.domains.websites.models import Website
@@ -76,6 +77,9 @@ __all__ = [
     "CrawlJob",
     "CrawlUrl",
     "DemandNode",
+    "GscConnection",
+    "GscProperty",
+    "GscSearchAnalyticsRow",
     "IdempotencyRecord",
     "JobRun",
     "Keyword",

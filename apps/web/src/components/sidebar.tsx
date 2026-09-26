@@ -16,7 +16,7 @@ export function Sidebar({ projectId, active }: { projectId: string; active: stri
   const items: NavigationItem[] = [
     { label: "Website", href: `/projects/${projectId}/website`, icon: Network },
     { label: "Content Harness", href: `/projects/${projectId}/content-harness`, icon: Sparkles },
-    { label: "Settings", href: `/projects/${projectId}/settings`, icon: Settings },
+    { label: "Settings", href: `/projects/${projectId}/v3/settings`, icon: Settings },
   ];
   return (
     <aside
