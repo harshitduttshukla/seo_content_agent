@@ -10,8 +10,13 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
     { name: "Strategy", path: `/projects/${projectId}/v3/canvas` },
     { name: "Content Hub", path: `/projects/${projectId}/v3/content-hub` },
     { name: "Production", path: `/projects/${projectId}/v3/production` },
-    { name: "Iteration Lab", path: `/projects/${projectId}/content-harness` },
+    { name: "Iteration Lab", path: `/projects/${projectId}/v3/iteration-lab` },
     { name: "Technical SEO", path: `/projects/${projectId}/website` },
+  ];
+  // Project configuration sits apart from the content modules, as "Base" in the V3 mockup.
+  const navGroups = [
+    { label: "Modules", items: navItems },
+    { label: "Base", items: [{ name: "Settings", path: `/projects/${projectId}/v3/settings` }] },
   ];
 
   return (
@@ -25,21 +30,24 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
         </div>
 
         <nav className="p-[10px_9px_30px]">
-          <div className="mt-[13px]">
-            <span className="block px-[8px] pb-[5px] text-[11px] text-[#8A949A]">Modules</span>
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`flex items-center gap-[9px] w-full text-left p-[7px_8px] rounded-[5px] text-[13.3px] mb-1 hover:bg-[#F0F2F1] hover:text-[#12171A] ${pathname.startsWith(item.path)
-                  ? "bg-[#E5EAE8] text-[#12171A] font-medium"
-                  : "text-[#5C666C]"
-                  }`}
-              >
-                {item.name}
-              </Link>
-            ))}
-          </div>
+          {navGroups.map((group) => (
+            <div key={group.label} className="mt-[13px]">
+              <span className="block px-[8px] pb-[5px] text-[11px] text-[#8A949A]">{group.label}</span>
+              {group.items.map((item) => (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  aria-current={pathname.startsWith(item.path) ? "page" : undefined}
+                  className={`flex items-center gap-[9px] w-full text-left p-[7px_8px] rounded-[5px] text-[13.3px] mb-1 hover:bg-[#F0F2F1] hover:text-[#12171A] ${pathname.startsWith(item.path)
+                    ? "bg-[#E5EAE8] text-[#12171A] font-medium"
+                    : "text-[#5C666C]"
+                    }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
       </aside>
 

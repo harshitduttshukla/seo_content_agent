@@ -1031,3 +1031,84 @@ export interface OutlineSaveResponse {
   card: BoardCard;
   outline: OutlineV3;
 }
+
+// ── Google Search Console (Phase 6A, read-only) ──────────────────────
+// Mirrors app/domains/search_console/schemas.py. No schema carries a credential.
+
+export type GscConnectionState = "not_connected" | "pending" | "connected" | "reauth_required" | "disconnected";
+
+export interface GscMappedProperty {
+  site_url: string;
+  permission_level: string;
+  last_synced_at: string | null;
+  last_sync_start: string | null;
+  last_sync_end: string | null;
+  stored_rows: number;
+}
+
+export interface GscSyncRun {
+  job_run_id: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  rows_fetched: number;
+  rows_stored: number;
+  rows_rejected: number;
+  truncated: boolean;
+  error: string | null;
+}
+
+export interface GscWebsite {
+  website_id: string;
+  website_name: string;
+  base_url: string;
+  property: GscMappedProperty | null;
+  last_sync: GscSyncRun | null;
+}
+
+export interface GscStatus {
+  project_id: string;
+  configured: boolean;
+  state: GscConnectionState;
+  google_account_email: string | null;
+  connected_at: string | null;
+  last_error: string | null;
+  can_manage: boolean;
+  websites: GscWebsite[];
+}
+
+export interface GscAvailableProperty {
+  site_url: string;
+  permission_level: string;
+  mapped_website_ids: string[];
+}
+
+export interface GscAnalyticsRow {
+  date: string;
+  query: string;
+  page: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface GscAnalytics {
+  website_id: string;
+  site_url: string;
+  start_date: string;
+  end_date: string;
+  totals: {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number | null;
+    rows: number;
+    queries: number;
+    pages: number;
+  };
+  rows: GscAnalyticsRow[];
+  next_offset: number | null;
+}

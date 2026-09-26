@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # empty offers the default models of every provider that has a key.
     AI_MODEL_OPTIONS: str = ""
 
+    # Google Search Console (read-only OAuth). The refresh token is stored encrypted with
+    # GSC_TOKEN_ENCRYPTION_KEY (a Fernet key); none of these values is ever returned or logged.
+    GSC_OAUTH_CLIENT_ID: str = ""
+    GSC_OAUTH_CLIENT_SECRET: str = ""
+    GSC_OAUTH_REDIRECT_URI: str = "http://localhost:3000/api/integrations/google/callback"
+    GSC_TOKEN_ENCRYPTION_KEY: str = ""
+
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
 

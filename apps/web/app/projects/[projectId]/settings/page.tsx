@@ -1,19 +1,19 @@
-import { ProjectShell } from "@/components/project-shell";
-import { ProjectSettings } from "@/features/projects/project-settings";
-import type { Project } from "@/lib/api-types";
-import { serverApi } from "@/lib/server-api";
+import { permanentRedirect } from "next/navigation";
 
+/** Project settings moved to the V3 shell; old bookmarks (and their query) keep working. */
 export default async function ProjectSettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { projectId } = await params;
-  const project = await serverApi<Project>(`/projects/${projectId}`);
-
-  return (
-    <ProjectShell active="Settings" project={project}>
-      <ProjectSettings project={project} />
-    </ProjectShell>
-  );
+  const [{ projectId }, query] = await Promise.all([params, searchParams]);
+  const kept = new URLSearchParams();
+  for (const key of ["gsc", "gsc_error"]) {
+    const value = query[key];
+    if (typeof value === "string") kept.set(key, value);
+  }
+  const suffix = kept.size ? `?${kept.toString()}` : "";
+  permanentRedirect(`/projects/${encodeURIComponent(projectId)}/v3/settings${suffix}`);
 }

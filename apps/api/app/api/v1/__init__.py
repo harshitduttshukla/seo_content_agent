@@ -11,6 +11,7 @@ from app.api.v1.orchestrator import router as orchestrator_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.pages import router as pages_router
 from app.api.v1.projects import router as projects_router
+from app.api.v1.search_console import router as search_console_router
 from app.api.v1.strategy import router as strategy_router
 from app.api.v1.users import router as users_router
 from app.api.v1.websites import router as websites_router
@@ -28,5 +29,6 @@ router.include_router(content_documents_router)
 router.include_router(internal_linking_router)
 router.include_router(orchestrator_router)
 router.include_router(content_harness_router)
+router.include_router(search_console_router)
 
 

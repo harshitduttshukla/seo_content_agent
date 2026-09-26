@@ -6,7 +6,15 @@ from uuid import UUID
 
 from app.core.models import RevisionMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.db.base import Base
-from sqlalchemy import CheckConstraint, DateTime, ForeignKeyConstraint, Index, String, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,6 +34,8 @@ class Website(UUIDPrimaryKeyMixin, TimestampMixin, RevisionMixin, Base):
             ["projects.organization_id", "projects.id"],
             ondelete="CASCADE",
         ),
+        # Lets project-owned rows reference a website together with its tenant.
+        UniqueConstraint("organization_id", "project_id", "id", name="uq_websites_org_proj_id"),
         CheckConstraint("status IN ('active', 'inactive', 'archived')", name="status_allowed"),
         CheckConstraint(
             "verification_status IN ('unverified', 'verified', 'failed')",
