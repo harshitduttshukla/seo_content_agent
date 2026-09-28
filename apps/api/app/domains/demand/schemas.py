@@ -10,7 +10,7 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DemandNodeType(StrEnum):
@@ -154,8 +154,34 @@ class DemandImportItem(BaseModel):
     status: DemandNodeStatus = DemandNodeStatus.PENDING
 
 
+DEMAND_CSV_FIELDS = frozenset(
+    {"text", "type", "volume", "country", "area", "funnel", "origin", "competitor",
+     "confidence", "score", "status"}
+)  # fmt: skip
+
+
+def _validate_mapping(mapping: dict[str, str]) -> dict[str, str]:
+    unknown = set(mapping) - DEMAND_CSV_FIELDS
+    if unknown:
+        raise ValueError(f"Unknown demand fields: {', '.join(sorted(unknown))}.")
+    if any(len(header) > 200 for header in mapping.values()):
+        raise ValueError("CSV headers must be at most 200 characters.")
+    return {field: header.strip() for field, header in mapping.items() if header.strip()}
+
+
 class DemandImportRequest(BaseModel):
     items: list[DemandImportItem] = Field(min_length=1, max_length=2_000)
+    # The column mapping the rows were read with; stored per project for the next upload.
+    column_mapping: dict[str, str] | None = None
+
+    @field_validator("column_mapping")
+    @classmethod
+    def _check_mapping(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        return None if value is None else _validate_mapping(value)
+
+
+class DemandCsvMappingResponse(BaseModel):
+    column_mapping: dict[str, str]
 
 
 class DemandImportResponse(BaseModel):

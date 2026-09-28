@@ -1,4 +1,4 @@
-"""Deterministic evaluation of V3 Production calls: QA (v3.qa.v1), repair (v3.repair.v1)
+"""Deterministic evaluation of V3 Production calls: QA (v3.qa.v1), repair (v3.repair.v2)
 and section regeneration (v3.section.v1).
 
 Scores exactly what production would get from the same card: the same deterministic

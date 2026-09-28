@@ -518,6 +518,8 @@ async def test_g2_requires_dismissed_warnings_then_approves_with_snapshots(
     result = await _g2(session_factory, alpha, "approve", rev)
 
     assert result.card.state == "approved" and result.decision.gate == "G2"
+    approved = await phase2._detail(session_factory, alpha)
+    assert approved.qa and not approved.qa.stale  # approval moves the revision, not the draft
     runs = [
         r
         for r in await phase3._runs(owner_factory, alpha["card_id"], "v3_gate_decision")
@@ -666,3 +668,65 @@ async def test_harness_scores_repair_and_section_regeneration(
     assert rules["unrelated_sections_unchanged"] == "PASS"
     card = await _card(owner_factory, alpha)
     assert card.state == "drafting" and card.draft["version"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_page_length_error_is_repairable_and_rewrites_every_section(
+    session_factory: Factory, owner_factory: Factory, pair: Pair
+) -> None:
+    alpha, _ = pair
+    # The card's own budget makes the length a hard error; the draft is far too short.
+    await phase3._sql(
+        owner_factory,
+        "UPDATE content_cards SET word_budget = 400 WHERE id = :c",
+        c=alpha["card_id"],
+    )
+    rev = await _drafted(session_factory, alpha)
+    failed = await _qa(session_factory, alpha, rev, CLEAN_QA)
+    errors = [f for f in failed.report.findings if f.severity == "error"]
+    assert failed.card.state == "qa_failed" and [f.code for f in errors] == ["WORD_BUDGET"]
+    detail = await phase2._detail(session_factory, alpha)
+    assert detail.actions.can_repair  # the button shows only because repair can act
+
+    longer = " More detail on how the duty is worked out for each shipment." * 20
+    provider = ScriptedProvider(section_json(s1=s1_body(alpha) + longer, s2=S2_BODY + longer))
+    async with session_factory() as session:
+        repaired = await ProductionService(session, provider=provider).repair_draft(
+            alpha["org_id"],
+            alpha["project_id"],
+            alpha["card_id"],
+            RepairRequest(revision=failed.card.revision),
+            actor=alpha["actor"],
+            request_id="repair",
+        )
+
+    assert repaired.draft.trigger["sections"] == ["s1", "s2"]
+    prompt = "\n".join(m.content for m in provider.requests[0].messages)
+    assert "target_words" in prompt and "Expand this section" in prompt
+    assert repaired.card.state == "drafting" and repaired.draft.version == 2
+
+
+@pytest.mark.asyncio
+async def test_repair_is_hidden_and_refused_when_no_draft_change_can_help(
+    session_factory: Factory, owner_factory: Factory, pair: Pair
+) -> None:
+    alpha, _ = pair
+    # A card-level error with no section to rewrite (e.g. the outline changed).
+    await phase3._sql(
+        owner_factory,
+        "UPDATE content_cards SET word_budget = 400 WHERE id = :c",
+        c=alpha["card_id"],
+    )
+    rev = await _drafted(session_factory, alpha)
+    failed = await _qa(session_factory, alpha, rev, CLEAN_QA)
+    await phase3._sql(
+        owner_factory,
+        "UPDATE content_cards SET qa_report = jsonb_set(qa_report, "
+        "'{findings,0,code}', '\"OUTLINE_CHANGED\"') WHERE id = :c",
+        c=alpha["card_id"],
+    )
+    detail = await phase2._detail(session_factory, alpha)
+    assert not detail.actions.can_repair
+    with pytest.raises(ConflictError) as refused:
+        await _repair(session_factory, alpha, failed.card.revision, section_json(s1="x"))
+    assert refused.value.code == "REPAIR_NOT_POSSIBLE"

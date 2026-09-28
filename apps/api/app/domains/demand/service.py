@@ -13,6 +13,7 @@ from app.domains.demand.repository import DemandRepository
 from app.domains.demand.schemas import (
     BulkActionRequest,
     BulkUpdateResponse,
+    DemandCsvMappingResponse,
     DemandImportRequest,
     DemandImportResponse,
     DemandNodeListResponse,
@@ -28,6 +29,7 @@ from app.domains.demand.schemas import (
     PlanSkippedNode,
 )
 from app.domains.job_runs.models import JobRun, JobRunStatus
+from app.domains.projects.models import Project
 from app.domains.projects.repository import ProjectRepository
 from app.security.authorization import AuthorizationService
 from app.security.principal import AuthenticatedUser, PermissionCode
@@ -222,6 +224,10 @@ class DemandService:
                     )
                 )
                 created_count += 1
+            if payload.column_mapping is not None:
+                await self._save_csv_mapping(
+                    organization_id, project_id, payload.column_mapping, actor
+                )
             job_run = JobRun(
                 id=uuid4(),
                 organization_id=organization_id,
@@ -437,6 +443,46 @@ class DemandService:
             created_card_ids=created,
             job_run_id=job_run.id,
         )
+
+    async def get_csv_mapping(
+        self, organization_id: UUID, project_id: UUID, actor: AuthenticatedUser
+    ) -> DemandCsvMappingResponse:
+        async with transactional_session(self._session):
+            await set_actor_context(self._session, actor.user_id)
+            await self._authorization.require_project(
+                self._session,
+                user_id=actor.user_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                permission=PermissionCode.KEYWORD_READ,
+            )
+            project = await self._project(organization_id, project_id, actor)
+            config = WorkspaceConfig.model_validate(project.workspace_config or {})
+        return DemandCsvMappingResponse(column_mapping=config.demand_csv_mapping)
+
+    async def _project(
+        self, organization_id: UUID, project_id: UUID, actor: AuthenticatedUser
+    ) -> Project:
+        project = await ProjectRepository().get_for_organization_member(
+            self._session, user_id=actor.user_id, project_id=project_id
+        )
+        if project is None or project.organization_id != organization_id:
+            raise ResourceNotFound("project")
+        return project
+
+    async def _save_csv_mapping(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        mapping: dict[str, str],
+        actor: AuthenticatedUser,
+    ) -> None:
+        project = await self._project(organization_id, project_id, actor)
+        # A new dict so SQLAlchemy sees the JSONB change.
+        project.workspace_config = {
+            **(project.workspace_config or {}),
+            "demand_csv_mapping": mapping,
+        }
 
     async def _build_plan(
         self,

@@ -44,6 +44,33 @@ interface Issue {
   section_id?: string | null;
 }
 
+interface ActionError {
+  kind: Busy;
+  message: string;
+  issues: Issue[];
+}
+
+/** Actions started from the Checks pane report their errors there, beside the button. */
+const CHECKS_PANE_ACTIONS: Busy[] = ["approve", "sendback", "qa", "repair", "dismiss", "g2approve", "g2sendback"];
+
+function ErrorMessage({ error, onReload }: { error: ActionError; onReload: () => void }) {
+  return (
+    <div role="alert" className="mb-[10px] text-[12.6px] text-[var(--coral)]">
+      {error.message}
+      {error.message === CONFLICT_MESSAGE ? (
+        <button type="button" className={`${btn} ml-[8px]`} onClick={onReload}>Reload</button>
+      ) : null}
+      {error.issues.length ? (
+        <ul className="m-[4px_0_0] pl-[18px]">
+          {error.issues.map((issue, i) => (
+            <li key={i}>{issue.section_id ? `${issue.section_id}: ` : ""}{issue.message}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function describe(error: unknown, fallback: string): { message: string; issues: Issue[] } {
   if (error instanceof ApiError) {
     if (error.code === "VERSION_CONFLICT") return { message: CONFLICT_MESSAGE, issues: [] };
@@ -171,7 +198,19 @@ interface ProductionHandlers {
   onSendBackG2: (reason: G2Reason, feedback: string) => Promise<boolean>;
 }
 
-function ChecksPane({ detail, gate, production }: { detail: CardDetail; gate: GateHandlers; production: ProductionHandlers }) {
+function ChecksPane({
+  detail,
+  gate,
+  production,
+  error,
+  onReload,
+}: {
+  detail: CardDetail;
+  gate: GateHandlers;
+  production: ProductionHandlers;
+  error: ActionError | null;
+  onReload: () => void;
+}) {
   const qaErrors = detail.qa && !detail.qa.stale ? (detail.qa.report?.error_count ?? 0) : 0;
   const failing = detail.checks.filter((c) => c.status === "fail").length + qaErrors;
   return (
@@ -186,6 +225,7 @@ function ChecksPane({ detail, gate, production }: { detail: CardDetail; gate: Ga
           </li>
         ))}
       </ul>
+      {error ? <ErrorMessage error={error} onReload={onReload} /> : null}
       <G1ReviewPanel detail={detail} busy={gate.busy} onApprove={gate.onApprove} onSendBack={gate.onSendBack} />
       <QAPanel
         detail={detail}
@@ -227,7 +267,7 @@ export function CardDetailView({
   const [notice, setNotice] = useState<string | null>(null);
   const [model, setModel] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [error, setError] = useState<{ message: string; issues: Issue[] } | null>(null);
+  const [error, setError] = useState<ActionError | null>(null);
   const seq = useRef(0);
 
   const apply = useCallback((next: CardDetail) => {
@@ -266,7 +306,7 @@ export function CardDetailView({
       await action();
       return true;
     } catch (cause) {
-      setError(describe(cause, fallback));
+      setError({ kind, ...describe(cause, fallback) });
       return false;
     } finally {
       setBusy(null);
@@ -313,6 +353,7 @@ export function CardDetailView({
         setNotice("Outline sent back with feedback.");
       }, "The outline could not be sent back."),
   };
+  const reloadAfterConflict = () => void run("save", reload, "Reload failed.");
   const lastSendBack = review.last_decision?.action === "send_back" ? review.last_decision : null;
   const failAndReload = async <T,>(action: () => Promise<T>): Promise<T> => {
     try {
@@ -415,21 +456,7 @@ export function CardDetailView({
       </div>
 
       {notice ? <p role="status" className="mb-[10px] text-[12.6px] text-[var(--teal)]">{notice}</p> : null}
-      {error ? (
-        <div role="alert" className="mb-[10px] text-[12.6px] text-[var(--coral)]">
-          {error.message}
-          {error.message === CONFLICT_MESSAGE ? (
-            <button type="button" className={`${btn} ml-[8px]`} onClick={() => run("save", reload, "Reload failed.")}>Reload</button>
-          ) : null}
-          {error.issues.length ? (
-            <ul className="m-[4px_0_0] pl-[18px]">
-              {error.issues.map((issue, i) => (
-                <li key={i}>{issue.section_id ? `${issue.section_id}: ` : ""}{issue.message}</li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
+      {error && !CHECKS_PANE_ACTIONS.includes(error.kind) ? <ErrorMessage error={error} onReload={reloadAfterConflict} /> : null}
 
       <div className="grid grid-cols-1 gap-[13px] lg:grid-cols-[minmax(0,260px)_minmax(0,1.6fr)_minmax(0,300px)]">
         <ContextPane detail={detail} />
@@ -585,7 +612,13 @@ export function CardDetailView({
           </Tabs>
         </section>
 
-        <ChecksPane detail={detail} gate={gate} production={production} />
+        <ChecksPane
+          detail={detail}
+          gate={gate}
+          production={production}
+          error={error && CHECKS_PANE_ACTIONS.includes(error.kind) ? error : null}
+          onReload={reloadAfterConflict}
+        />
       </div>
     </section>
   );

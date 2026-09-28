@@ -206,3 +206,41 @@ async def test_demand_bulk_destination_actions_are_forwarded(
     assert args[:2] == (organization_id, project_id)
     assert getattr(args[2], destination_key) == destination_id
     assert args[3] == actor
+
+
+@pytest.mark.asyncio
+async def test_demand_csv_mapping_route_is_scoped() -> None:
+    from app.domains.demand.schemas import DemandCsvMappingResponse
+
+    organization_id, project_id = uuid4(), uuid4()
+    actor = AuthenticatedUser(
+        user_id=uuid4(),
+        issuer="https://identity.example.com",
+        subject="v3-test",
+        email="v3@example.com",
+        display_name="V3 Tester",
+    )
+    app = create_app(
+        Settings(_env_file=None, APP_ENV="test"),
+        engine=AsyncMock(),
+        token_verifier=MockTokenVerifier(),
+    )
+    get_mapping = AsyncMock(
+        return_value=DemandCsvMappingResponse(column_mapping={"text": "Keyword"})
+    )
+    with (
+        patch(
+            "app.domains.users.service.UserService.resolve_identity", AsyncMock(return_value=actor)
+        ),
+        patch("app.domains.demand.service.DemandService.get_csv_mapping", get_mapping),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/api/v3/demand/csv-mapping",
+                headers={"Authorization": "Bearer token"},
+                params={"organization_id": str(organization_id), "project_id": str(project_id)},
+            )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["column_mapping"] == {"text": "Keyword"}
+    assert get_mapping.await_args.args == (organization_id, project_id, actor)

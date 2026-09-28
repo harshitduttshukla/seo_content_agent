@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request, status
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.api.responses import success
 from app.domains.canvas.schemas import (
+    AreaCreateRequest,
     AreaResponse,
     ArgumentCreateRequest,
     CanvasAnchorUpsertRequest,
@@ -42,6 +43,26 @@ async def list_areas(
             organization_id, project_id, canvas_id=canvas_id, actor=actor
         ),
     )
+
+
+@router.post(
+    "/canvases/{canvas_id}/areas",
+    response_model=ApiResponse[AreaResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_area(
+    canvas_id: UUID,
+    payload: AreaCreateRequest,
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[AreaResponse]:
+    result = await CanvasService(session).create_area(
+        organization_id, project_id, canvas_id, payload, actor=actor
+    )
+    return success(request, result)
 
 
 @router.post(

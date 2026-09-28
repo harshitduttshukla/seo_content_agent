@@ -13,6 +13,12 @@ vi.mock("@/lib/v3-api", () => ({
   },
 }));
 
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/projects/project-1/v3/content-hub",
+  useRouter: () => ({ push, refresh: vi.fn() }),
+}));
+
 const scope = { organizationId: "org-1", projectId: "project-1" };
 
 const COLUMNS: [BoardColumnKey, string, BoardColumnView["tone"]][] = [
@@ -199,6 +205,16 @@ describe("V3 Content Hub plan board", () => {
     fireEvent.dragStart(screen.getByTestId("board-card-b1"), { dataTransfer });
     fireEvent.drop(column("planned"), { dataTransfer });
     await waitFor(() => expect(V3API.contentHub.moveCard).toHaveBeenCalledWith(scope, "b1", "planned", 1));
+  });
+
+  it("opens the card detail when any part of the card is clicked, but not from its buttons", async () => {
+    push.mockClear();
+    await renderBoard(board([card("p1", "planned"), card("a1", "approved")]));
+    fireEvent.click(within(screen.getByTestId("board-card-a1")).getByText(/cluster · en-GB/));
+    expect(push).toHaveBeenCalledWith("/projects/project-1/v3/content-hub/a1");
+    push.mockClear();
+    fireEvent.click(within(screen.getByTestId("board-card-p1")).getAllByRole("button")[0]);
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("makes only Backlog and Planned cards draggable", async () => {

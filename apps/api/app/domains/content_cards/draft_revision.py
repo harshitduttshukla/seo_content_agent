@@ -1,4 +1,4 @@
-"""Targeted draft revision: QA repair (``v3.repair.v1``) and section regeneration
+"""Targeted draft revision: QA repair (``v3.repair.v2``) and section regeneration
 (``v3.section.v1``) over the shared AIProvider.
 
 Both rewrite only named sections. The model returns bodies for those sections; the
@@ -24,7 +24,7 @@ from app.domains.content_cards.outline import DIRECT_ANSWER_MAX_WORDS, OutlineIs
 from app.domains.content_cards.outline_generation import strip_code_fence
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-V3_REPAIR_PROMPT_VERSION = "v3.repair.v1"
+V3_REPAIR_PROMPT_VERSION = "v3.repair.v2"
 V3_SECTION_PROMPT_VERSION = "v3.section.v1"
 MAX_ATTEMPTS = 2
 RevisionMode = Literal["repair", "section"]
@@ -32,7 +32,9 @@ RevisionMode = Literal["repair", "section"]
 _MODE_INTRO = {
     "repair": (
         "You repair a drafted page so it passes QA. Fix ONLY the listed findings, in ONLY "
-        "the listed sections. Keep every other sentence as it is."
+        "the listed sections. Keep every other sentence as it is. A WORD_BUDGET finding gives "
+        "a section its target_words: expand or trim that section to about that many words, "
+        "keeping its claim markers and planned links and adding no new company claims."
     ),
     "section": (
         "You rewrite ONE section of a drafted page following a reviewer's feedback. Keep the "

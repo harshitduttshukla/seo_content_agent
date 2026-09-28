@@ -280,6 +280,7 @@ export function DemandTab({
         isOpen={showUpload}
         onOpenChange={setShowUpload}
         onImported={load}
+        areas={areas}
       />
       {showPlan ? (
         <PlanDialog

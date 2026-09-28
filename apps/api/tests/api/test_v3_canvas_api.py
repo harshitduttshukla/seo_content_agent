@@ -168,6 +168,58 @@ async def test_area_list_route_is_project_scoped() -> None:
     assert list_areas.await_args.kwargs == {"canvas_id": None, "actor": actor}
 
 
+@pytest.mark.asyncio
+async def test_area_create_route_passes_scope_canvas_and_payload() -> None:
+    organization_id, project_id, canvas_id = uuid4(), uuid4(), uuid4()
+    actor = AuthenticatedUser(
+        user_id=uuid4(),
+        issuer="https://identity.example.com",
+        subject="v3-test",
+        email="v3@example.com",
+        display_name="V3 Tester",
+    )
+    app = create_app(
+        Settings(_env_file=None, APP_ENV="test"),
+        engine=AsyncMock(),
+        token_verifier=MockTokenVerifier(),
+    )
+    area = AreaResponse(
+        id=uuid4(),
+        canvas_id=canvas_id,
+        parent_id=None,
+        name="Leak repairs",
+        default_argument_id=None,
+    )
+    create_area = AsyncMock(return_value=area)
+    with (
+        patch(
+            "app.domains.users.service.UserService.resolve_identity", AsyncMock(return_value=actor)
+        ),
+        patch("app.domains.canvas.service.CanvasService.create_area", create_area),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            params = {"organization_id": str(organization_id), "project_id": str(project_id)}
+            headers = {"Authorization": "Bearer token"}
+            response = await client.post(
+                f"/api/v3/canvases/{canvas_id}/areas",
+                headers=headers,
+                params=params,
+                json={"name": "Leak repairs"},
+            )
+            invalid = await client.post(
+                f"/api/v3/canvases/{canvas_id}/areas",
+                headers=headers,
+                params=params,
+                json={"name": ""},
+            )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["name"] == "Leak repairs"
+    assert create_area.await_args.args[:3] == (organization_id, project_id, canvas_id)
+    assert create_area.await_args.kwargs == {"actor": actor}
+    assert invalid.status_code == 422
+
+
 def test_canvas_openapi_has_distinct_check_and_confirm_operations() -> None:
     app = create_app(Settings(_env_file=None, APP_ENV="test"), engine=AsyncMock())
     paths = app.openapi()["paths"]

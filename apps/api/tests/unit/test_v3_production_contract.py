@@ -1,4 +1,4 @@
-"""Unit tests for V3 Production QA (v3.qa.v1), repair (v3.repair.v1) and section
+"""Unit tests for V3 Production QA (v3.qa.v1), repair (v3.repair.v2) and section
 regeneration (v3.section.v1): deterministic checks, model-output validation, scoped
 revision, and the stored report round-trip. No database, no paid provider."""
 
@@ -295,7 +295,7 @@ async def test_reviser_uses_versioned_prompts_and_bounded_retry() -> None:
     src, draft = two_sections()
     provider = ScriptedProvider("bad", sections(s2="New s2."))
     result = await DraftReviser(provider).revise("repair", src, draft, ["s2"], [{"code": "X"}])
-    assert result.ok and result.prompt_version == "v3.repair.v1" and len(result.attempts) == 2
+    assert result.ok and result.prompt_version == "v3.repair.v2" and len(result.attempts) == 2
     assert "<findings>" in provider.requests[0].messages[1].content
     section = await DraftReviser(ScriptedProvider(sections(s2="S."))).revise(
         "section", src, draft, ["s2"], [{"feedback": "shorter"}]

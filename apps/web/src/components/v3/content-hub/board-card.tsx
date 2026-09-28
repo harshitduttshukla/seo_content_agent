@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { DragEvent } from "react";
+import { useRouter } from "next/navigation";
+import type { DragEvent, MouseEvent } from "react";
 
 import type { BoardCard } from "@/lib/api-types";
 
@@ -65,7 +66,8 @@ export function BoardCardView({
   onDragOver?: (event: DragEvent<HTMLElement>) => void;
   onDrop?: (event: DragEvent<HTMLElement>) => void;
 }) {
-  const meta = [card.kind, card.area?.name ?? (card.origin === "import" ? "Unmapped" : null), card.market]
+  const router = useRouter();
+  const meta =[card.kind, card.area?.name ?? (card.origin === "import" ? "Unmapped" : null), card.market]
     .filter(Boolean)
     .join(" · ");
   const detail = [demandLine(card), stateNote(card)].filter(Boolean).join(" · ");
@@ -76,18 +78,26 @@ export function BoardCardView({
     card.due ? `due ${card.due}` : null,
   ].filter(Boolean);
 
+  /** The whole card opens its detail page; the title link and the move buttons keep their own clicks. */
+  const openCard = (event: MouseEvent<HTMLElement>) => {
+    if (!href || (event.target as HTMLElement).closest("a, button")) return;
+    if (event.metaKey || event.ctrlKey) window.open(href, "_blank");
+    else router.push(href);
+  };
+
   return (
     <article
       data-testid={`board-card-${card.id}`}
       aria-busy={busy || undefined}
       draggable={draggable && !busy}
+      onClick={openCard}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={`rounded-[6px] border border-[var(--line)] bg-white px-[10px] py-[9px] text-[12.4px] ${
-        draggable ? "cursor-grab active:cursor-grabbing" : ""
-      } ${busy ? "opacity-60" : ""}`}
+        href ? "cursor-pointer hover:border-[var(--teal)]" : ""
+      } ${draggable ? "active:cursor-grabbing" : ""} ${busy ? "opacity-60" : ""}`}
     >
       <b className="mb-[4px] block text-[13px] font-medium">
         {href ? (
