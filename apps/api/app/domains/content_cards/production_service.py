@@ -30,8 +30,10 @@ from app.domains.content_cards.outline import OutlineIssue
 from app.domains.content_cards.production_state import (
     QA_STATES,
     REGENERATE_STATES,
+    card_word_budget,
     g2_blockers,
     qa_is_current,
+    repair_plan,
     stored_qa_report,
 )
 from app.domains.content_cards.qa import (
@@ -85,13 +87,6 @@ class ProductionContext:
     stored: StoredDraft
 
 
-def _word_budget(card: ContentCard, config: WorkspaceConfig) -> tuple[int | None, bool]:
-    if card.word_budget:
-        return card.word_budget, True
-    default = getattr(config.word_budgets, card.kind, None)
-    return (default, False) if isinstance(default, int) and default > 0 else (None, False)
-
-
 def qa_deterministic(
     card: ContentCard,
     project: Project,
@@ -101,7 +96,7 @@ def qa_deterministic(
 ) -> list[QAFinding]:
     """The deterministic QA layer with the project's rules; shared with the Harness."""
     config = WorkspaceConfig.model_validate(project.workspace_config or {})
-    budget, explicit = _word_budget(card, config)
+    budget, explicit = card_word_budget(card, config)
     return deterministic_findings(
         stored,
         source,
@@ -563,16 +558,26 @@ class ProductionService(CardWorkflowService):
             if report is None or not qa_is_current(ctx.card, report, ctx.stored):
                 raise ConflictError("QA_STALE", "Run QA again before repairing.")
             errors = [f for f in report.findings if f.severity == "error"]
-            targets = sorted({f.section_id for f in errors if f.section_id})
-            fix_answer = any(f.section_id is None and "DIRECT_ANSWER" in f.code for f in errors)
-            if not targets and not fix_answer:
+            config = WorkspaceConfig.model_validate(ctx.project.workspace_config or {})
+            budget, _ = card_word_budget(ctx.card, config)
+            plan = repair_plan(report, ctx.stored, budget)
+            if plan is None:
                 raise ConflictError(
                     "REPAIR_NOT_POSSIBLE",
                     "These errors are not in the draft text (e.g. the outline or claims changed); "
                     "they need a Strategy or outline change.",
                     details={"codes": sorted({f.code for f in errors})},
                 )
-        instructions: list[dict[str, object]] = [_finding_brief(f) for f in errors]
+        # The page-length finding is replaced by per-section word targets from the plan.
+        instructions: list[dict[str, object]] = [
+            *(
+                _finding_brief(f)
+                for f in errors
+                if not (plan.instructions and f.code == "WORD_BUDGET")
+            ),
+            *plan.instructions,
+        ]
+        targets = plan.targets
         started = datetime.now(UTC)
         result = await DraftReviser(self._ai(payload.model)).revise(
             "repair",
@@ -580,7 +585,7 @@ class ProductionService(CardWorkflowService):
             ctx.stored,
             targets,
             instructions,
-            fix_direct_answer=fix_answer,
+            fix_direct_answer=plan.fix_direct_answer,
             model=payload.model,
         )
         completed = datetime.now(UTC)

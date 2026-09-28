@@ -7,6 +7,11 @@ import type { BoardCard, CardDetail, OutlineV3 } from "@/lib/api-types";
 import { ApiError } from "@/lib/client-api";
 import { V3API } from "@/lib/v3-api";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/projects/project-1/v3/content-hub",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
 vi.mock("@/lib/v3-api", () => ({
   V3API: {
     contentHub: {
@@ -635,6 +640,33 @@ describe("V3 production QA and G2", () => {
     fireEvent.click(screen.getByRole("button", { name: "Repair 1 error(s)" }));
     await waitFor(() => expect(V3API.contentHub.repairDraft).toHaveBeenCalledWith(scope, "card-1", 7, undefined));
     expect(await screen.findByText("Draft v3 repaired. Run QA again.")).toBeInTheDocument();
+  });
+
+  it("shows a refused repair beside the button in the checks pane, not only at the top", async () => {
+    await renderDetail(productionDetail("qa_failed", {
+      qa: { report: failedReport, stale: false },
+      actions: { ...productionDetail("qa_failed").actions, can_run_qa: true, can_repair: true },
+    }));
+    vi.mocked(V3API.contentHub.card).mockResolvedValue(productionDetail("qa_failed", {
+      qa: { report: failedReport, stale: false },
+      actions: { ...productionDetail("qa_failed").actions, can_run_qa: true, can_repair: true },
+    }));
+    vi.mocked(V3API.contentHub.repairDraft).mockRejectedValue(
+      new ApiError("These errors are not in the draft text.", "REPAIR_NOT_POSSIBLE", "req-1", 409),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Repair 1 error(s)" }));
+
+    const checks = screen.getByRole("region", { name: "Checks and gate" });
+    expect(await within(checks).findByRole("alert")).toHaveTextContent("These errors are not in the draft text.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1); // not duplicated in the top banner
+  });
+
+  it("hides Repair when the server says no draft change can fix the errors", async () => {
+    await renderDetail(productionDetail("qa_failed", {
+      qa: { report: failedReport, stale: false },
+      actions: { ...productionDetail("qa_failed").actions, can_run_qa: true, can_repair: false },
+    }));
+    expect(screen.queryByRole("button", { name: /Repair/ })).not.toBeInTheDocument();
   });
 
   it("dismisses a warning with a reason and keeps G2 blocked until ready", async () => {

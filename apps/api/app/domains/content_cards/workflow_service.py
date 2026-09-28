@@ -42,9 +42,11 @@ from app.domains.content_cards.outline_generation import (
 from app.domains.content_cards.production_state import (
     QA_STATES,
     REGENERATE_STATES,
+    card_word_budget,
     g2_blockers,
     g2_status,
     qa_is_current,
+    repair_plan,
     stored_qa_report,
 )
 from app.domains.content_cards.repository import ContentCardRepository
@@ -499,11 +501,13 @@ class CardWorkflowService:
                     and bundle_current
                     and outline is not None,
                     can_run_qa=state in QA_STATES and draft is not None and bundle_current,
+                    # Only when a repair run could change something (same plan the action uses).
                     can_repair=state == ContentCardState.QA_FAILED
                     and qa_current
                     and report is not None
                     and report.status == "failed"
-                    and bundle_current,
+                    and bundle_current
+                    and repair_plan(report, draft, card_word_budget(card, config)[0]) is not None,
                     can_regenerate_section=state in REGENERATE_STATES
                     and draft is not None
                     and bundle_current,
@@ -522,7 +526,13 @@ class CardWorkflowService:
                     last_decision=last,
                     history=history,
                 ),
-                qa=QAState(report=report, stale=report is not None and not qa_current),
+                qa=QAState(
+                    report=report,
+                    # G2 freezes the card: approval moves the revision, not the draft QA ran on.
+                    stale=report is not None
+                    and not qa_current
+                    and state not in (ContentCardState.APPROVED, ContentCardState.LIVE),
+                ),
                 g2=G2Review(
                     status=g2_status(card, gate_history),
                     ready=not blockers,
