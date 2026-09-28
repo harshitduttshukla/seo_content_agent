@@ -1,375 +1,241 @@
-import {
-  ArrowRight,
-  BarChart3,
-  Blocks,
-  Bot,
-  Check,
-  CircleCheck,
-  FileSearch,
-  Fingerprint,
-  GitBranch,
-  Layers3,
-  Link2,
-  LockKeyhole,
-  Orbit,
-  ShieldCheck,
-  Sparkles,
-  Target,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-
-import styles from "./landing-page.module.css";
 
 type LandingPageProps = {
   workspaceHref: string;
   workspaceLabel: string;
 };
 
-const capabilities = [
+const primaryCta =
+  "inline-flex items-center gap-[8px] rounded-[5px] border border-[#15706A] bg-[#15706A] px-[16px] py-[9px] text-[14px] font-medium text-white! hover:bg-[#115C57] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15706A]";
+const secondaryCta =
+  "inline-flex items-center rounded-[5px] border border-[#D6DBD9] bg-white px-[16px] py-[9px] text-[14px] text-[#12171A] hover:border-[#15706A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15706A]";
+
+const modules = [
   {
-    icon: Target,
-    label: "Strategy",
-    title: "Turn business context into a usable content strategy.",
-    description:
-      "Capture positioning, audiences, goals, and constraints as structured, versioned decisions your entire workflow can use.",
-    tone: "violet",
+    name: "Strategy",
+    title: "Decide what the brand may say.",
+    body: "Write your positioning as claims on one canvas and approve them. Keyword and prompt demand is grouped into areas under it.",
   },
   {
-    icon: FileSearch,
-    label: "Keyword intelligence",
-    title: "Find demand patterns—not just keyword lists.",
-    description:
-      "Review intent, clusters, provenance, and conflicts together so every target has a clear strategic reason to exist.",
-    tone: "blue",
+    name: "Content Hub",
+    title: "Plan pages from real demand.",
+    body: "Kept demand becomes content cards on one board. Lock the plan, and every later addition stays visible.",
   },
   {
-    icon: GitBranch,
-    label: "Content architecture",
-    title: "Design the system before filling the calendar.",
-    description:
-      "Build the relationship between pillars, topics, clusters, and pages in visual and accessible views backed by the same source of truth.",
-    tone: "mint",
+    name: "Production",
+    title: "Draft against approved claims only.",
+    body: "Each card gets a context bundle, an outline, a draft and a QA run. Two human gates decide what moves on.",
   },
   {
-    icon: ShieldCheck,
-    label: "Governed AI",
-    title: "Keep people in charge of every consequential change.",
-    description:
-      "AI works through typed, authorized tools and proposes reviewable patches. Publishing and rule changes always require fresh approval.",
-    tone: "amber",
+    name: "Iteration Lab",
+    title: "See how pages perform.",
+    body: "Google Search Console data is read into the same workspace, next to the pages it measures.",
   },
 ];
 
-const workflow = [
-  {
-    step: "01",
-    title: "Model the business",
-    description: "Give the system durable context: positioning, audiences, websites, goals, and guardrails.",
-  },
-  {
-    step: "02",
-    title: "Map the opportunity",
-    description: "Turn research into reviewed intent, clusters, target assignments, and a coherent content architecture.",
-  },
-  {
-    step: "03",
-    title: "Create with evidence",
-    description: "Build briefs and structured content against exact strategy, source, SEO, and linking rules.",
-  },
-  {
-    step: "04",
-    title: "Review, learn, improve",
-    description: "Measure outcomes, review proposals, and promote only approved learning back into the system.",
-  },
+// The Content Hub's own columns: grey rests, teal means the system is working, coral means a person decides.
+const columns: Array<{ name: string; tone: "rest" | "sys" | "human"; cards: string[] }> = [
+  { name: "Planned", tone: "rest", cards: ["eu vat rates 2026"] },
+  { name: "Outline", tone: "sys", cards: ["hs code lookup"] },
+  { name: "Draft", tone: "sys", cards: ["ddp vs dap"] },
+  { name: "Review", tone: "human", cards: ["who pays eu duties"] },
+  { name: "Approved", tone: "rest", cards: ["landed cost guide"] },
 ];
 
-function ProductPreview() {
+const toneHead = {
+  rest: "bg-[#F0F2F1] text-[#5C666C]",
+  sys: "bg-[#E1EFED] text-[#15706A]",
+  human: "bg-[#FBEBE8] text-[#B9463A]",
+};
+
+const steps = [
+  { name: "Context bundle", note: "Approved claims, brand rules, demand and linkable pages", gate: false },
+  { name: "Outline", note: "AI proposes; a writer can edit or start blank", gate: false },
+  { name: "G1 · outline review", note: "A person approves the plan of the page", gate: true },
+  { name: "Draft", note: "Written from the approved outline, claims cited inline", gate: false },
+  { name: "QA and repair", note: "Claims, links, banned words and length checked", gate: false },
+  { name: "G2 · draft review", note: "A person approves the finished text", gate: true },
+];
+
+function BoardPreview() {
   return (
-    <div className={styles.previewFrame} aria-label="Illustration of the content operating system workspace">
-      <div className={styles.previewTopbar}>
-        <div className="flex items-center gap-2">
-          <span className={styles.previewMark}>
-            <Orbit aria-hidden size={14} />
-          </span>
-          <span className="text-[11px] font-bold tracking-[-0.01em] text-white">Content Intelligence</span>
-        </div>
-        <div className="flex items-center gap-2" aria-hidden>
-          <span className={styles.previewSearch}>Search workspace</span>
-          <span className={styles.previewAvatar}>HS</span>
-        </div>
+    <div
+      aria-label="Example Content Hub board"
+      role="img"
+      className="overflow-hidden rounded-[8px] border border-[#D6DBD9] bg-[#FAFBFA]"
+    >
+      <div className="flex items-center gap-[8px] border-b border-[#E7EAE9] px-[14px] py-[10px]">
+        <span aria-hidden className="h-[8px] w-[8px] rounded-full bg-[#15706A]" />
+        <span className="font-serif text-[14px]">Content Hub</span>
+        <span className="ml-auto rounded-full border border-[#DDE2E0] bg-[#F0F2F1] px-[8px] py-[1px] text-[11px] text-[#6F787D]">
+          plan locked
+        </span>
       </div>
-
-      <div className={styles.previewBody}>
-        <aside className={styles.previewSidebar} aria-hidden>
-          <div className={styles.sidebarPill} />
-          {[Blocks, Target, FileSearch, GitBranch, BarChart3].map((Icon, index) => (
-            <span className={index === 3 ? styles.sidebarIconActive : styles.sidebarIcon} key={index}>
-              <Icon size={13} />
-            </span>
-          ))}
-        </aside>
-
-        <div className={styles.previewCanvas}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className={styles.previewEyebrow}>Content architecture</p>
-              <p className="mt-1 text-[15px] font-bold tracking-[-0.025em] text-[#171b24]">Organic growth map</p>
+      <div className="grid grid-cols-5 gap-[6px] p-[10px]">
+        {columns.map((column) => (
+          <div key={column.name} className="min-w-0 rounded-[6px] border border-[#D6DBD9] bg-[#F5F7F6]">
+            <div className={`truncate rounded-t-[6px] border-b border-[#D6DBD9] px-[7px] py-[5px] text-[11px] font-medium ${toneHead[column.tone]}`}>
+              {column.name}
             </div>
-            <span className={styles.previewStatus}>
-              <CircleCheck aria-hidden size={10} /> Synced
-            </span>
-          </div>
-
-          <div className={styles.mapArea} aria-hidden>
-            <svg className={styles.mapLines} viewBox="0 0 540 280" preserveAspectRatio="none">
-              <path d="M105 135 C170 135 163 62 230 62" />
-              <path d="M105 135 C170 135 163 139 230 139" />
-              <path d="M105 135 C170 135 163 216 230 216" />
-              <path d="M320 62 C380 62 372 102 425 102" />
-              <path d="M320 139 C380 139 372 102 425 102" />
-              <path d="M320 139 C380 139 372 186 425 186" />
-              <path d="M320 216 C380 216 372 186 425 186" />
-            </svg>
-
-            <div className={`${styles.mapNode} ${styles.mapNodeRoot}`}>
-              <span className={styles.nodeIcon}><Layers3 size={12} /></span>
-              <span><small>Pillar</small>Content operations</span>
-            </div>
-            <div className={`${styles.mapNode} ${styles.mapNodeOne}`}>
-              <span className={styles.nodeDot} />
-              <span><small>Topic</small>SEO strategy</span>
-            </div>
-            <div className={`${styles.mapNode} ${styles.mapNodeTwo}`}>
-              <span className={styles.nodeDot} />
-              <span><small>Topic</small>Content workflow</span>
-            </div>
-            <div className={`${styles.mapNode} ${styles.mapNodeThree}`}>
-              <span className={styles.nodeDot} />
-              <span><small>Topic</small>AI governance</span>
-            </div>
-            <div className={`${styles.mapNode} ${styles.mapNodeFour}`}>
-              <span className={styles.pageNodeIcon}><FileSearch size={11} /></span>
-              <span><small>Page</small>Strategy guide</span>
-            </div>
-            <div className={`${styles.mapNode} ${styles.mapNodeFive}`}>
-              <span className={styles.pageNodeIcon}><FileSearch size={11} /></span>
-              <span><small>Page</small>AI operations</span>
+            <div className="grid gap-[5px] p-[5px]">
+              {column.cards.map((card) => (
+                <div key={card} className="rounded-[4px] border border-[#D6DBD9] bg-white px-[6px] py-[5px] text-[10.5px] leading-[1.3] text-[#12171A]">
+                  {card}
+                  <div className="mt-[3px] text-[9.5px] text-[#8A949A]">pillar</div>
+                </div>
+              ))}
             </div>
           </div>
-
-          <div className={styles.previewFooter}>
-            <span><span className="bg-[#635bff]" /> Pillar</span>
-            <span><span className="bg-[#23a982]" /> Topic</span>
-            <span><span className="bg-[#4e87e9]" /> Page</span>
-            <span className="ml-auto"><Link2 size={10} /> Relationship rules active</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
 export function LandingPage({ workspaceHref, workspaceLabel }: LandingPageProps) {
+  const ctaLabel = workspaceLabel === "Sign in" ? "Enter your workspace" : workspaceLabel;
   return (
-    <div className={styles.landing}>
-      <a className={styles.skipLink} href="#main-content">Skip to content</a>
+    <div className="min-h-screen bg-[#ECEEED] text-[15px] text-[#12171A] antialiased">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-[16px] focus:top-[12px] focus:z-50 focus:rounded-[5px] focus:bg-white focus:px-[12px] focus:py-[6px]"
+      >
+        Skip to content
+      </a>
 
-      <header className={styles.header}>
-        <div className={styles.container}>
-          <nav className="flex h-[76px] items-center justify-between gap-5" aria-label="Primary navigation">
-            <Link className={styles.brandLink} href="/">
-              <span className={styles.brandMark}><Orbit aria-hidden size={19} /></span>
-              <span>Content Intelligence</span>
-            </Link>
-
-            <div className="hidden items-center gap-8 text-sm font-medium text-[#aeb8c8] md:flex">
-              <a className={styles.navLink} href="#platform">Platform</a>
-              <a className={styles.navLink} href="#workflow">Workflow</a>
-              <a className={styles.navLink} href="#governance">Governance</a>
-            </div>
-
-            <Link className={styles.headerCta} href={workspaceHref}>
-              {workspaceLabel} <ArrowRight aria-hidden size={15} />
-            </Link>
-          </nav>
-        </div>
+      <header className="border-b border-[#D6DBD9] bg-[#FAFBFA]">
+        <nav aria-label="Primary navigation" className="mx-auto flex h-[58px] max-w-[1120px] items-center gap-[24px] px-[20px] sm:px-[28px]">
+          <Link href="/" className="flex items-center gap-[8px]">
+            <span aria-hidden className="h-[9px] w-[9px] rounded-full bg-[#15706A]" />
+            <span className="font-serif text-[17px] font-medium">Strategy Graph</span>
+          </Link>
+          <div className="hidden items-center gap-[20px] text-[13.5px] text-[#5C666C] md:flex">
+            <a href="#modules" className="hover:text-[#12171A]">Modules</a>
+            <a href="#workflow" className="hover:text-[#12171A]">Workflow</a>
+            <a href="#claims" className="hover:text-[#12171A]">Claims</a>
+          </div>
+          <Link href={workspaceHref} className="ml-auto inline-flex items-center gap-[6px] text-[13.5px] font-medium text-[#15706A]! hover:text-[#115C57]!">
+            {workspaceLabel} <ArrowRight aria-hidden size={15} />
+          </Link>
+        </nav>
       </header>
 
       <main id="main-content">
-      <section className={styles.hero}>
-        <div className={`${styles.container} grid items-center gap-16 pb-20 pt-20 lg:grid-cols-[0.9fr_1.1fr] lg:pb-28 lg:pt-24`}>
-          <div className="relative z-10 max-w-2xl">
-            <div className={styles.heroEyebrow}>
-              <Sparkles aria-hidden size={14} /> The operating system for organic growth
-            </div>
-            <h1 className={styles.heroTitle}>
-              Build content that works as a <span>system.</span>
+        <section className="mx-auto grid max-w-[1120px] items-center gap-[40px] px-[20px] pb-[56px] pt-[56px] sm:px-[28px] lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="grid gap-[16px]">
+            <span className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-[#15706A]">SEO and AI-search content</span>
+            <h1 className="m-0 font-serif text-[clamp(32px,5vw,46px)] font-medium leading-[1.08] tracking-tight [text-wrap:balance]">
+              Every sentence traces to a claim you approved.
             </h1>
-            <p className={styles.heroCopy}>
-              Connect business strategy to keyword intelligence, content architecture, SEO rules, and governed AI workflows—without losing the decisions in between.
+            <p className="m-0 max-w-[54ch] text-[16px] leading-[1.6] text-[#5C666C]">
+              Plan pages from real search demand, draft them only from positioning your team signed off, and let people decide at two review gates.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link className={styles.primaryCta} href={workspaceHref}>
-                {workspaceLabel === "Sign in" ? "Enter your workspace" : workspaceLabel}
-                <ArrowRight aria-hidden size={18} />
+            <div className="mt-[6px] flex flex-wrap gap-[10px]">
+              <Link href={workspaceHref} className={primaryCta}>
+                {ctaLabel} <ArrowRight aria-hidden size={16} />
               </Link>
-              <a className={styles.secondaryCta} href="#platform">Explore the platform</a>
+              <a href="#workflow" className={secondaryCta}>See how an article is made</a>
             </div>
-            <ul className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-[#aeb8c8]" aria-label="Platform principles">
-              {["Structured by design", "Human approved", "Tenant isolated"].map((item) => (
-                <li className="inline-flex items-center gap-2" key={item}>
-                  <span className={styles.checkIcon}><Check aria-hidden size={11} /></span>{item}
-                </li>
+          </div>
+          <BoardPreview />
+        </section>
+
+        <section id="modules" className="border-t border-[#D6DBD9] bg-[#F5F7F6]">
+          <div className="mx-auto max-w-[1120px] px-[20px] py-[56px] sm:px-[28px]">
+            <h2 className="m-0 max-w-[26ch] font-serif text-[28px] font-medium leading-tight [text-wrap:balance]">
+              One card travels from strategy to a live page.
+            </h2>
+            <p className="m-[10px_0_28px] max-w-[62ch] text-[15px] leading-[1.6] text-[#5C666C]">
+              A content card is planned in Strategy, scheduled in the Content Hub, written in Production and measured in the Iteration Lab.
+            </p>
+            <div className="grid gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
+              {modules.map((module) => (
+                <article key={module.name} className="grid content-start gap-[6px] rounded-[8px] border border-[#D6DBD9] bg-white p-[16px_18px]">
+                  <span className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-[#15706A]">{module.name}</span>
+                  <h3 className="m-0 font-serif text-[18px] font-medium leading-snug">{module.title}</h3>
+                  <p className="m-0 text-[13.5px] leading-[1.55] text-[#5C666C]">{module.body}</p>
+                </article>
               ))}
-            </ul>
-          </div>
-
-          <div className={styles.previewWrap}>
-            <div className={styles.previewGlow} aria-hidden />
-            <ProductPreview />
-            <div className={styles.floatingCard} aria-hidden>
-              <span className={styles.floatingIcon}><ShieldCheck size={15} /></span>
-              <span><small>Governance check</small>All actions authorized</span>
-              <CircleCheck className="ml-auto text-[#57d4aa]" size={17} />
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className={`${styles.container} ${styles.disciplineRow}`} aria-label="Connected disciplines">
-          <span>Strategy</span><i /><span>Discovery</span><i /><span>Architecture</span><i />
-          <span>Creation</span><i /><span>Governance</span><i /><span>Learning</span>
-        </div>
-      </section>
-
-      <section className={styles.platformSection} id="platform">
-        <div className={styles.container}>
-          <div className="max-w-3xl">
-            <p className={styles.sectionEyebrow}>One connected workspace</p>
-            <h2 className={styles.sectionTitle}>Every content decision stays connected.</h2>
-            <p className={styles.sectionCopy}>
-              Replace scattered docs, keyword exports, and disconnected AI prompts with a structured operating model your team can inspect, govern, and improve.
-            </p>
-          </div>
-
-          <div className="mt-14 grid gap-5 md:grid-cols-2">
-            {capabilities.map(({ icon: Icon, label, title, description, tone }) => (
-              <article className={styles.capabilityCard} key={label}>
-                <div className={`${styles.capabilityIcon} ${styles[tone]}`}><Icon aria-hidden size={21} /></div>
-                <p className={styles.cardLabel}>{label}</p>
-                <h3>{title}</h3>
-                <p>{description}</p>
-                <span className={styles.cardRule} aria-hidden />
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.workflowSection} id="workflow">
-        <div className={`${styles.container} grid gap-14 lg:grid-cols-[0.72fr_1.28fr]`}>
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <p className={styles.sectionEyebrow}>A durable workflow</p>
-            <h2 className={styles.sectionTitle}>From first principle to measurable page.</h2>
-            <p className={styles.sectionCopy}>
-              Each step produces structured, versioned context for the next—so your content program gets smarter without becoming less accountable.
-            </p>
-          </div>
-
-          <ol className={styles.workflowList}>
-            {workflow.map((item, index) => (
-              <li className={styles.workflowItem} key={item.step}>
-                <span className={styles.workflowNumber}>{item.step}</span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
-                </div>
-                <span className={styles.workflowGlyph} aria-hidden>
-                  {[Target, GitBranch, Layers3, BarChart3].map((Icon, iconIndex) =>
-                    iconIndex === index ? <Icon key={iconIndex} size={20} /> : null,
-                  )}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className={styles.governanceSection} id="governance">
-        <div className={`${styles.container} grid items-center gap-14 lg:grid-cols-2`}>
-          <div className={styles.governanceVisual}>
-            <div className={styles.governanceOrbit} aria-hidden>
-              <span className={styles.orbitOne}><Fingerprint size={18} /></span>
-              <span className={styles.orbitTwo}><LockKeyhole size={18} /></span>
-              <span className={styles.orbitThree}><Bot size={18} /></span>
-              <span className={styles.orbitCore}><ShieldCheck size={30} /></span>
+        <section id="workflow" className="border-t border-[#D6DBD9]">
+          <div className="mx-auto grid max-w-[1120px] gap-[32px] px-[20px] py-[56px] sm:px-[28px] lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <h2 className="m-0 font-serif text-[28px] font-medium leading-tight [text-wrap:balance]">How an article is made</h2>
+              <p className="m-[10px_0_0] max-w-[44ch] text-[15px] leading-[1.6] text-[#5C666C]">
+                The AI does the drafting and checking. People approve the outline and the final text, and every decision is recorded.
+              </p>
             </div>
-            <div className={styles.auditCard}>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-xs font-bold text-white">Proposal review</span>
-                <span className={styles.reviewStatus}>Approval required</span>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {["Exact source context attached", "Permission policy evaluated", "Original and patch preserved"].map((item) => (
-                  <div className="flex items-center gap-2 text-[11px] text-[#bac3d1]" key={item}>
-                    <CircleCheck aria-hidden className="text-[#57d4aa]" size={13} /> {item}
+            <ol className="m-0 grid list-none gap-[8px] p-0">
+              {steps.map((step, index) => (
+                <li
+                  key={step.name}
+                  className={`grid grid-cols-[34px_1fr] items-baseline gap-[10px] rounded-[8px] border bg-white p-[12px_16px] ${step.gate ? "border-[#F0D2CC]" : "border-[#E7EAE9]"}`}
+                >
+                  <span className={`font-mono text-[13px] tabular-nums ${step.gate ? "text-[#B9463A]" : "text-[#15706A]"}`}>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <h3 className="m-0 text-[14.5px] font-medium">{step.name}</h3>
+                    <p className="m-[2px_0_0] text-[13.5px] text-[#5C666C]">{step.note}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-xl">
-            <p className={`${styles.sectionEyebrow} !text-[#8f87ff]`}>Governed at the foundation</p>
-            <h2 className={`${styles.sectionTitle} !text-white`}>AI that operates inside your rules.</h2>
-            <p className={`${styles.sectionCopy} !text-[#aeb8c8]`}>
-              Content Intelligence OS treats AI output as a proposal, not a command. Every tool call is typed, scoped, authorized, and auditable before it can affect your work.
-            </p>
-            <ul className="mt-8 grid gap-4 text-sm text-[#dbe1eb]">
-              {[
-                "No unrestricted database access",
-                "Source-attributed, token-budgeted context",
-                "Explicit approval for high-impact actions",
-                "Tenant and project scope on every protected operation",
-              ].map((item) => (
-                <li className="flex items-center gap-3" key={item}>
-                  <span className={styles.darkCheck}><Check aria-hidden size={12} /></span>{item}
                 </li>
               ))}
-            </ul>
+            </ol>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className={styles.finalSection}>
-        <div className={`${styles.container} ${styles.finalCard}`}>
-          <div className="relative z-10 max-w-3xl">
-            <p className={styles.sectionEyebrow}>Build with clarity</p>
-            <h2 className={styles.finalTitle}>Your content program deserves a source of truth.</h2>
-            <p className={styles.finalCopy}>
-              Bring strategy, architecture, rules, and human-governed AI into one operational system.
-            </p>
-            <Link className={styles.primaryCta} href={workspaceHref}>
-              {workspaceLabel === "Sign in" ? "Enter your workspace" : workspaceLabel}
-              <ArrowRight aria-hidden size={18} />
+        <section id="claims" className="border-t border-[#D6DBD9] bg-[#F5F7F6]">
+          <div className="mx-auto grid max-w-[1120px] items-center gap-[32px] px-[20px] py-[56px] sm:px-[28px] lg:grid-cols-2">
+            <div>
+              <h2 className="m-0 font-serif text-[28px] font-medium leading-tight [text-wrap:balance]">
+                The AI cites claims. It never invents them.
+              </h2>
+              <p className="m-[10px_0_0] max-w-[50ch] text-[15px] leading-[1.6] text-[#5C666C]">
+                When a draft needs a fact about your company that nobody approved, it leaves a marker instead of making one up. QA will not pass until a person resolves it.
+              </p>
+            </div>
+            <figure className="m-0 rounded-[8px] border border-[#D6DBD9] bg-white p-[18px_20px]">
+              <p className="m-0 text-[14.5px] leading-[1.75]">
+                We file IOSS returns for every EU order{" "}
+                <span className="rounded-[4px] border border-[#C4DEDA] bg-[#E1EFED] px-[5px] font-mono text-[12px] text-[#15706A]">CLM-012</span>
+                , so buyers never pay duty on delivery.{" "}
+                <span className="rounded-[4px] border border-[#F0D2CC] bg-[#FBEBE8] px-[5px] font-mono text-[12px] text-[#B9463A]">NEEDS-CLAIM: same-day customs clearance</span>
+              </p>
+              <figcaption className="mt-[12px] border-t border-[#E7EAE9] pt-[10px] text-[12.5px] text-[#8A949A]">
+                Teal: backed by approved claim 12, version 2. Coral: blocks QA until someone approves or removes it.
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section className="border-t border-[#D6DBD9]">
+          <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-[16px] px-[20px] py-[48px] sm:px-[28px]">
+            <h2 className="m-0 max-w-[30ch] font-serif text-[26px] font-medium leading-tight [text-wrap:balance]">
+              Start from your positioning, not a blank prompt.
+            </h2>
+            <Link href={workspaceHref} className={primaryCta}>
+              {ctaLabel} <ArrowRight aria-hidden size={16} />
             </Link>
           </div>
-          <Orbit className={styles.finalOrbit} aria-hidden />
-        </div>
-      </section>
+        </section>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={`${styles.container} flex flex-col gap-7 py-10 sm:flex-row sm:items-center sm:justify-between`}>
-          <Link className="inline-flex items-center gap-2.5 font-bold tracking-[-0.02em] text-[#1a202b]" href="/">
-            <span className={styles.footerMark}><Orbit aria-hidden size={16} /></span>
-            Content Intelligence OS
-          </Link>
-          <p className="text-sm text-[#6d7583]">Structured strategy. Governed intelligence. Better content.</p>
-          <div className="flex gap-5 text-sm font-medium text-[#555e6c]">
-            <a href="#platform">Platform</a>
-            <a href="#workflow">Workflow</a>
-            <Link href={workspaceHref}>{workspaceLabel}</Link>
-          </div>
+      <footer className="border-t border-[#D6DBD9] bg-[#FAFBFA]">
+        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-x-[24px] gap-y-[10px] px-[20px] py-[22px] text-[13px] text-[#5C666C] sm:px-[28px]">
+          <span className="flex items-center gap-[8px] text-[#12171A]">
+            <span aria-hidden className="h-[8px] w-[8px] rounded-full bg-[#15706A]" />
+            <span className="font-serif text-[15px]">Strategy Graph</span>
+          </span>
+          <span>Approved claims in. Reviewed pages out.</span>
+          <span className="ml-auto flex gap-[16px]">
+            <a href="#modules" className="hover:text-[#12171A]">Modules</a>
+            <a href="#workflow" className="hover:text-[#12171A]">Workflow</a>
+            <Link href={workspaceHref} className="hover:text-[#12171A]">{workspaceLabel}</Link>
+          </span>
         </div>
       </footer>
     </div>
