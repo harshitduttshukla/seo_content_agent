@@ -1,12 +1,10 @@
 "use client";
 
-import { Building2, Plus, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-import { Button } from "@/components/button";
-import { Card } from "@/components/card";
-import { Input } from "@/components/input";
+import { v3 } from "@/components/v3/v3-top-bar";
 import { ApiError, apiRequest, idempotencyKey } from "@/lib/client-api";
 import type { Organization } from "@/lib/api-types";
 
@@ -36,43 +34,49 @@ export function OrganizationWorkspace({ initialItems }: { initialItems: Organiza
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <section>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {items.map((organization) => (
-            <Link href={`/projects?organization_id=${organization.id}`} key={organization.id}>
-              <Card className="group h-full p-5 transition hover:-translate-y-0.5 hover:border-[#b8b2ff] hover:shadow-md">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="grid size-11 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                    <Building2 aria-hidden size={20} />
-                  </span>
-                  <ArrowRight aria-hidden className="text-[var(--muted)] transition group-hover:translate-x-1" size={18} />
-                </div>
-                <h2 className="mb-1 mt-7 text-lg font-bold tracking-[-0.02em]">{organization.name}</h2>
-                <p className="m-0 text-sm text-[var(--muted)]">/{organization.slug}</p>
-              </Card>
-            </Link>
-          ))}
-          {!items.length ? (
-            <Card className="grid min-h-48 place-items-center border-dashed p-6 text-center sm:col-span-2">
-              <div>
-                <Building2 aria-hidden className="mx-auto text-[var(--muted)]" />
-                <p className="mb-1 mt-4 font-semibold">No organization yet</p>
-                <p className="m-0 text-sm text-[var(--muted)]">Create the tenant boundary for your first workspace.</p>
-              </div>
-            </Card>
-          ) : null}
-        </div>
+    <div className="grid items-start gap-[16px] lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section aria-label="Organizations" className="grid gap-[10px] sm:grid-cols-2">
+        {items.map((organization) => (
+          <Link href={`/projects?organization_id=${organization.id}`} key={organization.id} className={v3.cardLink}>
+            <div className="flex items-center justify-between gap-[10px]">
+              <h2 className="m-0 font-serif text-[19px] font-medium text-[#12171A]">{organization.name}</h2>
+              <ArrowRight aria-hidden size={16} className="flex-none text-[#8A949A] transition-transform group-hover:translate-x-0.5 group-hover:text-[#15706A]" />
+            </div>
+            <p className="m-[4px_0_0] font-mono text-[11.5px] text-[#8A949A]">/{organization.slug}</p>
+          </Link>
+        ))}
+        {!items.length ? (
+          <div className="rounded-[8px] border border-dashed border-[#D6DBD9] bg-[#FAFBFA] p-[22px] text-center sm:col-span-2">
+            <p className="m-0 text-[13.3px] font-medium text-[#12171A]">No organization yet</p>
+            <p className="m-[4px_0_0] text-[12.6px] text-[#5C666C]">Create one to hold your projects and team.</p>
+          </div>
+        ) : null}
       </section>
-      <Card className="h-fit p-6 shadow-[var(--shadow)]">
-        <span className="inline-flex items-center gap-2 text-sm font-bold"><Plus aria-hidden size={16} /> New organization</span>
-        <p className="mb-5 mt-2 text-sm leading-6 text-[var(--muted)]">Organizations isolate members, projects, websites, and every future content record.</p>
-        <form className="grid gap-4" onSubmit={createOrganization}>
-          <Input label="Organization name" name="name" onChange={(event) => setName(event.target.value)} placeholder="Acme Content Studio" required value={name} />
-          {error ? <p className="m-0 text-sm text-[var(--danger)]" role="alert">{error}</p> : null}
-          <Button disabled={pending || name.trim().length < 2} type="submit">{pending ? "Creating…" : "Create organization"}</Button>
+
+      <section aria-label="New organization" className={`${v3.card} p-[16px_18px]`}>
+        <h2 className="m-0 text-[13.3px] font-medium text-[#12171A]">New organization</h2>
+        <p className="m-[4px_0_14px] text-[12.6px] leading-[1.5] text-[#5C666C]">
+          Each organization keeps its members, projects and content separate from every other one.
+        </p>
+        <form className="grid gap-[12px]" onSubmit={createOrganization}>
+          <label className={v3.label}>
+            Organization name
+            <input
+              id="organization-name"
+              name="name"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Acme Content Studio"
+              className={v3.field}
+            />
+          </label>
+          {error ? <p role="alert" className="m-0 text-[12.6px] text-[#B9463A]">{error}</p> : null}
+          <button type="submit" disabled={pending || name.trim().length < 2} className={v3.primary}>
+            {pending ? "Creating…" : "Create organization"}
+          </button>
         </form>
-      </Card>
+      </section>
     </div>
   );
 }
