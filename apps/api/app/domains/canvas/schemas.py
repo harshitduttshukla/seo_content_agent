@@ -184,6 +184,10 @@ class WorkspaceConfig(BaseModel):
     techseo_score_weights: TechSEOScoreWeights = Field(default_factory=TechSEOScoreWeights)
     classification_cache: bool = Field(default=True)
     models: ModelConfig = Field(default_factory=ModelConfig)
+    demand_csv_mapping: dict[str, str] = Field(
+        default_factory=dict,
+        description="Demand field → CSV header, saved by the last import (§4.5 Ingest)",
+    )
     monthly_cost_cap_usd: float | None = Field(
         default=None, ge=0.0, description="Per-tenant monthly model cost cap in USD"
     )
@@ -266,6 +270,25 @@ class ArgumentResponse(BaseModel):
     inherited: bool = False
     override: bool = False
     model_config = ConfigDict(from_attributes=True)
+
+
+class AreaCreateRequest(BaseModel):
+    """A product-tree node on a canvas (§3.1, §4.4).
+
+    Names are unique per project so demand CSV import can match them.
+    """
+
+    name: str = Field(min_length=1, max_length=500)
+    parent_id: UUID | None = None
+    default_argument_id: UUID | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Area name is required.")
+        return stripped
 
 
 class AreaResponse(BaseModel):

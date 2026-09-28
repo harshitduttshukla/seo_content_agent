@@ -23,6 +23,7 @@ import type {
 } from "@/lib/api-types";
 import { V3API, type V3Scope } from "@/lib/v3-api";
 
+import { AreasPanel } from "./areas-panel";
 import { ClaimDrilldownSheet } from "./claim-drilldown-sheet";
 import {
   AnchorDialog,
@@ -607,6 +608,8 @@ export function CanvasTab({
           </div>
         </div>
       ) : null}
+
+      {canvas ? <AreasPanel key={canvas.id} scope={scope} canvasId={canvas.id} canvasArguments={canvas.arguments} /> : null}
 
       {/* Helper notes */}
       <div className="mt-4 grid gap-3 md:grid-cols-2 text-[12.5px] text-[#556066]">

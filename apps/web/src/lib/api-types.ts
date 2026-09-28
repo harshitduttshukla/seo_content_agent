@@ -371,6 +371,12 @@ export interface Area {
   default_argument_id: string | null;
 }
 
+export interface AreaInput {
+  name: string;
+  parent_id?: string | null;
+  default_argument_id?: string | null;
+}
+
 export interface ClaimDrilldown {
   argument_chain: ClaimBase[];
   demand_nodes: DemandNode[];

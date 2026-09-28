@@ -7,6 +7,7 @@ import { V3API } from "@/lib/v3-api";
 
 vi.mock("@/lib/v3-api", () => ({
   V3API: {
+    areas: { list: vi.fn().mockResolvedValue([]), create: vi.fn() },
     canvas: {
       list: vi.fn(),
       get: vi.fn(),

@@ -5,9 +5,10 @@ from uuid import UUID, uuid4
 
 from app.core.errors import BadRequestError, ConflictError, ResourceNotFound
 from app.db.session import set_actor_context, transactional_session
-from app.domains.canvas.models import Argument, Canvas, Claim, ClaimRow
+from app.domains.canvas.models import Area, Argument, Canvas, Claim, ClaimRow
 from app.domains.canvas.repository import CanvasRepository
 from app.domains.canvas.schemas import (
+    AreaCreateRequest,
     AreaResponse,
     ArgumentCreateRequest,
     ArgumentResponse,
@@ -261,6 +262,60 @@ class CanvasService:
                 organization_id, project_id, canvas_id=canvas_id
             )
         return [AreaResponse.model_validate(area) for area in areas]
+
+    async def create_area(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        canvas_id: UUID,
+        payload: AreaCreateRequest,
+        *,
+        actor: AuthenticatedUser,
+    ) -> AreaResponse:
+        async with transactional_session(self._session):
+            await set_actor_context(self._session, actor.user_id)
+            await self._authorization.require_project(
+                self._session,
+                user_id=actor.user_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                permission=PermissionCode.STRATEGY_WRITE,
+            )
+            canvas = await self.repository.get_canvas_by_id(organization_id, project_id, canvas_id)
+            if canvas is None:
+                raise ResourceNotFound("canvas")
+            if payload.parent_id is not None:
+                parent = await self.repository.get_area_by_id(
+                    organization_id, project_id, payload.parent_id
+                )
+                if parent is None or parent.canvas_id != canvas_id:
+                    raise BadRequestError(
+                        "Parent area must belong to this canvas.", field="parent_id"
+                    )
+            if payload.default_argument_id is not None:
+                argument = await self.repository.get_argument_by_id(
+                    organization_id, project_id, payload.default_argument_id
+                )
+                if argument is None or argument.canvas_id != canvas_id:
+                    raise BadRequestError(
+                        "Default argument must belong to this canvas.",
+                        field="default_argument_id",
+                    )
+            # Demand CSV import resolves areas by name, so a name must be unambiguous per project.
+            if await self.repository.area_name_exists(organization_id, project_id, payload.name):
+                raise ConflictError(f"An area named '{payload.name}' already exists.")
+            area = Area(
+                id=uuid4(),
+                organization_id=organization_id,
+                project_id=project_id,
+                canvas_id=canvas_id,
+                parent_id=payload.parent_id,
+                name=payload.name,
+                default_argument_id=payload.default_argument_id,
+            )
+            self.repository.add(area)
+            await self._session.flush()
+            return AreaResponse.model_validate(area)
 
     async def get_canvas(
         self, organization_id: UUID, project_id: UUID, canvas_id: UUID, *, actor: AuthenticatedUser

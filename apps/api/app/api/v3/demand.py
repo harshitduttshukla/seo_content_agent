@@ -10,6 +10,7 @@ from app.api.responses import success
 from app.domains.demand.schemas import (
     BulkActionRequest,
     BulkUpdateResponse,
+    DemandCsvMappingResponse,
     DemandImportRequest,
     DemandImportResponse,
     DemandNodeListResponse,
@@ -53,6 +54,19 @@ async def import_demand(
         organization_id, project_id, payload, actor=actor
     )
     return success(request, result)
+
+
+@router.get("/demand/csv-mapping", response_model=ApiResponse[DemandCsvMappingResponse])
+async def get_demand_csv_mapping(
+    organization_id: UUID,
+    project_id: UUID,
+    request: Request,
+    session: SessionDep,
+    actor: CurrentUserDep,
+) -> ApiResponse[DemandCsvMappingResponse]:
+    return success(
+        request, await DemandService(session).get_csv_mapping(organization_id, project_id, actor)
+    )
 
 
 @router.get("/demand", response_model=ApiResponse[DemandNodeListResponse])

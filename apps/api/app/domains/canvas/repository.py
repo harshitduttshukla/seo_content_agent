@@ -174,6 +174,30 @@ class CanvasRepository:
         )
         return result.scalars().all()
 
+    async def get_area_by_id(
+        self, organization_id: UUID, project_id: UUID, area_id: UUID
+    ) -> Area | None:
+        result = await self._session.execute(
+            select(Area).where(
+                Area.organization_id == organization_id,
+                Area.project_id == project_id,
+                Area.id == area_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def area_name_exists(self, organization_id: UUID, project_id: UUID, name: str) -> bool:
+        result = await self._session.execute(
+            select(Area.id)
+            .where(
+                Area.organization_id == organization_id,
+                Area.project_id == project_id,
+                func.lower(Area.name) == name.lower(),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def get_argument_by_id(
         self, organization_id: UUID, project_id: UUID, argument_id: UUID
     ) -> Argument | None:
@@ -368,6 +392,6 @@ class CanvasRepository:
         return result.scalar_one_or_none()
 
     def add(
-        self, entity: Canvas | Argument | Claim | JobRun | ContentCard | ContentCardClaim
+        self, entity: Area | Canvas | Argument | Claim | JobRun | ContentCard | ContentCardClaim
     ) -> None:
         self._session.add(entity)

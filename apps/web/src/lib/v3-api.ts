@@ -18,6 +18,7 @@ import type {
   BrandKitDetail,
   BrandKitInput,
   Area,
+  AreaInput,
   CanvasAnchorInput,
   CanvasArgumentInput,
   CanvasClaimInput,
@@ -66,6 +67,11 @@ export const V3API = {
       const path = scopedPath(scope, "/areas");
       return clientApi(canvasId ? `${path}&canvas_id=${encodeURIComponent(canvasId)}` : path);
     },
+    create: (scope: V3Scope, canvasId: string, data: AreaInput): Promise<Area> =>
+      clientApi(scopedPath(scope, `/canvases/${canvasId}/areas`), {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
   canvas: {
     createCompany: (scope: V3Scope): Promise<CanvasDetail> =>
@@ -147,11 +153,17 @@ export const V3API = {
         method: "POST",
         body: JSON.stringify({ node_ids: nodeIds }),
       }),
-    importCsv: (scope: V3Scope, items: DemandImportItem[]): Promise<DemandImportResponse> =>
+    importCsv: (
+      scope: V3Scope,
+      items: DemandImportItem[],
+      columnMapping?: Record<string, string>,
+    ): Promise<DemandImportResponse> =>
       clientApi(scopedPath(scope, "/demand/import"), {
         method: "POST",
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, column_mapping: columnMapping ?? null }),
       }),
+    csvMapping: (scope: V3Scope): Promise<{ column_mapping: Record<string, string> }> =>
+      clientApi(scopedPath(scope, "/demand/csv-mapping")),
     bulkReassign: (
       scope: V3Scope,
       nodeIds: string[],
