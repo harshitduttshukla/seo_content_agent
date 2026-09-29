@@ -1,6 +1,5 @@
 import {
   Network,
-  Settings,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,8 +14,7 @@ type NavigationItem = {
 export function Sidebar({ projectId, active }: { projectId: string; active: string }) {
   const items: NavigationItem[] = [
     { label: "Website", href: `/projects/${projectId}/website`, icon: Network },
-    { label: "Content Harness", href: `/projects/${projectId}/content-harness`, icon: Sparkles },
-    { label: "Settings", href: `/projects/${projectId}/v3/settings`, icon: Settings },
+    { label: "Content Harness", href: `/projects/${projectId}/content-harness`, icon: Sparkles }
   ];
   return (
     <aside
@@ -29,9 +27,8 @@ export function Sidebar({ projectId, active }: { projectId: string; active: stri
           const current = item.label === active;
           return (
             <Link
-              className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition ${
-                current ? "bg-white text-[var(--accent)] shadow-sm" : "text-[var(--muted)] hover:bg-white/70 hover:text-[var(--ink)]"
-              }`}
+              className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition ${current ? "bg-white text-[var(--accent)] shadow-sm" : "text-[var(--muted)] hover:bg-white/70 hover:text-[var(--ink)]"
+                }`}
               href={item.href}
               key={item.label}
             >

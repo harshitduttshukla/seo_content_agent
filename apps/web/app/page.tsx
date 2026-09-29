@@ -5,9 +5,9 @@ import { LandingPage } from "@/features/marketing/landing-page";
 import { ACCESS_COOKIE } from "@/lib/oidc";
 
 export const metadata: Metadata = {
-  title: "Content Intelligence OS | Governed SEO operations",
+  title: "Strategy Graph | Claim-grounded SEO content",
   description:
-    "Connect strategy, keyword intelligence, content architecture, SEO rules, and governed AI workflows in one secure operating system.",
+    "Plan pages from search demand, draft them only from approved positioning claims, and approve every article at two human review gates.",
   alternates: { canonical: "/" },
 };
 
