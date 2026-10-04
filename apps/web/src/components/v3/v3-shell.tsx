@@ -11,12 +11,18 @@ export function V3Shell({ projectId, children }: { projectId: string; children: 
     { name: "Content Hub", path: `/projects/${projectId}/v3/content-hub` },
     { name: "Production", path: `/projects/${projectId}/v3/production` },
     { name: "Iteration Lab", path: `/projects/${projectId}/v3/iteration-lab` },
-    { name: "Technical SEO", path: `/projects/${projectId}/website` },
+    { name: "Website Intelligence", path: `/projects/${projectId}/v3/website` },
   ];
   // Project configuration sits apart from the content modules, as "Base" in the V3 mockup.
   const navGroups = [
     { label: "Modules", items: navItems },
-    { label: "Base", items: [{ name: "Settings", path: `/projects/${projectId}/v3/settings` }] },
+    {
+      label: "Base",
+      items: [
+        { name: "Content Agent Harness", path: `/projects/${projectId}/v3/content-harness` },
+        { name: "Settings", path: `/projects/${projectId}/v3/settings` },
+      ],
+    },
   ];
 
   return (
