@@ -98,10 +98,12 @@ export function ContentHarnessView({
   projectId,
   goldenCases,
   initialRuns,
+  apiPrefix = "",
 }: {
   projectId: string;
   goldenCases: GoldenCaseOption[];
   initialRuns: RunDetail[];
+  apiPrefix?: string;
 }) {
   const [activeTab, setActiveTab] = useState<"input" | "output" | "scorecard" | "compare" | "inspect">("input");
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
@@ -180,7 +182,7 @@ export function ContentHarnessView({
         run_ai_evaluator: runAiEvaluator,
       };
 
-      const res = await fetch(`/api/backend/content-harness/runs`, {
+      const res = await fetch(`/api/backend${apiPrefix}/content-harness/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -207,7 +209,7 @@ export function ContentHarnessView({
     if (!compareAId || !compareBId) return;
     setIsComparing(true);
     try {
-      const res = await fetch(`/api/backend/content-harness/runs/compare`, {
+      const res = await fetch(`/api/backend${apiPrefix}/content-harness/runs/compare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

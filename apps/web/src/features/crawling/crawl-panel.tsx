@@ -19,9 +19,11 @@ import type {
 export function CrawlPanel({
   website,
   onWebsiteUpdated,
+  apiPrefix = "",
 }: {
   website: Website;
   onWebsiteUpdated?: (updated: Website) => void;
+  apiPrefix?: string;
 }) {
   const [summary, setSummary] = useState<CrawlStatusSummary | null>(null);
   const [jobs, setJobs] = useState<CrawlJob[]>([]);
@@ -46,7 +48,7 @@ export function CrawlPanel({
   // Polling for live crawl status
   async function fetchCrawlStatus() {
     try {
-      const res = await apiRequest<CrawlStatusSummary>(`/websites/${website.id}/crawl-status`);
+      const res = await apiRequest<CrawlStatusSummary>(`${apiPrefix}/websites/${website.id}/crawl-status`);
       setSummary(res);
     } catch {
       // Ignored in background polling
@@ -55,7 +57,7 @@ export function CrawlPanel({
 
   async function fetchJobs() {
     try {
-      const res = await apiRequest<{ items: CrawlJob[] }>(`/websites/${website.id}/crawl-jobs?limit=10`);
+      const res = await apiRequest<{ items: CrawlJob[] }>(`${apiPrefix}/websites/${website.id}/crawl-jobs?limit=10`);
       setJobs(res.items || []);
     } catch {
       // Ignored
@@ -64,7 +66,7 @@ export function CrawlPanel({
 
   async function fetchVerificationInfo() {
     try {
-      const res = await apiRequest<WebsiteVerification>(`/websites/${website.id}/verification`);
+      const res = await apiRequest<WebsiteVerification>(`${apiPrefix}/websites/${website.id}/verification`);
       setVerificationInfo(res);
     } catch {
       // Ignored
@@ -93,7 +95,7 @@ export function CrawlPanel({
     setVerifying(true);
     setVerifyError("");
     try {
-      const res = await apiRequest<WebsiteVerification>(`/websites/${website.id}/verify`, {
+      const res = await apiRequest<WebsiteVerification>(`${apiPrefix}/websites/${website.id}/verify`, {
         method: "POST",
         body: JSON.stringify({ method: verifyMethod }),
       });
@@ -118,7 +120,7 @@ export function CrawlPanel({
     setVerifying(true);
     setVerifyError("");
     try {
-      const res = await apiRequest<WebsiteVerification>(`/websites/${website.id}/verify`, {
+      const res = await apiRequest<WebsiteVerification>(`${apiPrefix}/websites/${website.id}/verify`, {
         method: "POST",
         body: JSON.stringify({ method: "dev_bypass" }),
       });
@@ -141,7 +143,7 @@ export function CrawlPanel({
     setCrawlStarting(true);
     setCrawlError("");
     try {
-      await apiRequest<CrawlJob>(`/websites/${website.id}/crawl`, {
+      await apiRequest<CrawlJob>(`${apiPrefix}/websites/${website.id}/crawl`, {
         method: "POST",
         body: JSON.stringify({
           configuration: {
@@ -167,7 +169,7 @@ export function CrawlPanel({
   async function handleCancelCrawl(jobId: string) {
     setCancellingJobId(jobId);
     try {
-      await apiRequest<CrawlJob>(`/crawl-jobs/${jobId}/cancel`, {
+      await apiRequest<CrawlJob>(`${apiPrefix}/crawl-jobs/${jobId}/cancel`, {
         method: "POST",
       });
       await fetchCrawlStatus();

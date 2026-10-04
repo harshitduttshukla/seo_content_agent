@@ -15,6 +15,8 @@ def test_phase3_openapi_contract_contains_expected_resources() -> None:
     # Crawling (Phase 2)
     assert "/api/v1/websites/{website_id}/crawl-jobs" in paths
     assert "/api/v1/websites/{website_id}/pages" in paths
+    assert "/api/v3/websites/{website_id}/crawl-jobs" in paths
+    assert "/api/v3/websites/{website_id}/pages" in paths
 
     # Strategy, Keywords, Clusters, and Content Architecture (Phase 3)
     assert "/api/v1/projects/{project_id}/strategy" in paths
@@ -64,6 +66,7 @@ def test_v3_card_workflow_contract_stops_at_approval() -> None:
         assert card + suffix in paths
     for run in ("v3-outline-runs", "v3-draft-runs", "v3-production-runs"):
         assert f"/api/v1/content-harness/{run}" in paths
+        assert f"/api/v3/content-harness/{run}" in paths
     # Publishing, CMS and the live transition belong to later phases.
     hub = [p for p in paths if p.startswith("/api/v3/content-hub/")]
     assert not any(word in p for p in hub for word in ("/publish", "/cms", "/live", "/export"))

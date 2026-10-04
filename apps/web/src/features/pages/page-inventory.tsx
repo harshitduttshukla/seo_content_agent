@@ -15,7 +15,7 @@ import type {
   Website,
 } from "@/lib/api-types";
 
-export function PageInventory({ website }: { website: Website }) {
+export function PageInventory({ website, apiPrefix = "" }: { website: Website; apiPrefix?: string }) {
   const [pages, setPages] = useState<ContentPageSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -38,7 +38,7 @@ export function PageInventory({ website }: { website: Website }) {
 
       const query = params.toString() ? `?${params.toString()}` : "";
       const res = await apiRequest<{ items: ContentPageSummary[] }>(
-        `/websites/${website.id}/pages${query}`
+        `${apiPrefix}/websites/${website.id}/pages${query}`
       );
       setPages((curr) => (isAppend ? [...curr, ...(res.items || [])] : res.items || []));
     } catch {
@@ -52,7 +52,7 @@ export function PageInventory({ website }: { website: Website }) {
     setLoadingDetail(true);
     try {
       const detail = await apiRequest<ContentPageDetail>(
-        `/websites/${website.id}/pages/${pageId}`
+        `${apiPrefix}/websites/${website.id}/pages/${pageId}`
       );
       setSelectedPage(detail);
     } catch {

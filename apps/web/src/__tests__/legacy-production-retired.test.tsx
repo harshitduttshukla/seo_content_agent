@@ -51,6 +51,14 @@ describe("legacy Production retirement", () => {
     const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
     expect(hrefs).not.toContain("/projects/proj-001/content");
     expect(hrefs.some((href) => /\/content(\/|$)/.test(href ?? ""))).toBe(false);
+    expect(screen.getByRole("link", { name: "Website Intelligence" })).toHaveAttribute(
+      "href",
+      "/projects/proj-001/v3/website",
+    );
+    expect(screen.getByRole("link", { name: "Content Agent Harness" })).toHaveAttribute(
+      "href",
+      "/projects/proj-001/v3/content-harness",
+    );
   });
 
   it("editor has no SEO quality tab and never calls the removed quality-check route", async () => {

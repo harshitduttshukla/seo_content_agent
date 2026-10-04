@@ -18,9 +18,11 @@ import type { Project, Website } from "@/lib/api-types";
 export function WebsiteWorkspace({
   project,
   initialItems,
+  apiPrefix = "",
 }: {
   project: Project;
   initialItems: Website[];
+  apiPrefix?: string;
 }) {
   const [items, setItems] = useState<Website[]>(initialItems);
   const [selectedSite, setSelectedSite] = useState<Website | null>(
@@ -180,6 +182,7 @@ export function WebsiteWorkspace({
           {/* Active Tab View */}
           {activeTab === "crawl" && (
             <CrawlPanel
+              apiPrefix={apiPrefix}
               onWebsiteUpdated={(updated) => {
                 setSelectedSite(updated);
                 setItems((curr) => curr.map((s) => (s.id === updated.id ? updated : s)));
@@ -188,7 +191,7 @@ export function WebsiteWorkspace({
             />
           )}
 
-          {activeTab === "pages" && <PageInventory website={selectedSite} />}
+          {activeTab === "pages" && <PageInventory apiPrefix={apiPrefix} website={selectedSite} />}
 
           {activeTab === "overview" && (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
